@@ -1,0 +1,287 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\DeviceRegistration;
+use App\Models\SyncConflict;
+use App\Models\SyncLog;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+
+class SyncService
+{
+    protected array $syncOrder = [
+        'App\Models\Shift',
+        'App\Models\Sale',
+        'App\Models\SaleItem',
+        'App\Models\SalePayment',
+        'App\Models\Expense',
+        'App\Models\StockMovement',
+        'App\Models\SalesReturn',
+        'App\Models\SaleReturnItem',
+        'App\Models\CashboxTransaction',
+        'App\Models\CustomerTransaction',
+        'App\Models\SupplierTransaction',
+    ];
+
+    public function getPendingChanges(string $deviceId): array
+    {
+        $changes = [];
+
+        foreach ($this->syncOrder as $modelClass) {
+            $logs = SyncLog::where('device_id', $deviceId)
+                ->where('syncable_type', $modelClass)
+                ->where('sync_status', 'pending')
+                ->orderBy('local_timestamp')
+                ->get();
+
+            foreach ($logs as $log) {
+                $changes[] = [
+                    'id' => $log->id,
+                    'type' => $log->syncable_type,
+                    'record_id' => $log->syncable_id,
+                    'action' => $log->action,
+                    'payload' => $log->payload,
+                    'timestamp' => $log->local_timestamp->toIso8601String(),
+                ];
+            }
+        }
+
+        return $changes;
+    }
+
+    public function pushChanges(string $deviceId): array
+    {
+        $device = DeviceRegistration::where('device_id', $deviceId)->first();
+
+        if (!$device || !$device->isActive()) {
+            return ['success' => false, 'message' => 'Device not active'];
+        }
+
+        $changes = $this->getPendingChanges($deviceId);
+
+        if (empty($changes)) {
+            return ['success' => true, 'pushed' => 0];
+        }
+
+        try {
+            $response = Http::withToken($device->api_token)
+                ->timeout(30)
+                ->post(config('desktop.server_url') . '/api/v1/sync/push', [
+                    'device_id' => $deviceId,
+                    'changes' => $changes,
+                ]);
+
+            if ($response->successful()) {
+                $result = $response->json();
+                $this->processPushResponse($result);
+                $device->updateLastSync();
+
+                return [
+                    'success' => true,
+                    'pushed' => count($changes),
+                    'synced' => $result['synced'] ?? [],
+                    'conflicts' => $result['conflicts'] ?? [],
+                ];
+            }
+
+            return ['success' => false, 'message' => $response->body()];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    protected function processPushResponse(array $response): void
+    {
+        if (isset($response['synced'])) {
+            foreach ($response['synced'] as $synced) {
+                $log = SyncLog::find($synced['log_id']);
+                if ($log) {
+                    $log->markAsSynced($synced['server_id'] ?? null);
+                }
+            }
+        }
+
+        if (isset($response['conflicts'])) {
+            foreach ($response['conflicts'] as $conflict) {
+                $log = SyncLog::find($conflict['log_id']);
+                if ($log) {
+                    $log->markAsConflict();
+
+                    SyncConflict::create([
+                        'device_id' => $log->device_id,
+                        'syncable_type' => $log->syncable_type,
+                        'syncable_id' => $log->syncable_id,
+                        'local_data' => $log->payload,
+                        'server_data' => $conflict['server_data'],
+                        'resolution' => 'pending',
+                    ]);
+                }
+            }
+        }
+    }
+
+    public function pullChanges(string $deviceId, Carbon $since = null): array
+    {
+        $device = DeviceRegistration::where('device_id', $deviceId)->first();
+
+        if (!$device || !$device->isActive()) {
+            return ['success' => false, 'message' => 'Device not active'];
+        }
+
+        try {
+            $response = Http::withToken($device->api_token)
+                ->timeout(30)
+                ->get(config('desktop.server_url') . '/api/v1/sync/pull', [
+                    'device_id' => $deviceId,
+                    'since' => $since?->toIso8601String(),
+                ]);
+
+            if ($response->successful()) {
+                $result = $response->json();
+                $applied = $this->applyPulledChanges($result['changes'] ?? []);
+                $device->updateLastSync();
+
+                return [
+                    'success' => true,
+                    'pulled' => count($result['changes'] ?? []),
+                    'applied' => $applied,
+                ];
+            }
+
+            return ['success' => false, 'message' => $response->body()];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    protected function applyPulledChanges(array $changes): int
+    {
+        $applied = 0;
+
+        DB::beginTransaction();
+
+        try {
+            foreach ($changes as $change) {
+                $modelClass = $change['type'];
+                $action = $change['action'];
+                $payload = $change['payload'];
+                $serverId = $change['id'];
+
+                switch ($action) {
+                    case 'created':
+                        $existing = $modelClass::find($serverId);
+                        if (!$existing) {
+                            $model = new $modelClass();
+                            $model->fill($payload);
+                            $model->id = $serverId;
+                            $model->synced_at = now();
+                            $model->save();
+                            $applied++;
+                        }
+                        break;
+
+                    case 'updated':
+                        $model = $modelClass::find($serverId);
+                        if ($model) {
+                            $model->fill($payload);
+                            $model->synced_at = now();
+                            $model->save();
+                            $applied++;
+                        }
+                        break;
+
+                    case 'deleted':
+                        $model = $modelClass::find($serverId);
+                        if ($model) {
+                            $model->delete();
+                            $applied++;
+                        }
+                        break;
+                }
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+
+        return $applied;
+    }
+
+    public function getServerTimestamp(): ?Carbon
+    {
+        try {
+            $response = Http::timeout(10)
+                ->get(config('desktop.server_url') . '/api/v1/sync/timestamp');
+
+            if ($response->successful()) {
+                return Carbon::parse($response->json('timestamp'));
+            }
+        } catch (\Exception $e) {
+        }
+
+        return null;
+    }
+
+    public function resolveConflict(SyncConflict $conflict, string $resolution, int $userId): bool
+    {
+        switch ($resolution) {
+            case 'server_wins':
+                return $conflict->resolveWithServer($userId);
+
+            case 'local_wins':
+                $log = SyncLog::where('syncable_type', $conflict->syncable_type)
+                    ->where('syncable_id', $conflict->syncable_id)
+                    ->where('sync_status', 'conflict')
+                    ->first();
+
+                if ($log) {
+                    $log->resetForRetry();
+                }
+
+                return $conflict->resolveWithLocal($userId);
+
+            default:
+                return false;
+        }
+    }
+
+    public function getSyncStatus(string $deviceId): array
+    {
+        $device = DeviceRegistration::where('device_id', $deviceId)->first();
+
+        $pending = SyncLog::where('device_id', $deviceId)
+            ->where('sync_status', 'pending')
+            ->count();
+
+        $failed = SyncLog::where('device_id', $deviceId)
+            ->where('sync_status', 'failed')
+            ->count();
+
+        $conflicts = SyncConflict::where('device_id', $deviceId)
+            ->where('resolution', 'pending')
+            ->count();
+
+        return [
+            'device_id' => $deviceId,
+            'last_sync' => $device?->last_sync_at?->toIso8601String(),
+            'pending_count' => $pending,
+            'failed_count' => $failed,
+            'conflict_count' => $conflicts,
+        ];
+    }
+
+    public function retryFailed(string $deviceId): int
+    {
+        return SyncLog::where('device_id', $deviceId)
+            ->where('sync_status', 'failed')
+            ->where('retry_count', '<', 5)
+            ->update([
+                'sync_status' => 'pending',
+                'error_message' => null,
+            ]);
+    }
+}
