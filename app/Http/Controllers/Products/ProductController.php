@@ -21,15 +21,28 @@ class ProductController extends Controller
             return $this->getProductsData($request);
         }
 
+        $lowStockProductIds = DB::table('inventory_batches')
+            ->select('product_id')
+            ->groupBy('product_id')
+            ->havingRaw('SUM(quantity) > 0 AND SUM(quantity) < 10')
+            ->pluck('product_id');
+
+        $outOfStockProductIds = DB::table('inventory_batches')
+            ->select('product_id')
+            ->groupBy('product_id')
+            ->havingRaw('SUM(quantity) <= 0')
+            ->pluck('product_id');
+
+        $productsWithStock = DB::table('inventory_batches')
+            ->distinct()
+            ->pluck('product_id');
+
         $stats = [
             'total' => Product::count(),
             'active' => Product::where('status', 'active')->count(),
-            'low_stock' => Product::whereHas('inventoryBatches', function ($q) {
-                $q->havingRaw('SUM(quantity) < 10');
-            })->count(),
-            'out_of_stock' => Product::whereDoesntHave('inventoryBatches', function ($q) {
-                $q->where('quantity', '>', 0);
-            })->count(),
+            'low_stock' => Product::whereIn('id', $lowStockProductIds)->count(),
+            'out_of_stock' => Product::whereIn('id', $outOfStockProductIds)
+                ->orWhereNotIn('id', $productsWithStock)->count(),
         ];
 
         return view('products.index', compact('stats'));
