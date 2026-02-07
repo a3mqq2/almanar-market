@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Shift;
 use App\Models\User;
 use App\Models\UserActivityLog;
 use Illuminate\Http\Request;
@@ -73,6 +74,30 @@ class AuthController extends Controller
         $user = Auth::user();
 
         if ($user) {
+            $openShift = Shift::getOpenShift($user->id);
+
+            if ($openShift && !$user->isManager()) {
+                return redirect()->route('pos.screen')
+                    ->with('error', 'يجب إغلاق الوردية قبل تسجيل الخروج');
+            }
+
+            if ($openShift && $user->isManager()) {
+                $openShift->update([
+                    'status' => 'closed',
+                    'closed_at' => now(),
+                    'force_closed' => true,
+                    'force_closed_by' => $user->id,
+                    'force_close_reason' => 'تسجيل خروج المدير',
+                ]);
+
+                foreach ($openShift->shiftCashboxes as $sc) {
+                    $sc->update([
+                        'closing_balance' => $sc->expected_balance,
+                        'difference' => 0,
+                    ]);
+                }
+            }
+
             UserActivityLog::log('logout', "تسجيل خروج", $user->id);
         }
 

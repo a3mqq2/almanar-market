@@ -928,6 +928,15 @@
             showToast('تم فتح الوردية تلقائياً', 'success');
         }
 
+        @if(session('error'))
+        Swal.fire({
+            title: 'تنبيه',
+            text: '{{ session("error") }}',
+            icon: 'warning',
+            confirmButtonText: 'حسناً'
+        });
+        @endif
+
         document.getElementById('endShiftBtn').addEventListener('click', function() {
             if (!hasOpenShift || !currentShiftId) {
                 showToast('لا يوجد وردية مفتوحة', 'warning');
@@ -936,7 +945,7 @@
 
             Swal.fire({
                 title: 'إنهاء الجلسة',
-                text: 'هل تريد إغلاق الوردية وإنهاء الجلسة؟',
+                html: '<p>هل تريد إغلاق الوردية وإنهاء الجلسة؟</p><small class="text-muted">سيتم تسجيل خروجك تلقائياً بعد إغلاق الوردية</small>',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
@@ -1186,8 +1195,8 @@
                     updateShiftStatus();
 
                     setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
+                        performLogout();
+                    }, 1500);
                 } else {
                     showToast(result.message || 'حدث خطأ', 'danger');
                 }
@@ -1327,6 +1336,15 @@
             `;
             document.getElementById('toastContainer').appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
+        }
+
+        function performLogout() {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route("logout") }}';
+            form.innerHTML = `<input type="hidden" name="_token" value="${csrfToken}">`;
+            document.body.appendChild(form);
+            form.submit();
         }
 
         async function searchProducts(query) {
