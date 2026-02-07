@@ -33,6 +33,20 @@ class Shift extends Model
         'notes',
     ];
 
+    protected $attributes = [
+        'total_cash_sales' => 0,
+        'total_card_sales' => 0,
+        'total_other_sales' => 0,
+        'total_refunds' => 0,
+        'total_expenses' => 0,
+        'total_deposits' => 0,
+        'total_withdrawals' => 0,
+        'sales_count' => 0,
+        'refunds_count' => 0,
+        'force_closed' => false,
+        'approved' => false,
+    ];
+
     protected $casts = [
         'total_cash_sales' => 'decimal:2',
         'total_card_sales' => 'decimal:2',

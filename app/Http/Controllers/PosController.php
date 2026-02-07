@@ -76,6 +76,9 @@ class PosController extends Controller
                     'cashbox_id' => $cashbox->id,
                     'opening_balance' => $cashbox->current_balance ?? 0,
                     'expected_balance' => $cashbox->current_balance ?? 0,
+                    'total_in' => 0,
+                    'total_out' => 0,
+                    'difference' => 0,
                 ]);
             }
 

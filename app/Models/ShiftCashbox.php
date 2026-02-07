@@ -18,6 +18,15 @@ class ShiftCashbox extends Model
         'total_out',
     ];
 
+    protected $attributes = [
+        'opening_balance' => 0,
+        'closing_balance' => null,
+        'expected_balance' => 0,
+        'difference' => 0,
+        'total_in' => 0,
+        'total_out' => 0,
+    ];
+
     protected $casts = [
         'opening_balance' => 'decimal:2',
         'closing_balance' => 'decimal:2',

@@ -28,6 +28,7 @@ class ShiftController extends Controller
         $shift->load(['shiftCashboxes.cashbox:id,name,type', 'user:id,name']);
         $shift->recalculateTotals();
         $shift->save();
+        $shift->load('shiftCashboxes.cashbox:id,name,type');
 
         return response()->json([
             'success' => true,
@@ -140,6 +141,9 @@ class ShiftController extends Controller
                     'cashbox_id' => $cb['cashbox_id'],
                     'opening_balance' => $cb['opening_balance'],
                     'expected_balance' => $cb['opening_balance'],
+                    'total_in' => 0,
+                    'total_out' => 0,
+                    'difference' => 0,
                 ]);
                 $cashboxData[] = [
                     'id' => $cashbox->id,
@@ -217,6 +221,9 @@ class ShiftController extends Controller
             'cashbox_id' => $validated['cashbox_id'],
             'opening_balance' => $validated['opening_balance'],
             'expected_balance' => $validated['opening_balance'],
+            'total_in' => 0,
+            'total_out' => 0,
+            'difference' => 0,
         ]);
 
         return response()->json([
@@ -235,6 +242,7 @@ class ShiftController extends Controller
         $shift->load(['shiftCashboxes.cashbox:id,name,type', 'user:id,name']);
         $shift->recalculateTotals();
         $shift->save();
+        $shift->load('shiftCashboxes.cashbox:id,name,type');
 
         return response()->json([
             'success' => true,
@@ -545,6 +553,7 @@ class ShiftController extends Controller
         if ($shift->status === 'open') {
             $shift->recalculateTotals();
             $shift->save();
+            $shift->load('shiftCashboxes.cashbox:id,name,type');
         }
 
         $paymentBreakdown = [];
