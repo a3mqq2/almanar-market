@@ -32,12 +32,59 @@ class PosController extends Controller
         $cashboxes = $user->getAccessibleCashboxes();
         $paymentMethods = PaymentMethod::active()->orderBy('sort_order')->get();
         $suspendedCount = Sale::suspended()->count();
-
-        $currentShift = Shift::getOpenShift(Auth::id());
-        $hasOpenShift = $currentShift !== null;
         $isManager = $user->isManager();
 
+        $currentShift = Shift::getOpenShift(Auth::id());
+
+        if (!$currentShift && $cashboxes->isNotEmpty()) {
+            $currentShift = $this->autoOpenShift($user, $cashboxes);
+        }
+
+        $hasOpenShift = $currentShift !== null;
+
         return view('pos.screen', compact('cashboxes', 'paymentMethods', 'suspendedCount', 'currentShift', 'hasOpenShift', 'isManager'));
+    }
+
+    protected function autoOpenShift($user, $cashboxes)
+    {
+        $terminalId = session()->getId();
+
+        $existingTerminalShift = Shift::open()
+            ->where('terminal_id', $terminalId)
+            ->where('user_id', '!=', $user->id)
+            ->first();
+
+        if ($existingTerminalShift) {
+            return null;
+        }
+
+        try {
+            \DB::beginTransaction();
+
+            $shift = Shift::create([
+                'user_id' => $user->id,
+                'terminal_id' => $terminalId,
+                'opened_at' => now(),
+                'status' => 'open',
+            ]);
+
+            foreach ($cashboxes as $cashbox) {
+                \App\Models\ShiftCashbox::create([
+                    'shift_id' => $shift->id,
+                    'cashbox_id' => $cashbox->id,
+                    'opening_balance' => $cashbox->current_balance ?? 0,
+                    'expected_balance' => $cashbox->current_balance ?? 0,
+                ]);
+            }
+
+            \DB::commit();
+
+            return $shift;
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return null;
+        }
     }
 
     public function searchProducts(Request $request)

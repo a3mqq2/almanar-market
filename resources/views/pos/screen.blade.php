@@ -221,6 +221,34 @@
             min-height: 44px;
             min-width: 44px;
         }
+        .header-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 0.75rem;
+            min-width: 70px;
+            font-size: 0.75rem;
+            gap: 0.25rem;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .header-btn i {
+            font-size: 1.5rem;
+        }
+        .header-btn span {
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+        .header-btn:hover {
+            transform: translateY(-2px);
+        }
+        .header-divider {
+            width: 1px;
+            height: 40px;
+            background: var(--pos-border);
+            margin: 0 0.5rem;
+        }
         .numpad-container {
             display: none;
             padding: 0.5rem;
@@ -270,49 +298,67 @@
                 @endif
                 <h5 class="mb-0 d-none d-md-block">نقطة البيع</h5>
             </div>
-            <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-outline-{{ $hasOpenShift ? 'success' : 'danger' }} btn-sm btn-action" id="shiftStatusBtn" onclick="showShiftInfo()" title="الوردية">
-                    <i class="ti ti-clock-{{ $hasOpenShift ? 'check' : 'off' }}"></i>
-                </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm btn-action" id="themeToggle" title="تغيير السمة">
-                    <i class="ti ti-sun" id="themeIcon"></i>
-                </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm btn-action position-relative" id="showSuspendedBtn" title="الفواتير المعلقة (F8)">
+            <div class="d-flex align-items-center gap-1">
+                <button type="button" class="btn btn-outline-secondary header-btn position-relative" id="showSuspendedBtn" title="الفواتير المعلقة (F8)">
                     <i class="ti ti-clock-pause"></i>
+                    <span>معلقة</span>
                     @if($suspendedCount > 0)
                     <span class="suspended-badge">{{ $suspendedCount }}</span>
                     @endif
                 </button>
-                <button type="button" class="btn btn-outline-warning btn-sm btn-action" id="returnBtn" title="استرجاع فاتورة (F7)">
+
+                <button type="button" class="btn btn-outline-warning header-btn" id="returnBtn" title="استرجاع فاتورة (F7)">
                     <i class="ti ti-receipt-refund"></i>
+                    <span>استرجاع</span>
                 </button>
+
                 @if($isManager)
-                <a href="{{ route('sales.index') }}" class="btn btn-outline-secondary btn-sm btn-action" title="المبيعات">
+                <a href="{{ route('sales.index') }}" class="btn btn-outline-secondary header-btn" title="سجل المبيعات">
                     <i class="ti ti-receipt"></i>
+                    <span>المبيعات</span>
                 </a>
-                <a href="{{ route('reports.daily-report') }}" class="btn btn-outline-info btn-sm btn-action" title="التقرير اليومي">
+
+                <a href="{{ route('reports.daily-report') }}" class="btn btn-outline-info header-btn" title="التقرير اليومي">
                     <i class="ti ti-report"></i>
+                    <span>التقرير</span>
                 </a>
                 @endif
-                <div class="user-info d-none d-md-flex">
-                    <span class="badge bg-{{ $isManager ? 'primary' : 'success' }}">
-                        <i class="ti ti-user me-1"></i>{{ Auth::user()->name }}
-                    </span>
-                    @if(!$isManager)
-                    <span class="badge bg-secondary">كاشير</span>
-                    @endif
+
+                <div class="header-divider"></div>
+
+                <button type="button" class="btn btn-outline-secondary header-btn" id="themeToggle" title="تغيير السمة">
+                    <i class="ti ti-sun" id="themeIcon"></i>
+                    <span>السمة</span>
+                </button>
+
+                <button type="button" class="btn btn-outline-{{ $hasOpenShift ? 'success' : 'danger' }} header-btn" id="shiftStatusBtn" onclick="showShiftInfo()" title="معلومات الوردية">
+                    <i class="ti ti-clock-{{ $hasOpenShift ? 'check' : 'off' }}"></i>
+                    <span>الوردية</span>
+                </button>
+
+                <button type="button" class="btn btn-danger header-btn" id="endShiftBtn" title="إنهاء الجلسة وإغلاق الوردية">
+                    <i class="ti ti-power"></i>
+                    <span>إنهاء</span>
+                </button>
+
+                <div class="header-divider d-none d-md-block"></div>
+
+                <div class="d-none d-md-flex align-items-center gap-2 px-2">
+                    <div class="text-end" style="line-height: 1.2;">
+                        <div class="fw-bold" style="font-size: 0.85rem;">{{ Auth::user()->name }}</div>
+                        <small class="text-{{ $isManager ? 'primary' : 'success' }}">{{ $isManager ? 'مدير' : 'كاشير' }}</small>
+                    </div>
+                    <div class="rounded-circle bg-{{ $isManager ? 'primary' : 'success' }} text-white d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        <i class="ti ti-user" style="font-size: 1.25rem;"></i>
+                    </div>
                 </div>
+
                 @if($isManager)
-                <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary btn-sm btn-action" title="لوحة التحكم">
+                <a href="{{ route('dashboard') }}" class="btn btn-outline-primary header-btn d-none d-md-flex" title="لوحة التحكم">
                     <i class="ti ti-layout-dashboard"></i>
+                    <span>التحكم</span>
                 </a>
                 @endif
-                <form method="POST" action="{{ route('logout') }}" class="d-inline">
-                    @csrf
-                    <button type="submit" class="btn btn-outline-danger btn-sm btn-action" title="تسجيل الخروج">
-                        <i class="ti ti-logout"></i>
-                    </button>
-                </form>
             </div>
         </header>
 
@@ -789,58 +835,6 @@
         </div>
     </div>
 
-    <div class="modal fade" id="openShiftModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h6 class="modal-title"><i class="ti ti-clock-play me-1"></i>فتح وردية جديد</h6>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info mb-3">
-                        <i class="ti ti-info-circle me-1"></i>
-                        يجب فتح وردية قبل البدء في البيع - يمكنك إضافة عدة صناديق
-                    </div>
-                    <form id="openShiftForm">
-                        <div id="shiftCashboxesContainer">
-                            <div class="cashbox-row mb-3" data-index="0">
-                                <div class="row g-2 align-items-end">
-                                    <div class="col-md-6">
-                                        <label class="form-label">الصندوق <span class="text-danger">*</span></label>
-                                        <select class="form-select cashbox-select" name="cashbox_id" required>
-                                            <option value="">اختر الصندوق...</option>
-                                            @foreach($cashboxes as $cashbox)
-                                                <option value="{{ $cashbox->id }}">{{ $cashbox->name }} ({{ $cashbox->type_arabic }})</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">الرصيد الافتتاحي</label>
-                                        <input type="number" class="form-control text-center opening-balance" name="opening_balance" value="0" min="0" step="0.01">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <button type="button" class="btn btn-outline-danger w-100 remove-cashbox-btn" style="display:none;">
-                                            <i class="ti ti-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-center mt-2">
-                            <button type="button" class="btn btn-outline-primary btn-sm" id="addCashboxBtn">
-                                <i class="ti ti-plus me-1"></i>إضافة صندوق آخر
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-success btn-lg w-100" id="confirmOpenShift">
-                        <i class="ti ti-check me-1"></i>فتح الوردية
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="modal fade" id="closeShiftModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -927,172 +921,34 @@
         let currentShiftCashboxes = [];
         let shiftCashboxData = [];
 
-        const openShiftModal = new bootstrap.Modal(document.getElementById('openShiftModal'));
         const closeShiftModal = new bootstrap.Modal(document.getElementById('closeShiftModal'));
         const shiftInfoModal = new bootstrap.Modal(document.getElementById('shiftInfoModal'));
 
-        if (!hasOpenShift) {
-            openShiftModal.show();
+        if (hasOpenShift) {
+            showToast('تم فتح الوردية تلقائياً', 'success');
         }
 
-        let cashboxRowIndex = 0;
-        const availableCashboxes = @json($cashboxes->map(fn($c) => ['id' => $c->id, 'name' => $c->name, 'type_arabic' => $c->type_arabic]));
-
-        document.getElementById('addCashboxBtn').addEventListener('click', function() {
-            cashboxRowIndex++;
-            const container = document.getElementById('shiftCashboxesContainer');
-            const usedIds = getSelectedCashboxIds();
-
-            let optionsHtml = '<option value="">اختر الصندوق...</option>';
-            availableCashboxes.forEach(cb => {
-                if (!usedIds.includes(cb.id.toString())) {
-                    optionsHtml += `<option value="${cb.id}">${cb.name} (${cb.type_arabic})</option>`;
-                }
-            });
-
-            const newRow = document.createElement('div');
-            newRow.className = 'cashbox-row mb-3';
-            newRow.dataset.index = cashboxRowIndex;
-            newRow.innerHTML = `
-                <div class="row g-2 align-items-end">
-                    <div class="col-md-6">
-                        <label class="form-label">الصندوق <span class="text-danger">*</span></label>
-                        <select class="form-select cashbox-select" name="cashbox_id" required>${optionsHtml}</select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">الرصيد الافتتاحي</label>
-                        <input type="number" class="form-control text-center opening-balance" name="opening_balance" value="0" min="0" step="0.01">
-                    </div>
-                    <div class="col-md-2">
-                        <button type="button" class="btn btn-outline-danger w-100 remove-cashbox-btn"><i class="ti ti-trash"></i></button>
-                    </div>
-                </div>
-            `;
-            container.appendChild(newRow);
-            updateRemoveButtons();
-        });
-
-        document.getElementById('shiftCashboxesContainer').addEventListener('click', function(e) {
-            if (e.target.closest('.remove-cashbox-btn')) {
-                e.target.closest('.cashbox-row').remove();
-                updateRemoveButtons();
-            }
-        });
-
-        document.getElementById('shiftCashboxesContainer').addEventListener('change', function(e) {
-            if (e.target.classList.contains('cashbox-select')) {
-                updateCashboxOptions();
-            }
-        });
-
-        function getSelectedCashboxIds() {
-            const selects = document.querySelectorAll('#shiftCashboxesContainer .cashbox-select');
-            return Array.from(selects).map(s => s.value).filter(v => v);
-        }
-
-        function updateCashboxOptions() {
-            const usedIds = getSelectedCashboxIds();
-            const selects = document.querySelectorAll('#shiftCashboxesContainer .cashbox-select');
-
-            selects.forEach(select => {
-                const currentVal = select.value;
-                Array.from(select.options).forEach(option => {
-                    if (option.value && option.value !== currentVal) {
-                        option.disabled = usedIds.includes(option.value);
-                    }
-                });
-            });
-        }
-
-        function updateRemoveButtons() {
-            const rows = document.querySelectorAll('#shiftCashboxesContainer .cashbox-row');
-            rows.forEach((row, index) => {
-                const btn = row.querySelector('.remove-cashbox-btn');
-                if (btn) btn.style.display = rows.length > 1 ? 'block' : 'none';
-            });
-        }
-
-        document.getElementById('confirmOpenShift').addEventListener('click', async function() {
-            const rows = document.querySelectorAll('#shiftCashboxesContainer .cashbox-row');
-            const cashboxes = [];
-
-            let valid = true;
-            rows.forEach(row => {
-                const cashboxId = row.querySelector('.cashbox-select').value;
-                const openingBalance = row.querySelector('.opening-balance').value;
-                if (!cashboxId) {
-                    valid = false;
-                } else {
-                    cashboxes.push({
-                        cashbox_id: parseInt(cashboxId),
-                        opening_balance: parseFloat(openingBalance) || 0
-                    });
-                }
-            });
-
-            if (!valid || cashboxes.length === 0) {
-                showToast('يرجى اختيار صندوق واحد على الأقل', 'warning');
+        document.getElementById('endShiftBtn').addEventListener('click', function() {
+            if (!hasOpenShift || !currentShiftId) {
+                showToast('لا يوجد وردية مفتوحة', 'warning');
                 return;
             }
 
-            this.disabled = true;
-            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الفتح...';
-
-            try {
-                const response = await fetch('{{ route("shifts.open") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken
-                    },
-                    body: JSON.stringify({ cashboxes })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    hasOpenShift = true;
-                    currentShiftId = result.shift.id;
-                    currentShiftCashboxes = result.shift.cashboxes || [];
-                    openShiftModal.hide();
-                    showToast('تم فتح الوردية بنجاح', 'success');
-                    updateShiftStatus();
-                    resetOpenShiftForm();
-                } else {
-                    showToast(result.message || 'حدث خطأ', 'danger');
+            Swal.fire({
+                title: 'إنهاء الجلسة',
+                text: 'هل تريد إغلاق الوردية وإنهاء الجلسة؟',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                confirmButtonText: 'نعم، إنهاء الجلسة',
+                cancelButtonText: 'إلغاء'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    loadShiftSummary();
+                    closeShiftModal.show();
                 }
-            } catch (error) {
-                showToast('حدث خطأ في الاتصال', 'danger');
-            }
-
-            this.disabled = false;
-            this.innerHTML = '<i class="ti ti-check me-1"></i>فتح الوردية';
+            });
         });
-
-        function resetOpenShiftForm() {
-            const container = document.getElementById('shiftCashboxesContainer');
-            container.innerHTML = `
-                <div class="cashbox-row mb-3" data-index="0">
-                    <div class="row g-2 align-items-end">
-                        <div class="col-md-6">
-                            <label class="form-label">الصندوق <span class="text-danger">*</span></label>
-                            <select class="form-select cashbox-select" name="cashbox_id" required>
-                                <option value="">اختر الصندوق...</option>
-                                ${availableCashboxes.map(cb => `<option value="${cb.id}">${cb.name} (${cb.type_arabic})</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">الرصيد الافتتاحي</label>
-                            <input type="number" class="form-control text-center opening-balance" name="opening_balance" value="0" min="0" step="0.01">
-                        </div>
-                        <div class="col-md-2">
-                            <button type="button" class="btn btn-outline-danger w-100 remove-cashbox-btn" style="display:none;"><i class="ti ti-trash"></i></button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            cashboxRowIndex = 0;
-        }
 
         async function loadShiftSummary() {
             if (!currentShiftId) return;
@@ -1330,7 +1186,7 @@
                     updateShiftStatus();
 
                     setTimeout(() => {
-                        openShiftModal.show();
+                        window.location.reload();
                     }, 1000);
                 } else {
                     showToast(result.message || 'حدث خطأ', 'danger');
@@ -1346,7 +1202,7 @@
 
         async function showShiftInfo() {
             if (!currentShiftId) {
-                openShiftModal.show();
+                window.location.reload();
                 return;
             }
 
@@ -1449,7 +1305,7 @@
                     confirmButtonText: 'فتح وردية'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        openShiftModal.show();
+                        window.location.reload();
                     }
                 });
                 return false;
@@ -1868,7 +1724,7 @@
                     text: 'يجب فتح وردية قبل إتمام عملية البيع',
                     icon: 'warning',
                     confirmButtonText: 'فتح وردية'
-                }).then(() => openShiftModal.show());
+                }).then(() => window.location.reload());
                 return;
             }
 
@@ -1927,7 +1783,7 @@
                             text: result.message,
                             icon: 'warning',
                             confirmButtonText: 'فتح وردية'
-                        }).then(() => openShiftModal.show());
+                        }).then(() => window.location.reload());
                     } else {
                         showToast(result.message, 'danger');
                     }
@@ -1949,7 +1805,7 @@
                     text: 'يجب فتح وردية قبل إتمام عملية البيع',
                     icon: 'warning',
                     confirmButtonText: 'فتح وردية'
-                }).then(() => openShiftModal.show());
+                }).then(() => window.location.reload());
                 return;
             }
 
@@ -2043,7 +1899,7 @@
                     text: 'يجب فتح وردية قبل إتمام عملية البيع',
                     icon: 'warning',
                     confirmButtonText: 'فتح وردية'
-                }).then(() => openShiftModal.show());
+                }).then(() => window.location.reload());
                 return;
             }
 
@@ -2118,7 +1974,7 @@
                             text: result.message,
                             icon: 'warning',
                             confirmButtonText: 'فتح وردية'
-                        }).then(() => openShiftModal.show());
+                        }).then(() => window.location.reload());
                     } else {
                         showToast(result.message, 'danger');
                     }
@@ -2150,7 +2006,7 @@
                     text: 'يجب فتح وردية قبل إتمام عملية البيع',
                     icon: 'warning',
                     confirmButtonText: 'فتح وردية'
-                }).then(() => openShiftModal.show());
+                }).then(() => window.location.reload());
                 return;
             }
 
@@ -2225,7 +2081,7 @@
                             text: result.message,
                             icon: 'warning',
                             confirmButtonText: 'فتح وردية'
-                        }).then(() => openShiftModal.show());
+                        }).then(() => window.location.reload());
                     } else {
                         showToast(result.message, 'danger');
                     }
