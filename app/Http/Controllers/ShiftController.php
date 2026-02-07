@@ -282,7 +282,8 @@ class ShiftController extends Controller
             ], 422);
         }
 
-        if ($shift->user_id !== Auth::id()) {
+        $user = Auth::user();
+        if ($shift->user_id !== $user->id && !$user->isManager()) {
             return response()->json([
                 'success' => false,
                 'message' => 'لا يمكنك إغلاق وردية مستخدم آخر',

@@ -55,7 +55,9 @@ class PosController extends Controller
             ->first();
 
         if ($existingTerminalShift) {
-            return null;
+            $existingTerminalShift->update([
+                'terminal_id' => $existingTerminalShift->terminal_id . '_old_' . time(),
+            ]);
         }
 
         try {
