@@ -243,7 +243,7 @@
         <tbody>
             @foreach($sale->items as $item)
             <tr>
-                <td>{{ $item->product->name }}</td>
+                <td>{{ $item->product->name }}@if($item->barcode_label) ({{ $item->barcode_label }})@endif</td>
                 <td>{{ $item->unitName }}</td>
                 <td>{{ number_format($item->quantity, 2) }}</td>
                 <td>{{ number_format($item->unit_price, 2) }}</td>

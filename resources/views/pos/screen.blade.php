@@ -1341,7 +1341,7 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    addToCart(result.product);
+                    addToCart(result.product, result.product.barcode_label || null);
                     document.getElementById('barcodeInput').value = '';
                 } else {
                     showToast('المنتج غير موجود', 'warning');
@@ -1383,7 +1383,7 @@
             });
         }
 
-        function addToCart(product) {
+        function addToCart(product, barcodeLabel = null) {
             const baseUnit = product.base_unit;
             if (!baseUnit) {
                 showToast('المنتج ليس له وحدة أساسية', 'warning');
@@ -1391,13 +1391,13 @@
             }
 
             const existingIndex = cart.findIndex(item =>
-                item.product_id === product.id && item.product_unit_id === baseUnit.id
+                item.product_id === product.id && item.product_unit_id === baseUnit.id && item.barcode_label === barcodeLabel
             );
 
             const unitPrice = parseFloat(baseUnit.sale_price) || 0;
             const unitName = baseUnit.name || 'وحدة';
+            const displayName = barcodeLabel ? `${product.name} (${barcodeLabel})` : product.name;
 
-            // Collect all available units for this product
             const availableUnits = [];
             if (product.base_unit) {
                 availableUnits.push({
@@ -1428,7 +1428,8 @@
                 cart.push({
                     product_id: product.id,
                     product_unit_id: baseUnit.id,
-                    name: product.name,
+                    name: displayName,
+                    barcode_label: barcodeLabel,
                     unit_name: unitName,
                     unit_price: unitPrice,
                     multiplier: 1,
@@ -1441,9 +1442,9 @@
                 });
 
                 if (product.expiry_status === 'expired') {
-                    showToast(`تحذير: ${product.name} منتهي الصلاحية!`, 'danger');
+                    showToast(`تحذير: ${displayName} منتهي الصلاحية!`, 'danger');
                 } else if (product.expiry_status === 'critical') {
-                    showToast(`تحذير: ${product.name} قارب على الانتهاء (${product.days_to_expiry} يوم)`, 'warning');
+                    showToast(`تحذير: ${displayName} قارب على الانتهاء (${product.days_to_expiry} يوم)`, 'warning');
                 }
             }
 
@@ -1695,6 +1696,7 @@
                         items: cart.map(item => ({
                             product_id: item.product_id,
                             product_unit_id: item.product_unit_id,
+                            barcode_label: item.barcode_label || null,
                             quantity: item.quantity,
                             unit_price: item.unit_price
                         })),
@@ -1881,6 +1883,7 @@
                         items: cart.map(item => ({
                             product_id: item.product_id,
                             product_unit_id: item.product_unit_id,
+                            barcode_label: item.barcode_label || null,
                             quantity: item.quantity,
                             unit_price: item.unit_price
                         })),
@@ -1971,6 +1974,7 @@
                         items: cart.map(item => ({
                             product_id: item.product_id,
                             product_unit_id: item.product_unit_id,
+                            barcode_label: item.barcode_label || null,
                             quantity: item.quantity,
                             unit_price: item.unit_price
                         })),
@@ -2036,6 +2040,7 @@
                         items: cart.map(item => ({
                             product_id: item.product_id,
                             unit_id: item.product_unit_id,
+                            barcode_label: item.barcode_label || null,
                             quantity: item.quantity,
                             unit_price: item.unit_price
                         }))
@@ -2111,15 +2116,19 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    cart = result.sale.items.map(item => ({
-                        product_id: item.product_id,
-                        product_unit_id: item.unit_id,
-                        name: item.product_name,
-                        unit_name: item.unit_name,
-                        unit_price: parseFloat(item.unit_price),
-                        quantity: parseFloat(item.quantity),
-                        stock: 999
-                    }));
+                    cart = result.sale.items.map(item => {
+                        const displayName = item.barcode_label ? `${item.product_name} (${item.barcode_label})` : item.product_name;
+                        return {
+                            product_id: item.product_id,
+                            product_unit_id: item.unit_id,
+                            barcode_label: item.barcode_label || null,
+                            name: displayName,
+                            unit_name: item.unit_name,
+                            unit_price: parseFloat(item.unit_price),
+                            quantity: parseFloat(item.quantity),
+                            stock: 999
+                        };
+                    });
 
                     if (result.sale.customer) {
                         selectedCustomer = result.sale.customer;

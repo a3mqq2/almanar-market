@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Products;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryBatch;
 use App\Models\Product;
+use App\Models\ProductBarcode;
 use App\Models\ProductUnit;
 use App\Models\StockMovement;
 use App\Models\Unit;
@@ -455,14 +456,17 @@ class ProductController extends Controller
     {
         do {
             $barcode = str_pad(mt_rand(1, 9999999999999), 13, '0', STR_PAD_LEFT);
-        } while (Product::where('barcode', $barcode)->exists());
+        } while (
+            Product::where('barcode', $barcode)->exists() ||
+            ProductBarcode::where('barcode', $barcode)->exists()
+        );
 
         return response()->json(['barcode' => $barcode]);
     }
 
     public function show(Product $product)
     {
-        $product->load(['productUnits.unit', 'inventoryBatches', 'stockMovements.user']);
+        $product->load(['productUnits.unit', 'inventoryBatches', 'stockMovements.user', 'barcodes']);
         $units = Unit::all();
 
         return view('products.show', compact('product', 'units'));
@@ -524,13 +528,66 @@ class ProductController extends Controller
         $barcode = $request->get('barcode');
         $excludeId = $request->get('exclude_id');
 
-        $query = Product::where('barcode', $barcode);
-        if ($excludeId) {
-            $query->where('id', '!=', $excludeId);
-        }
+        $existsInProducts = Product::where('barcode', $barcode)
+            ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
+            ->exists();
+
+        $existsInProductBarcodes = ProductBarcode::where('barcode', $barcode)->exists();
 
         return response()->json([
-            'exists' => $query->exists(),
+            'exists' => $existsInProducts || $existsInProductBarcodes,
         ]);
+    }
+
+    public function storeBarcode(Request $request, Product $product)
+    {
+        $validated = $request->validate([
+            'barcode' => 'required|string|unique:products,barcode|unique:product_barcodes,barcode',
+            'label' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            $barcode = ProductBarcode::create([
+                'product_id' => $product->id,
+                'barcode' => $validated['barcode'],
+                'label' => $validated['label'],
+                'is_active' => true,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إضافة الباركود بنجاح',
+                'barcode' => $barcode,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function destroyBarcode(Product $product, ProductBarcode $barcode)
+    {
+        if ($barcode->product_id !== $product->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الباركود لا ينتمي لهذا المنتج',
+            ], 403);
+        }
+
+        try {
+            $barcode->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حذف الباركود بنجاح',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }

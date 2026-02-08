@@ -112,7 +112,7 @@
                             @foreach($sale->items as $index => $item)
                             <tr>
                                 <td>{{ $index + 1 }}</td>
-                                <td class="fw-medium">{{ $item->product->name }}</td>
+                                <td class="fw-medium">{{ $item->product->name }}@if($item->barcode_label) <small class="text-muted">({{ $item->barcode_label }})</small>@endif</td>
                                 <td>{{ $item->unitName }}</td>
                                 <td>{{ number_format($item->quantity, 2) }}</td>
                                 <td>{{ number_format($item->unit_price, 2) }}</td>

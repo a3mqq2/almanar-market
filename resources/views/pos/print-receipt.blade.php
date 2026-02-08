@@ -401,7 +401,7 @@
             <tbody>
                 @foreach($sale->items as $item)
                 <tr>
-                    <td class="item-name">{{ $item->product->name }}</td>
+                    <td class="item-name">{{ $item->product->name }}@if($item->barcode_label) ({{ $item->barcode_label }})@endif</td>
                     <td class="item-qty">{{ number_format($item->quantity, $item->quantity == floor($item->quantity) ? 0 : 2) }} × {{ number_format($item->unit_price, 2) }}</td>
                     <td class="item-total">{{ number_format($item->total_price, 2) }}</td>
                 </tr>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cashbox;
 use App\Models\InventoryBatch;
 use App\Models\Product;
+use App\Models\ProductBarcode;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\StockMovement;
@@ -440,11 +441,19 @@ class PurchaseController extends Controller
         try {
             $search = $request->get('q', '');
 
+            $productIdsFromBarcodes = ProductBarcode::where(function ($q) use ($search) {
+                    $q->where('barcode', 'like', "%{$search}%")
+                      ->orWhere('label', 'like', "%{$search}%");
+                })
+                ->where('is_active', true)
+                ->pluck('product_id');
+
             $products = Product::with(['productUnits.unit', 'baseUnit.unit'])
                 ->where('status', true)
-                ->where(function ($q) use ($search) {
+                ->where(function ($q) use ($search, $productIdsFromBarcodes) {
                     $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('barcode', 'like', "%{$search}%");
+                        ->orWhere('barcode', 'like', "%{$search}%")
+                        ->orWhereIn('id', $productIdsFromBarcodes);
                 })
                 ->limit(20)
                 ->get()
@@ -489,11 +498,25 @@ class PurchaseController extends Controller
     public function getProductByBarcode(Request $request)
     {
         $barcode = $request->get('barcode');
+        $barcodeLabel = null;
 
         $product = Product::with(['productUnits.unit', 'baseUnit.unit'])
             ->where('barcode', $barcode)
             ->where('status', true)
             ->first();
+
+        if (!$product) {
+            $productBarcode = ProductBarcode::with('product')
+                ->where('barcode', $barcode)
+                ->where('is_active', true)
+                ->first();
+
+            if ($productBarcode && $productBarcode->product && $productBarcode->product->status === 'active') {
+                $product = $productBarcode->product;
+                $product->load(['productUnits.unit', 'baseUnit.unit']);
+                $barcodeLabel = $productBarcode->label;
+            }
+        }
 
         if (!$product) {
             return response()->json([
@@ -503,13 +526,15 @@ class PurchaseController extends Controller
         }
 
         $baseCost = $product->baseUnit?->cost_price ?? 0;
+        $productName = $barcodeLabel ? "{$product->name} ({$barcodeLabel})" : $product->name;
 
         return response()->json([
             'success' => true,
             'product' => [
                 'id' => $product->id,
-                'name' => $product->name,
+                'name' => $productName,
                 'barcode' => $product->barcode,
+                'barcode_label' => $barcodeLabel,
                 'current_stock' => $product->total_stock,
                 'base_unit' => $product->baseUnit ? [
                     'id' => $product->baseUnit->id,

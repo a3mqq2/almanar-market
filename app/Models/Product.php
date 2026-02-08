@@ -40,8 +40,30 @@ class Product extends Model
         return $this->hasMany(PurchaseItem::class);
     }
 
+    public function barcodes(): HasMany
+    {
+        return $this->hasMany(ProductBarcode::class);
+    }
+
+    public function activeBarcodes(): HasMany
+    {
+        return $this->hasMany(ProductBarcode::class)->where('is_active', true);
+    }
+
     public function getTotalStockAttribute(): float
     {
         return $this->inventoryBatches()->sum('quantity');
+    }
+
+    public function getAllBarcodesAttribute(): array
+    {
+        $barcodes = [];
+        if ($this->barcode) {
+            $barcodes[] = $this->barcode;
+        }
+        foreach ($this->activeBarcodes as $barcode) {
+            $barcodes[] = $barcode->barcode;
+        }
+        return $barcodes;
     }
 }

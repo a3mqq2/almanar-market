@@ -71,6 +71,8 @@ Route::middleware('role:manager')->group(function () {
     Route::get('/products/check-barcode', [ProductController::class, 'checkBarcode'])->name('products.check-barcode');
     Route::post('/products/quick-store', [ProductController::class, 'quickStore'])->name('products.quick-store');
     Route::post('/products/{product}/duplicate', [ProductController::class, 'duplicate'])->name('products.duplicate');
+    Route::post('/products/{product}/barcodes', [ProductController::class, 'storeBarcode'])->name('products.barcodes.store');
+    Route::delete('/products/{product}/barcodes/{barcode}', [ProductController::class, 'destroyBarcode'])->name('products.barcodes.destroy');
     Route::resource('products', ProductController::class);
 });
 

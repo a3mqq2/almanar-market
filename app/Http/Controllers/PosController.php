@@ -8,6 +8,7 @@ use App\Models\Cashbox;
 use App\Models\Customer;
 use App\Models\PaymentMethod;
 use App\Models\Product;
+use App\Models\ProductBarcode;
 use App\Models\Sale;
 use App\Models\Shift;
 use App\Services\InventoryService;
@@ -100,11 +101,19 @@ class PosController extends Controller
             return response()->json(['success' => true, 'products' => []]);
         }
 
-        $products = Product::with(['productUnits.unit', 'baseUnit.unit'])
+        $productIdsFromBarcodes = ProductBarcode::where(function ($q) use ($query) {
+                $q->where('barcode', 'like', "%{$query}%")
+                  ->orWhere('label', 'like', "%{$query}%");
+            })
+            ->where('is_active', true)
+            ->pluck('product_id');
+
+        $products = Product::with(['productUnits.unit', 'baseUnit.unit', 'activeBarcodes'])
             ->where('status', true)
-            ->where(function ($q) use ($query) {
+            ->where(function ($q) use ($query, $productIdsFromBarcodes) {
                 $q->where('name', 'like', "%{$query}%")
-                  ->orWhere('barcode', 'like', "%{$query}%");
+                  ->orWhere('barcode', 'like', "%{$query}%")
+                  ->orWhereIn('id', $productIdsFromBarcodes);
             })
             ->limit(20)
             ->get()
@@ -115,10 +124,26 @@ class PosController extends Controller
 
     public function getProductByBarcode(Request $request)
     {
-        $product = Product::with(['productUnits.unit', 'baseUnit.unit'])
-            ->where('barcode', $request->barcode)
+        $barcode = $request->barcode;
+        $barcodeLabel = null;
+
+        $product = Product::with(['productUnits.unit', 'baseUnit.unit', 'activeBarcodes'])
+            ->where('barcode', $barcode)
             ->where('status', true)
             ->first();
+
+        if (!$product) {
+            $productBarcode = ProductBarcode::with('product')
+                ->where('barcode', $barcode)
+                ->where('is_active', true)
+                ->first();
+
+            if ($productBarcode && $productBarcode->product && $productBarcode->product->status === 'active') {
+                $product = $productBarcode->product;
+                $product->load(['productUnits.unit', 'baseUnit.unit', 'activeBarcodes']);
+                $barcodeLabel = $productBarcode->label;
+            }
+        }
 
         if (!$product) {
             return response()->json([
@@ -127,9 +152,12 @@ class PosController extends Controller
             ], 404);
         }
 
+        $formattedProduct = $this->formatProductForPos($product);
+        $formattedProduct['barcode_label'] = $barcodeLabel;
+
         return response()->json([
             'success' => true,
-            'product' => $this->formatProductForPos($product)
+            'product' => $formattedProduct
         ]);
     }
 
@@ -327,6 +355,7 @@ class PosController extends Controller
                 return [
                     'product_id' => $item->product_id,
                     'product_name' => $item->product->name,
+                    'barcode_label' => $item->barcode_label,
                     'unit_id' => $item->product_unit_id,
                     'unit_name' => $item->unitName,
                     'quantity' => $item->quantity,

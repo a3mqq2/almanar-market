@@ -159,6 +159,14 @@
                     <i class="ti ti-history me-1"></i>سجل الحركات
                 </button>
             </li>
+            <li class="nav-item">
+                <button class="nav-link" id="barcodes-tab" data-bs-toggle="tab" data-bs-target="#barcodes">
+                    <i class="ti ti-barcode me-1"></i>الباركودات
+                    @if($product->barcodes->count() > 0)
+                        <span class="badge bg-primary ms-1">{{ $product->barcodes->count() }}</span>
+                    @endif
+                </button>
+            </li>
         </ul>
     </div>
     <div class="card-body">
@@ -479,6 +487,70 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Barcodes Tab -->
+            <div class="tab-pane fade" id="barcodes">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <p class="text-muted mb-0 small">يمكنك إضافة باركودات متعددة للمنتج (مثل: نكهات مختلفة، ألوان، أحجام) وسيتم التعرف عليها عند البيع أو الشراء</p>
+                    </div>
+                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addBarcodeModal">
+                        <i class="ti ti-plus me-1"></i>إضافة باركود
+                    </button>
+                </div>
+
+                @if($product->barcode)
+                <div class="alert alert-light border mb-3">
+                    <div class="d-flex align-items-center">
+                        <i class="ti ti-barcode fs-4 me-2"></i>
+                        <div>
+                            <div class="fw-bold">الباركود الأساسي</div>
+                            <code class="fs-5">{{ $product->barcode }}</code>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                <div class="table-responsive" id="barcodesContainer">
+                    <table class="table table-sm table-hover table-bordered mb-0">
+                        <thead>
+                            <tr>
+                                <th>الباركود</th>
+                                <th>التسمية / الوصف</th>
+                                <th>الحالة</th>
+                                <th>تاريخ الإضافة</th>
+                                <th width="100"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="barcodesTableBody">
+                            @forelse($product->barcodes as $barcode)
+                                <tr data-barcode-id="{{ $barcode->id }}">
+                                    <td><code class="fs-6">{{ $barcode->barcode }}</code></td>
+                                    <td>{{ $barcode->label ?? '-' }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ $barcode->is_active ? 'success' : 'secondary' }}">
+                                            {{ $barcode->is_active ? 'نشط' : 'غير نشط' }}
+                                        </span>
+                                    </td>
+                                    <td>{{ $barcode->created_at->format('Y-m-d') }}</td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-outline-danger btn-sm delete-barcode-btn" data-id="{{ $barcode->id }}">
+                                            <i class="ti ti-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr id="noBarcodesRow">
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        <i class="ti ti-barcode-off fs-1 d-block mb-2"></i>
+                                        لا توجد باركودات إضافية
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -743,6 +815,43 @@
 
 <div id="printArea" style="display: none;"></div>
 @endif
+
+<!-- Add Barcode Modal -->
+<div class="modal fade" id="addBarcodeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title"><i class="ti ti-barcode me-1"></i>إضافة باركود جديد</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addBarcodeForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">الباركود <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="newBarcodeValue" name="barcode" placeholder="امسح أو أدخل الباركود" required autofocus>
+                            <button type="button" class="btn btn-outline-secondary" id="generateNewBarcodeBtn" title="توليد باركود">
+                                <i class="ti ti-refresh"></i>
+                            </button>
+                        </div>
+                        <div class="text-danger small" id="barcodeFeedback" style="display: none;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">التسمية / الوصف</label>
+                        <input type="text" class="form-control" id="newBarcodeLabel" name="label" placeholder="مثال: نكهة الفراولة، اللون الأحمر، حجم كبير...">
+                        <small class="text-muted">التسمية تظهر عند البيع لتمييز المنتج</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success btn-sm" id="addBarcodeSubmit">
+                        <i class="ti ti-plus me-1"></i>إضافة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -1504,6 +1613,195 @@ document.addEventListener('DOMContentLoaded', function() {
         bootstrap.Modal.getInstance(document.getElementById('barcodeLabelModal')).hide();
     });
     @endif
+
+    // Barcodes Management
+    let barcodeValid = true;
+    let barcodeCheckTimeout = null;
+
+    document.getElementById('generateNewBarcodeBtn').addEventListener('click', async function() {
+        try {
+            const response = await fetch('{{ route("products.generate-barcode") }}');
+            const result = await response.json();
+            document.getElementById('newBarcodeValue').value = result.barcode;
+            document.getElementById('newBarcodeValue').classList.remove('is-invalid');
+            document.getElementById('newBarcodeValue').classList.add('is-valid');
+            document.getElementById('barcodeFeedback').style.display = 'none';
+            barcodeValid = true;
+        } catch (error) {
+            showToast('حدث خطأ في توليد الباركود', 'danger');
+        }
+    });
+
+    document.getElementById('newBarcodeValue').addEventListener('input', function() {
+        clearTimeout(barcodeCheckTimeout);
+        const barcode = this.value.trim();
+
+        if (!barcode) {
+            this.classList.remove('is-invalid', 'is-valid');
+            document.getElementById('barcodeFeedback').style.display = 'none';
+            barcodeValid = false;
+            return;
+        }
+
+        barcodeCheckTimeout = setTimeout(async () => {
+            try {
+                const response = await fetch(`{{ route("products.check-barcode") }}?barcode=${encodeURIComponent(barcode)}`);
+                const result = await response.json();
+
+                if (result.exists) {
+                    this.classList.remove('is-valid');
+                    this.classList.add('is-invalid');
+                    document.getElementById('barcodeFeedback').textContent = 'هذا الباركود مستخدم بالفعل';
+                    document.getElementById('barcodeFeedback').style.display = 'block';
+                    barcodeValid = false;
+                } else {
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                    document.getElementById('barcodeFeedback').style.display = 'none';
+                    barcodeValid = true;
+                }
+            } catch (error) {
+                console.error('Error checking barcode:', error);
+            }
+        }, 300);
+    });
+
+    document.getElementById('addBarcodeForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const barcode = document.getElementById('newBarcodeValue').value.trim();
+        const label = document.getElementById('newBarcodeLabel').value.trim();
+
+        if (!barcode) {
+            document.getElementById('newBarcodeValue').classList.add('is-invalid');
+            return;
+        }
+
+        if (!barcodeValid) {
+            document.getElementById('newBarcodeValue').focus();
+            return;
+        }
+
+        const btn = document.getElementById('addBarcodeSubmit');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الإضافة...';
+
+        try {
+            const response = await fetch(`/products/${productId}/barcodes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ barcode, label })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('addBarcodeModal')).hide();
+                this.reset();
+                document.getElementById('newBarcodeValue').classList.remove('is-valid', 'is-invalid');
+
+                const noRow = document.getElementById('noBarcodesRow');
+                if (noRow) noRow.remove();
+
+                const tbody = document.getElementById('barcodesTableBody');
+                const newRow = document.createElement('tr');
+                newRow.setAttribute('data-barcode-id', result.barcode.id);
+                newRow.innerHTML = `
+                    <td><code class="fs-6">${result.barcode.barcode}</code></td>
+                    <td>${result.barcode.label || '-'}</td>
+                    <td><span class="badge bg-success">نشط</span></td>
+                    <td>${new Date().toISOString().split('T')[0]}</td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-outline-danger btn-sm delete-barcode-btn" data-id="${result.barcode.id}">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(newRow);
+
+                const badge = document.querySelector('#barcodes-tab .badge');
+                if (badge) {
+                    badge.textContent = parseInt(badge.textContent) + 1;
+                } else {
+                    document.querySelector('#barcodes-tab').innerHTML += ' <span class="badge bg-primary ms-1">1</span>';
+                }
+            } else {
+                showToast(result.message || 'حدث خطأ', 'danger');
+            }
+        } catch (error) {
+            showToast('حدث خطأ في الاتصال', 'danger');
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-plus me-1"></i>إضافة';
+    });
+
+    document.getElementById('barcodesTableBody').addEventListener('click', async function(e) {
+        const deleteBtn = e.target.closest('.delete-barcode-btn');
+        if (!deleteBtn) return;
+
+        const barcodeId = deleteBtn.dataset.id;
+        const row = deleteBtn.closest('tr');
+
+        const result = await Swal.fire({
+            title: 'تأكيد الحذف',
+            text: 'هل أنت متأكد من حذف هذا الباركود؟',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'نعم، حذف',
+            cancelButtonText: 'إلغاء'
+        });
+
+        if (!result.isConfirmed) return;
+
+        try {
+            const response = await fetch(`/products/${productId}/barcodes/${barcodeId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+                row.remove();
+
+                const badge = document.querySelector('#barcodes-tab .badge');
+                if (badge) {
+                    const newCount = parseInt(badge.textContent) - 1;
+                    if (newCount <= 0) {
+                        badge.remove();
+                    } else {
+                        badge.textContent = newCount;
+                    }
+                }
+
+                const tbody = document.getElementById('barcodesTableBody');
+                if (tbody.children.length === 0) {
+                    tbody.innerHTML = `
+                        <tr id="noBarcodesRow">
+                            <td colspan="5" class="text-center text-muted py-4">
+                                <i class="ti ti-barcode-off fs-1 d-block mb-2"></i>
+                                لا توجد باركودات إضافية
+                            </td>
+                        </tr>
+                    `;
+                }
+            } else {
+                showToast(data.message || 'حدث خطأ', 'danger');
+            }
+        } catch (error) {
+            showToast('حدث خطأ في حذف الباركود', 'danger');
+        }
+    });
 });
 </script>
 @endpush
