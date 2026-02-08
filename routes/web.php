@@ -178,12 +178,16 @@ Route::prefix('pos')->name('pos.')->group(function () {
     Route::get('/returns/recent', [PosReturnController::class, 'getRecentReturns'])->name('returns.recent');
 });
 
+// Sales Print Routes (All authenticated users - for POS cashiers)
+Route::prefix('sales')->name('sales.')->group(function () {
+    Route::get('/{sale}/print-thermal', [SalesController::class, 'printThermal'])->name('print-thermal');
+});
+
 // Sales Routes (Manager Only)
 Route::middleware('role:manager')->prefix('sales')->name('sales.')->group(function () {
     Route::get('/', [SalesController::class, 'index'])->name('index');
     Route::get('/{sale}', [SalesController::class, 'show'])->name('show');
     Route::get('/{sale}/print', [SalesController::class, 'print'])->name('print');
-    Route::get('/{sale}/print-thermal', [SalesController::class, 'printThermal'])->name('print-thermal');
 });
 
 // Reports Routes (Manager Only)

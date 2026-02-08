@@ -262,10 +262,11 @@
                             <table class="table table-bordered" id="unitsTable">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width: 200px;">الوحدة <span class="text-danger">*</span></th>
-                                        <th style="width: 120px;">المعامل <span class="text-danger">*</span></th>
-                                        <th style="width: 150px;">سعر التكلفة</th>
-                                        <th style="width: 150px;">سعر البيع <span class="text-danger">*</span></th>
+                                        <th style="width: 180px;">الوحدة <span class="text-danger">*</span></th>
+                                        <th style="width: 100px;">المعامل <span class="text-danger">*</span></th>
+                                        <th style="width: 120px;">سعر التكلفة</th>
+                                        <th style="width: 100px;">هامش الربح %</th>
+                                        <th style="width: 120px;">سعر البيع</th>
                                         <th style="width: 80px;">إجراء</th>
                                     </tr>
                                 </thead>
@@ -284,13 +285,16 @@
                                             </div>
                                         </td>
                                         <td>
-                                            <input type="number" class="form-control multiplier-input" name="units[0][multiplier]" value="1" min="0.0001" step="0.0001" readonly required>
+                                            <input type="number" class="form-control multiplier-input" name="units[0][multiplier]" value="1.0000" min="0.0001" step="0.0001" readonly required>
                                         </td>
                                         <td>
-                                            <input type="number" class="form-control cost-input base-cost" name="units[0][cost_price]" value="0" min="0" step="0.01" required>
+                                            <input type="number" class="form-control cost-input base-cost" name="units[0][cost_price]" value="0.00" min="0" step="0.01">
                                         </td>
                                         <td>
-                                            <input type="number" class="form-control sell-input" name="units[0][sell_price]" value="0" min="0" step="0.01" required>
+                                            <input type="number" class="form-control margin-input" value="0.00" min="0" step="0.01">
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control sell-price-display" name="units[0][sell_price]" value="0.00" min="0" step="0.01" readonly>
                                         </td>
                                         <td class="text-center">
                                             <span class="badge bg-primary">أساسية</span>
@@ -547,6 +551,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('addUnitRow').addEventListener('click', addUnitRow);
 
+    function calculateSellPrice(row) {
+        const costInput = row.querySelector('.base-cost') || row.querySelector('.calculated-cost');
+        const marginInput = row.querySelector('.margin-input');
+        const sellPriceInput = row.querySelector('.sell-price-display');
+
+        if (!costInput || !marginInput || !sellPriceInput) return;
+
+        const cost = parseFloat(costInput.value) || 0;
+        const margin = parseFloat(marginInput.value) || 0;
+        const sellPrice = cost * (1 + margin / 100);
+        sellPriceInput.value = sellPrice.toFixed(2);
+    }
+
+    function updateCalculatedCostsAndPrices() {
+        const baseCost = parseFloat(baseCostInput.value) || 0;
+
+        document.querySelectorAll('.unit-row').forEach((row, index) => {
+            if (index === 0) {
+                calculateSellPrice(row);
+                return;
+            }
+
+            const multiplierInput = row.querySelector('.multiplier-input');
+            const calculatedCostInput = row.querySelector('.calculated-cost');
+            const multiplier = parseFloat(multiplierInput?.value) || 1;
+
+            if (calculatedCostInput) {
+                calculatedCostInput.value = (baseCost * multiplier).toFixed(2);
+            }
+
+            calculateSellPrice(row);
+        });
+    }
+
     function addUnitRow() {
         const baseCost = parseFloat(baseCostInput.value) || 0;
         const unitOptions = Array.from(document.querySelectorAll('.unit-select')[0].options)
@@ -568,13 +606,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </td>
             <td>
-                <input type="number" class="form-control multiplier-input" name="units[${rowIndex}][multiplier]" value="1" min="0.0001" step="0.0001" required>
+                <input type="number" class="form-control multiplier-input" name="units[${rowIndex}][multiplier]" value="1.0000" min="0.0001" step="0.0001" required>
             </td>
             <td>
                 <input type="text" class="form-control calculated-cost" value="${baseCost.toFixed(2)}" readonly disabled>
             </td>
             <td>
-                <input type="number" class="form-control sell-input" name="units[${rowIndex}][sell_price]" value="0" min="0" step="0.01" required>
+                <input type="number" class="form-control margin-input" value="0.00" min="0" step="0.01">
+            </td>
+            <td>
+                <input type="number" class="form-control sell-price-display" name="units[${rowIndex}][sell_price]" value="0.00" min="0" step="0.01" readonly>
             </td>
             <td class="text-center">
                 <button type="button" class="btn btn-danger btn-sm remove-row">
@@ -584,30 +625,18 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         unitsTableBody.appendChild(row);
         rowIndex++;
-
-        row.querySelector('.multiplier-input').addEventListener('input', function() {
-            updateCalculatedCost(row);
-        });
+        updateCalculatedCostsAndPrices();
     }
 
-    function updateCalculatedCost(row) {
-        const multiplier = parseFloat(row.querySelector('.multiplier-input').value) || 0;
-        const baseCost = parseFloat(baseCostInput.value) || 0;
-        const calculatedCostInput = row.querySelector('.calculated-cost');
-        if (calculatedCostInput) {
-            calculatedCostInput.value = (baseCost * multiplier).toFixed(2);
+    baseCostInput.addEventListener('input', updateCalculatedCostsAndPrices);
+
+    unitsTableBody.addEventListener('input', function(e) {
+        if (e.target.classList.contains('margin-input')) {
+            calculateSellPrice(e.target.closest('.unit-row'));
+        } else if (e.target.classList.contains('multiplier-input')) {
+            updateCalculatedCostsAndPrices();
         }
-    }
-
-    function updateAllCalculatedCosts() {
-        document.querySelectorAll('.unit-row').forEach((row, index) => {
-            if (index > 0) {
-                updateCalculatedCost(row);
-            }
-        });
-    }
-
-    baseCostInput.addEventListener('input', updateAllCalculatedCosts);
+    });
 
     unitsTableBody.addEventListener('click', function(e) {
         if (e.target.closest('.remove-row')) {

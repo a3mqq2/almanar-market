@@ -440,6 +440,15 @@
                             </select>
                             <div class="invalid-feedback">يرجى اختيار الخزينة</div>
                         </div>
+                        <div class="col-md-4" id="paidAmountField" style="display: none;">
+                            <label class="form-label">المبلغ المدفوع</label>
+                            <input type="number" class="form-control" id="paid_amount" name="paid_amount" value="0" min="0" step="0.01">
+                            <small class="text-muted">اتركه 0 للدفع الكامل آجلاً</small>
+                        </div>
+                        <div class="col-md-4" id="remainingAmountField" style="display: none;">
+                            <label class="form-label">المتبقي (يضاف لحساب المورد)</label>
+                            <div class="form-control bg-warning-subtle text-warning-emphasis fw-bold" id="remainingAmountDisplay">0.00</div>
+                        </div>
                         <div class="col-12">
                             <label class="form-label">ملاحظات</label>
                             <textarea class="form-control" id="notes" name="notes" rows="2"
@@ -909,6 +918,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const total = afterDiscount + taxAmount;
         document.getElementById('totalDisplay').textContent = total.toFixed(2);
+
+        updateRemainingAmount();
+    }
+
+    function updateRemainingAmount() {
+        const total = parseFloat(document.getElementById('totalDisplay').textContent) || 0;
+        const paidAmount = parseFloat(document.getElementById('paid_amount').value) || 0;
+        const remaining = Math.max(0, total - paidAmount);
+        document.getElementById('remainingAmountDisplay').textContent = remaining.toFixed(2);
     }
 
     document.getElementById('discount_type').addEventListener('change', function() {
@@ -920,17 +938,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('discount_value').addEventListener('input', updateSummary);
     document.getElementById('tax_rate').addEventListener('input', updateSummary);
+    document.getElementById('paid_amount').addEventListener('input', updateRemainingAmount);
 
     document.getElementById('payment_type').addEventListener('change', function() {
         const cashboxField = document.getElementById('cashboxField');
         const cashboxSelect = document.getElementById('cashbox_id');
+        const paidAmountField = document.getElementById('paidAmountField');
+        const remainingAmountField = document.getElementById('remainingAmountField');
+        const paidAmountInput = document.getElementById('paid_amount');
+
         if (this.value === 'cash' || this.value === 'bank') {
             cashboxField.style.display = 'block';
+            paidAmountField.style.display = 'block';
+            remainingAmountField.style.display = 'block';
             cashboxSelect.required = true;
+            updateRemainingAmount();
         } else {
             cashboxField.style.display = 'none';
+            paidAmountField.style.display = 'none';
+            remainingAmountField.style.display = 'none';
             cashboxSelect.required = false;
             cashboxSelect.value = '';
+            paidAmountInput.value = 0;
         }
     });
 
@@ -975,12 +1004,15 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
+        const paidAmount = parseFloat(document.getElementById('paid_amount').value) || 0;
+
         const data = {
             supplier_id: supplierId,
             invoice_number: document.getElementById('invoice_number').value,
             purchase_date: purchaseDate,
             payment_type: paymentType,
             cashbox_id: cashboxId || null,
+            paid_amount: paidAmount,
             discount_type: document.getElementById('discount_type').value || null,
             discount_value: document.getElementById('discount_value').value,
             tax_rate: document.getElementById('tax_rate').value,

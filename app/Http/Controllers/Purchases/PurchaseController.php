@@ -91,6 +91,7 @@ class PurchaseController extends Controller
             'invoice_number' => 'nullable|string|max:100',
             'purchase_date' => 'required|date',
             'payment_type' => 'required|in:cash,bank,credit',
+            'paid_amount' => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|in:fixed,percentage',
             'discount_value' => 'nullable|numeric|min:0',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
@@ -105,7 +106,10 @@ class PurchaseController extends Controller
         ];
 
         if (in_array($request->payment_type, ['cash', 'bank']) && !$request->boolean('save_as_draft')) {
-            $rules['cashbox_id'] = 'required|exists:cashboxes,id';
+            $paidAmount = $request->input('paid_amount', 0);
+            if ($paidAmount > 0) {
+                $rules['cashbox_id'] = 'required|exists:cashboxes,id';
+            }
         }
 
         $validated = $request->validate($rules);
@@ -113,6 +117,8 @@ class PurchaseController extends Controller
         DB::beginTransaction();
 
         try {
+            $paidAmount = $validated['paid_amount'] ?? 0;
+
             $purchase = Purchase::create([
                 'supplier_id' => $validated['supplier_id'],
                 'invoice_number' => $validated['invoice_number'],
@@ -122,6 +128,7 @@ class PurchaseController extends Controller
                 'discount_type' => $validated['discount_type'],
                 'discount_value' => $validated['discount_value'] ?? 0,
                 'tax_rate' => $validated['tax_rate'] ?? 0,
+                'paid_amount' => $paidAmount,
                 'notes' => $validated['notes'],
                 'created_by' => Auth::id(),
             ]);
@@ -229,6 +236,7 @@ class PurchaseController extends Controller
             'invoice_number' => 'nullable|string|max:100',
             'purchase_date' => 'required|date',
             'payment_type' => 'required|in:cash,bank,credit',
+            'paid_amount' => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|in:fixed,percentage',
             'discount_value' => 'nullable|numeric|min:0',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
@@ -243,7 +251,10 @@ class PurchaseController extends Controller
         ];
 
         if (in_array($request->payment_type, ['cash', 'bank']) && !$request->boolean('save_as_draft')) {
-            $rules['cashbox_id'] = 'required|exists:cashboxes,id';
+            $paidAmount = $request->input('paid_amount', 0);
+            if ($paidAmount > 0) {
+                $rules['cashbox_id'] = 'required|exists:cashboxes,id';
+            }
         }
 
         $validated = $request->validate($rules);
@@ -251,11 +262,14 @@ class PurchaseController extends Controller
         DB::beginTransaction();
 
         try {
+            $paidAmount = $validated['paid_amount'] ?? 0;
+
             $purchase->update([
                 'supplier_id' => $validated['supplier_id'],
                 'invoice_number' => $validated['invoice_number'],
                 'purchase_date' => $validated['purchase_date'],
                 'payment_type' => $validated['payment_type'],
+                'paid_amount' => $paidAmount,
                 'discount_type' => $validated['discount_type'],
                 'discount_value' => $validated['discount_value'] ?? 0,
                 'tax_rate' => $validated['tax_rate'] ?? 0,
@@ -327,9 +341,15 @@ class PurchaseController extends Controller
             ], 422);
         }
 
-        $rules = [];
+        $rules = [
+            'paid_amount' => 'nullable|numeric|min:0',
+        ];
+
         if (in_array($purchase->payment_type, ['cash', 'bank'])) {
-            $rules['cashbox_id'] = 'required|exists:cashboxes,id';
+            $paidAmount = $request->input('paid_amount', $purchase->paid_amount ?? 0);
+            if ($paidAmount > 0) {
+                $rules['cashbox_id'] = 'required|exists:cashboxes,id';
+            }
         }
 
         $validated = $request->validate($rules);
@@ -337,6 +357,10 @@ class PurchaseController extends Controller
         DB::beginTransaction();
 
         try {
+            if (isset($validated['paid_amount'])) {
+                $purchase->update(['paid_amount' => $validated['paid_amount']]);
+            }
+
             $cashboxId = $validated['cashbox_id'] ?? null;
             $this->approvePurchase($purchase, $cashboxId);
             DB::commit();
@@ -546,11 +570,9 @@ class PurchaseController extends Controller
 
         $this->financialService->createPurchaseEntries($purchase, $cashboxId);
 
-        if ($purchase->payment_type === 'credit') {
-            $purchase->update(['remaining_amount' => $purchase->total]);
-        }
-
+        $remainingAmount = $purchase->total - ($purchase->paid_amount ?? 0);
         $purchase->update([
+            'remaining_amount' => max(0, $remainingAmount),
             'status' => 'approved',
             'approved_by' => Auth::id(),
             'approved_at' => now(),

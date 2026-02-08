@@ -225,14 +225,20 @@
                             <thead >
                                 <tr>
                                     <th>الوحدة</th>
-                                    <th width="120">المعامل</th>
-                                    <th width="140">سعر التكلفة</th>
-                                    <th width="140">سعر البيع</th>
+                                    <th width="100">المعامل</th>
+                                    <th width="120">سعر التكلفة</th>
+                                    <th width="100">هامش الربح %</th>
+                                    <th width="120">سعر البيع</th>
                                     <th width="70"></th>
                                 </tr>
                             </thead>
                             <tbody id="unitsTableBody">
-                                @foreach($product->productUnits->sortBy(fn($pu) => !$pu->is_base_unit) as $index => $productUnit)
+                                @foreach($product->productUnits->sortBy(fn($pu) => !$pu->is_base_unit)->values() as $index => $productUnit)
+                                    @php
+                                        $costPrice = $productUnit->is_base_unit ? ($productUnit->cost_price ?? 0) : $productUnit->calculated_cost;
+                                        $sellPrice = $productUnit->sell_price ?? 0;
+                                        $margin = $costPrice > 0 ? round((($sellPrice - $costPrice) / $costPrice) * 100, 2) : 0;
+                                    @endphp
                                     <tr class="unit-row" data-row="{{ $index }}">
                                         <td>
                                             <select class="form-select form-select-sm unit-select" name="units[{{ $index }}][unit_id]" required>
@@ -242,17 +248,20 @@
                                             </select>
                                         </td>
                                         <td>
-                                            <input type="number" class="form-control form-control-sm multiplier-input" name="units[{{ $index }}][multiplier]" value="{{ $productUnit->multiplier }}" min="0.0001" step="0.0001" {{ $productUnit->is_base_unit ? 'readonly' : '' }} required>
+                                            <input type="number" class="form-control form-control-sm multiplier-input" name="units[{{ $index }}][multiplier]" value="{{ number_format((float)$productUnit->multiplier, 4, '.', '') }}" min="0.0001" step="0.0001" {{ $productUnit->is_base_unit ? 'readonly' : '' }} required>
                                         </td>
                                         <td>
                                             @if($productUnit->is_base_unit)
-                                                <input type="number" class="form-control form-control-sm base-cost" name="units[{{ $index }}][cost_price]" value="{{ $productUnit->cost_price }}" min="0" step="0.01">
+                                                <input type="number" class="form-control form-control-sm base-cost" name="units[{{ $index }}][cost_price]" value="{{ number_format((float)($productUnit->cost_price ?? 0), 2, '.', '') }}" min="0" step="0.01">
                                             @else
-                                                <input type="text" class="form-control form-control-sm calculated-cost" value="{{ number_format($productUnit->calculated_cost, 2) }}" readonly disabled>
+                                                <input type="text" class="form-control form-control-sm calculated-cost" value="{{ number_format($productUnit->calculated_cost, 2, '.', '') }}" readonly disabled>
                                             @endif
                                         </td>
                                         <td>
-                                            <input type="number" class="form-control form-control-sm" name="units[{{ $index }}][sell_price]" value="{{ $productUnit->sell_price }}" min="0" step="0.01" required>
+                                            <input type="number" class="form-control form-control-sm margin-input" value="{{ number_format($margin, 2, '.', '') }}" min="0" step="0.01">
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm sell-price-display" name="units[{{ $index }}][sell_price]" value="{{ number_format((float)($productUnit->sell_price ?? 0), 2, '.', '') }}" min="0" step="0.01" readonly>
                                         </td>
                                         <td class="text-center">
                                             @if($productUnit->is_base_unit)
@@ -1219,6 +1228,58 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     let unitRowIndex = {{ $product->productUnits->count() }};
+
+    function calculateSellPrice(row) {
+        const costInput = row.querySelector('.base-cost') || row.querySelector('.calculated-cost');
+        const marginInput = row.querySelector('.margin-input');
+        const sellPriceInput = row.querySelector('.sell-price-display');
+
+        if (!costInput || !marginInput || !sellPriceInput) return;
+
+        const cost = parseFloat(costInput.value) || 0;
+        const margin = parseFloat(marginInput.value) || 0;
+        const sellPrice = cost * (1 + margin / 100);
+        sellPriceInput.value = sellPrice.toFixed(2);
+    }
+
+    function updateAllSellPrices() {
+        document.querySelectorAll('.unit-row').forEach(row => {
+            calculateSellPrice(row);
+        });
+    }
+
+    function updateCalculatedCostsAndPrices() {
+        const baseCostInput = document.querySelector('.base-cost');
+        const baseCost = parseFloat(baseCostInput?.value) || 0;
+
+        document.querySelectorAll('.unit-row').forEach((row, index) => {
+            if (index === 0) {
+                calculateSellPrice(row);
+                return;
+            }
+
+            const multiplierInput = row.querySelector('.multiplier-input');
+            const calculatedCostInput = row.querySelector('.calculated-cost');
+            const multiplier = parseFloat(multiplierInput?.value) || 1;
+
+            if (calculatedCostInput) {
+                calculatedCostInput.value = (baseCost * multiplier).toFixed(2);
+            }
+
+            calculateSellPrice(row);
+        });
+    }
+
+    document.getElementById('unitsTableBody').addEventListener('input', function(e) {
+        if (e.target.classList.contains('base-cost')) {
+            updateCalculatedCostsAndPrices();
+        } else if (e.target.classList.contains('margin-input')) {
+            calculateSellPrice(e.target.closest('.unit-row'));
+        } else if (e.target.classList.contains('multiplier-input')) {
+            updateCalculatedCostsAndPrices();
+        }
+    });
+
     document.getElementById('addUnitRowBtn').addEventListener('click', function() {
         const tbody = document.getElementById('unitsTableBody');
         const unitOptions = Array.from(document.querySelectorAll('.unit-select')[0].options)
@@ -1234,13 +1295,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 </select>
             </td>
             <td>
-                <input type="number" class="form-control form-control-sm multiplier-input" name="units[${unitRowIndex}][multiplier]" value="1" min="0.0001" step="0.0001" required>
+                <input type="number" class="form-control form-control-sm multiplier-input" name="units[${unitRowIndex}][multiplier]" value="1.0000" min="0.0001" step="0.0001" required>
             </td>
             <td>
                 <input type="text" class="form-control form-control-sm calculated-cost" value="0.00" readonly disabled>
             </td>
             <td>
-                <input type="number" class="form-control form-control-sm" name="units[${unitRowIndex}][sell_price]" value="0" min="0" step="0.01" required>
+                <input type="number" class="form-control form-control-sm margin-input" value="0.00" min="0" step="0.01">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm sell-price-display" name="units[${unitRowIndex}][sell_price]" value="0.00" min="0" step="0.01" readonly>
             </td>
             <td class="text-center">
                 <button type="button" class="btn btn-outline-danger btn-sm remove-unit-row">
@@ -1250,6 +1314,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         tbody.appendChild(row);
         unitRowIndex++;
+        updateCalculatedCostsAndPrices();
     });
 
     document.getElementById('unitsTableBody').addEventListener('click', function(e) {

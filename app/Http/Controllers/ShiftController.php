@@ -182,12 +182,6 @@ class ShiftController extends Controller
             ], 422);
         }
 
-        if ($shift->user_id !== Auth::id()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'لا يمكنك تعديل وردية مستخدم آخر',
-            ], 403);
-        }
 
         $validated = $request->validate([
             'cashbox_id' => 'required|exists:cashboxes,id',
@@ -288,14 +282,6 @@ class ShiftController extends Controller
                 'success' => false,
                 'message' => 'الوردية مغلق بالفعل',
             ], 422);
-        }
-
-        $user = Auth::user();
-        if ($shift->user_id !== $user->id && !$user->isManager()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'لا يمكنك إغلاق وردية مستخدم آخر',
-            ], 403);
         }
 
         $shift->load('shiftCashboxes');

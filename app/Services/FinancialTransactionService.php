@@ -21,7 +21,10 @@ class FinancialTransactionService
     public function createPurchaseEntries(Purchase $purchase, ?int $cashboxId = null): array
     {
         $supplier = $purchase->supplier;
-        $result = ['supplier_transaction' => null, 'cashbox_transaction' => null];
+        $result = ['supplier_transaction' => null, 'cashbox_transaction' => null, 'supplier_debit_transaction' => null];
+
+        $paidAmount = $purchase->paid_amount ?? 0;
+        $remainingAmount = $purchase->total - $paidAmount;
 
         if ($purchase->payment_type === 'credit') {
             $result['supplier_transaction'] = $this->createSupplierDebit(
@@ -32,39 +35,57 @@ class FinancialTransactionService
                 $purchase->id,
                 $purchase->purchase_date
             );
-        } else {
-            if (!$cashboxId) {
-                throw new \Exception('يجب تحديد الخزينة للدفع النقدي');
-            }
-
-            $cashbox = Cashbox::findOrFail($cashboxId);
-
-            if ($cashbox->current_balance < $purchase->total) {
-                throw new \Exception('رصيد الخزينة غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2));
-            }
-
-            $result['supplier_transaction'] = $this->createSupplierCredit(
-                $supplier,
-                $purchase->total,
-                "سداد فاتورة مشتريات #{$purchase->id}",
-                Purchase::class,
-                $purchase->id,
-                $cashboxId,
-                $purchase->purchase_date
-            );
-
-            $result['cashbox_transaction'] = $this->createCashboxOut(
-                $cashbox,
-                $purchase->total,
-                "فاتورة مشتريات #{$purchase->id} - {$supplier->name}",
-                Purchase::class,
-                $purchase->id,
-                $purchase->purchase_date
-            );
 
             $purchase->update([
-                'paid_amount' => $purchase->total,
-                'remaining_amount' => 0,
+                'paid_amount' => 0,
+                'remaining_amount' => $purchase->total,
+            ]);
+        } else {
+            if ($paidAmount > 0) {
+                if (!$cashboxId) {
+                    throw new \Exception('يجب تحديد الخزينة للدفع النقدي');
+                }
+
+                $cashbox = Cashbox::findOrFail($cashboxId);
+
+                if ($cashbox->current_balance < $paidAmount) {
+                    throw new \Exception('رصيد الخزينة غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2));
+                }
+
+                $result['supplier_transaction'] = $this->createSupplierCredit(
+                    $supplier,
+                    $paidAmount,
+                    "سداد فاتورة مشتريات #{$purchase->id}" . ($remainingAmount > 0 ? " (دفعة جزئية)" : ""),
+                    Purchase::class,
+                    $purchase->id,
+                    $cashboxId,
+                    $purchase->purchase_date
+                );
+
+                $result['cashbox_transaction'] = $this->createCashboxOut(
+                    $cashbox,
+                    $paidAmount,
+                    "فاتورة مشتريات #{$purchase->id} - {$supplier->name}" . ($remainingAmount > 0 ? " (دفعة جزئية)" : ""),
+                    Purchase::class,
+                    $purchase->id,
+                    $purchase->purchase_date
+                );
+            }
+
+            if ($remainingAmount > 0) {
+                $result['supplier_debit_transaction'] = $this->createSupplierDebit(
+                    $supplier,
+                    $remainingAmount,
+                    "مستحقات فاتورة مشتريات #{$purchase->id}" . ($paidAmount > 0 ? " (المتبقي بعد الدفعة الجزئية)" : ""),
+                    Purchase::class,
+                    $purchase->id,
+                    $purchase->purchase_date
+                );
+            }
+
+            $purchase->update([
+                'paid_amount' => $paidAmount,
+                'remaining_amount' => max(0, $remainingAmount),
             ]);
         }
 
@@ -119,19 +140,21 @@ class FinancialTransactionService
     public function reversePurchaseEntries(Purchase $purchase): array
     {
         $supplier = $purchase->supplier;
-        $result = ['supplier_transaction' => null, 'cashbox_transaction' => null];
+        $result = ['supplier_transaction' => null, 'cashbox_transaction' => null, 'supplier_credit_transaction' => null];
 
-        if ($purchase->payment_type === 'credit' && $purchase->remaining_amount > 0) {
-            $result['supplier_transaction'] = $this->createSupplierCredit(
+        if ($purchase->remaining_amount > 0) {
+            $result['supplier_credit_transaction'] = $this->createSupplierCredit(
                 $supplier,
                 $purchase->remaining_amount,
-                "إلغاء فاتورة مشتريات #{$purchase->id}",
+                "إلغاء مستحقات فاتورة مشتريات #{$purchase->id}",
                 Purchase::class,
                 $purchase->id,
                 null,
                 now()
             );
-        } elseif ($purchase->payment_type !== 'credit' && $purchase->paid_amount > 0) {
+        }
+
+        if ($purchase->paid_amount > 0) {
             $originalTransaction = SupplierTransaction::where('reference_type', Purchase::class)
                 ->where('reference_id', $purchase->id)
                 ->where('type', 'credit')
@@ -144,7 +167,7 @@ class FinancialTransactionService
                     $result['supplier_transaction'] = $this->createSupplierDebit(
                         $supplier,
                         $purchase->paid_amount,
-                        "إلغاء فاتورة مشتريات #{$purchase->id}",
+                        "إلغاء سداد فاتورة مشتريات #{$purchase->id}",
                         Purchase::class,
                         $purchase->id,
                         now()
