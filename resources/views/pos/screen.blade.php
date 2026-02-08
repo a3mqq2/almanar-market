@@ -398,10 +398,6 @@
                         <span>المجموع الفرعي</span>
                         <span id="subtotal">0.00</span>
                     </div>
-                    <div class="summary-row">
-                        <span>الخصم <button type="button" class="btn btn-link btn-sm p-0" id="discountBtn" title="تطبيق خصم (F4)"><i class="ti ti-edit"></i></button></span>
-                        <span id="discountAmount">0.00</span>
-                    </div>
                     <div class="summary-row total">
                         <span>الإجمالي</span>
                         <span id="total">0.00</span>
@@ -519,15 +515,6 @@
                         <div class="col-md-6">
                             <div class="bg-light rounded p-3">
                                 <h6 class="mb-3">ملخص الفاتورة</h6>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>المجموع الفرعي:</span>
-                                    <span id="modalSubtotal">0.00</span>
-                                </div>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>الخصم:</span>
-                                    <span id="modalDiscount">0.00</span>
-                                </div>
-                                <hr>
                                 <div class="d-flex justify-content-between mb-2 fw-bold">
                                     <span>الإجمالي:</span>
                                     <span id="modalTotalSummary">0.00</span>
@@ -558,33 +545,6 @@
         </div>
     </div>
 
-    <div class="modal fade" id="discountModal" tabindex="-1">
-        <div class="modal-dialog modal-sm">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h6 class="modal-title"><i class="ti ti-discount me-1"></i>تطبيق خصم</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">نوع الخصم</label>
-                        <select class="form-select" id="discountType">
-                            <option value="fixed">مبلغ ثابت</option>
-                            <option value="percentage">نسبة مئوية</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">قيمة الخصم</label>
-                        <input type="number" class="form-control" id="discountValue" min="0" step="0.01" value="0">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="button" class="btn btn-primary btn-sm" id="applyDiscountBtn">تطبيق</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <div class="modal fade" id="suspendedModal" tabindex="-1">
         <div class="modal-dialog">
@@ -911,8 +871,6 @@
         const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
         let cart = [];
         let selectedCustomer = null;
-        let discountType = null;
-        let discountValue = 0;
         let lastSaleId = null;
         let paymentMode = 'cash';
 
@@ -1637,29 +1595,14 @@
         }
 
         function updateTotals() {
-            const subtotal = cart.reduce((sum, item) => sum + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0)), 0);
-            let discount = 0;
-
-            if (discountType === 'fixed') {
-                discount = discountValue;
-            } else if (discountType === 'percentage') {
-                discount = subtotal * (discountValue / 100);
-            }
-
-            const total = Math.max(0, subtotal - discount);
-
-            document.getElementById('subtotal').textContent = subtotal.toFixed(2);
-            document.getElementById('discountAmount').textContent = discount.toFixed(2);
+            const total = cart.reduce((sum, item) => sum + ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0)), 0);
+            document.getElementById('subtotal').textContent = total.toFixed(2);
             document.getElementById('total').textContent = total.toFixed(2);
         }
 
         function clearCart() {
             cart = [];
             selectedCustomer = null;
-            discountType = null;
-            discountValue = 0;
-            document.getElementById('discountType').value = 'fixed';
-            document.getElementById('discountValue').value = '0';
             document.getElementById('customerInputContainer').classList.remove('d-none');
             document.getElementById('customerInfoContainer').classList.add('d-none');
             document.getElementById('customerSearch').value = '';
@@ -1701,18 +1644,6 @@
             }
         });
 
-        document.getElementById('discountBtn').addEventListener('click', () => {
-            new bootstrap.Modal(document.getElementById('discountModal')).show();
-        });
-
-        document.getElementById('applyDiscountBtn').addEventListener('click', () => {
-            discountType = document.getElementById('discountType').value;
-            discountValue = parseFloat(document.getElementById('discountValue').value) || 0;
-            updateTotals();
-            bootstrap.Modal.getInstance(document.getElementById('discountModal')).hide();
-            showToast('تم تطبيق الخصم', 'success');
-        });
-
         function openServicesModal() {
             if (cart.length === 0) {
                 showToast('السلة فارغة', 'warning');
@@ -1746,12 +1677,7 @@
                 return;
             }
 
-            const subtotal = cart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-            let discount = 0;
-            if (discountType === 'fixed') discount = discountValue;
-            else if (discountType === 'percentage') discount = subtotal * (discountValue / 100);
-            const total = Math.max(0, subtotal - discount);
-
+            const total = cart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
             const defaultCashboxId = document.querySelector('.cashbox-select')?.value;
 
             showToast('جاري إتمام البيع...', 'info');
@@ -1778,8 +1704,6 @@
                             cashbox_id: defaultCashboxId || null,
                             reference_number: null
                         }],
-                        discount_type: discountType,
-                        discount_value: discountValue,
                         notes: null
                     })
                 });
@@ -1828,15 +1752,9 @@
             }
 
             paymentMode = mode;
-            const subtotal = cart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-            let discount = 0;
-            if (discountType === 'fixed') discount = discountValue;
-            else if (discountType === 'percentage') discount = subtotal * (discountValue / 100);
-            const total = Math.max(0, subtotal - discount);
+            const total = cart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
 
             document.getElementById('modalTotal').textContent = total.toFixed(2);
-            document.getElementById('modalSubtotal').textContent = subtotal.toFixed(2);
-            document.getElementById('modalDiscount').textContent = discount.toFixed(2);
             document.getElementById('modalTotalSummary').textContent = total.toFixed(2);
 
             const container = document.getElementById('paymentMethodsContainer');
@@ -1967,8 +1885,6 @@
                             unit_price: item.unit_price
                         })),
                         payments: payments,
-                        discount_type: discountType,
-                        discount_value: discountValue,
                         notes: document.getElementById('paymentNotes').value
                     })
                 });
@@ -2028,14 +1944,8 @@
                 return;
             }
 
-            // Calculate total
-            const subtotal = cart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-            let discount = 0;
-            if (discountType === 'fixed') discount = discountValue;
-            else if (discountType === 'percentage') discount = subtotal * (discountValue / 100);
-            const total = Math.max(0, subtotal - discount);
+            const total = cart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
 
-            // Get first cashbox (default) - optional, backend uses payment method's linked cashbox if not provided
             const defaultCashboxId = document.querySelector('.cashbox-select')?.value;
 
             // Get cash payment method (first one, usually cash)
@@ -2070,8 +1980,6 @@
                             cashbox_id: defaultCashboxId || null,
                             reference_number: null
                         }],
-                        discount_type: discountType,
-                        discount_value: discountValue,
                         notes: null
                     })
                 });
@@ -2455,7 +2363,6 @@
             ' ': () => quickCashPayment(),
             'F2': () => openServicesModal(),
             'F3': () => openPaymentModal('multi'),
-            'F4': () => new bootstrap.Modal(document.getElementById('discountModal')).show(),
             'F6': () => {
                 if (selectedCartIndex >= 0 && selectedCartIndex < cart.length) {
                     cycleItemUnit(selectedCartIndex);

@@ -316,8 +316,8 @@
         <div class="center store-name">{{ config('app.store_name', 'المنار ماركت') }}</div>
 
         <div class="center store-info">
-            <div>{{ config('app.store_address', 'طرابلس - ليبيا') }}</div>
-            <div>هاتف: {{ config('app.store_phone', '091-1234567') }}</div>
+            <div>{{ config('app.store_address', 'البيضاء - ليبيا') }}</div>
+            <div>هاتف: {{ config('app.store_phone', '0916698784') }}</div>
         </div>
 
         <hr class="divider divider-double">
