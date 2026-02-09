@@ -891,6 +891,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
+        const quantity = parseFloat(item.quantity) || 1;
         const unitPrice = parseFloat(item.unit_price) || 0;
         const totalPrice = parseFloat(item.total_price) || 0;
 
@@ -907,7 +908,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </td>
             <td>
                 <input type="number" class="form-control form-control-sm item-quantity text-center"
-                       value="${item.quantity}" min="0.0001" step="0.0001"
+                       value="${quantity}" min="0.0001" step="0.0001"
                        onchange="updateItemTotal(${item.index})" onfocus="this.select()">
             </td>
             <td>
