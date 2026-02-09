@@ -72,14 +72,14 @@
             <h4 class="mb-1">فاتورة رقم: {{ $sale->invoice_number }}</h4>
             <div class="d-flex gap-2 align-items-center">
                 <span class="badge bg-{{ $sale->status_color }} fs-6">{{ $sale->status_arabic }}</span>
-                <span class="badge bg-{{ $sale->payment_status === 'paid' ? 'success' : ($sale->payment_status === 'partial' ? 'warning' : 'danger') }} fs-6">{{ $sale->payment_status_arabic }}</span>
+                <span class="badge bg-{{ $sale->payment_status == 'paid' ? 'success' : ($sale->payment_status == 'partial' ? 'warning' : 'danger') }} fs-6">{{ $sale->payment_status_arabic }}</span>
             </div>
         </div>
         <div class="d-flex gap-2">
             <a href="{{ route('sales.print', $sale) }}" target="_blank" class="btn btn-outline-primary">
                 <i class="ti ti-printer me-1"></i>طباعة
             </a>
-            @if($sale->status === 'completed')
+            @if($sale->status == 'completed')
             <button type="button" class="btn btn-outline-danger" id="cancelSaleBtn">
                 <i class="ti ti-x me-1"></i>إلغاء الفاتورة
             </button>
@@ -158,7 +158,7 @@
         </div>
         @endif
 
-        @if($sale->status === 'cancelled')
+        @if($sale->status == 'cancelled')
         <div class="card border-danger mb-3">
             <div class="card-header bg-danger text-white">
                 <h6 class="mb-0"><i class="ti ti-alert-circle me-1"></i>معلومات الإلغاء</h6>
@@ -231,7 +231,7 @@
             <div class="summary-row">
                 <span class="info-label">
                     الخصم
-                    @if($sale->discount_type === 'percentage')
+                    @if($sale->discount_type == 'percentage')
                     ({{ $sale->discount_value }}%)
                     @endif
                 </span>

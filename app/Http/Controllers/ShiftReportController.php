@@ -60,7 +60,7 @@ class ShiftReportController extends Controller
         }
 
         if ($request->filled('has_difference')) {
-            if ($request->has_difference === 'yes') {
+            if ($request->has_difference == 'yes') {
                 $query->whereHas('shiftCashboxes', function ($q) {
                     $q->where('difference', '!=', 0);
                 });
@@ -103,9 +103,9 @@ class ShiftReportController extends Controller
             $sortField = 'opened_at';
         }
 
-        if ($sortField === 'total_sales') {
+        if ($sortField == 'total_sales') {
             $query->orderByRaw('(total_cash_sales + total_card_sales + total_other_sales) ' . $sortDirection);
-        } elseif ($sortField === 'difference') {
+        } elseif ($sortField == 'difference') {
             $query->withSum('shiftCashboxes as total_diff', 'difference')
                 ->orderBy('total_diff', $sortDirection);
         } else {
@@ -231,7 +231,7 @@ class ShiftReportController extends Controller
 
         $format = $request->get('format', 'excel');
 
-        if ($format === 'excel') {
+        if ($format == 'excel') {
             return $this->exportExcel($data);
         }
 

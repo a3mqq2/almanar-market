@@ -35,7 +35,7 @@ class InventoryReportController extends Controller
 
         $exportService = new ReportExportService();
 
-        if ($format === 'excel') {
+        if ($format == 'excel') {
             return $exportService->exportExcel(
                 $reportData['products'],
                 'inventory_report',
@@ -99,7 +99,7 @@ class InventoryReportController extends Controller
                 $status = 'low_stock';
             }
 
-            if ($daysToExpiry !== null) {
+            if ($daysToExpiry != null) {
                 if ($daysToExpiry < 0) {
                     $status = 'expired';
                 } elseif ($daysToExpiry <= $expiryDays) {
@@ -122,8 +122,8 @@ class InventoryReportController extends Controller
             ];
         });
 
-        if ($stockStatus !== 'all') {
-            $productData = $productData->filter(fn($p) => $p['status'] === $stockStatus);
+        if ($stockStatus != 'all') {
+            $productData = $productData->filter(fn($p) => $p['status'] == $stockStatus);
         }
 
         $allProducts = $productData->values();

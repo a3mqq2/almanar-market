@@ -261,7 +261,7 @@
             </div>
             @if($sale->discount_amount > 0)
             <div class="totals-row">
-                <span>الخصم @if($sale->discount_type === 'percentage')({{ $sale->discount_value }}%)@endif:</span>
+                <span>الخصم @if($sale->discount_type == 'percentage')({{ $sale->discount_value }}%)@endif:</span>
                 <span>-{{ number_format($sale->discount_amount, 2) }}</span>
             </div>
             @endif

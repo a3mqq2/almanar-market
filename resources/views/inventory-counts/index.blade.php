@@ -204,14 +204,14 @@
                                             <i class="ti ti-eye me-2"></i>عرض
                                         </a>
                                     </li>
-                                    @if($count->status === 'in_progress')
+                                    @if($count->status == 'in_progress')
                                     <li>
                                         <a class="dropdown-item" href="{{ route('inventory-counts.count', $count) }}">
                                             <i class="ti ti-clipboard-check me-2"></i>متابعة الجرد
                                         </a>
                                     </li>
                                     @endif
-                                    @if($count->status === 'completed')
+                                    @if($count->status == 'completed')
                                     <li>
                                         <a class="dropdown-item" href="{{ route('inventory-counts.review', $count) }}">
                                             <i class="ti ti-file-check me-2"></i>مراجعة واعتماد

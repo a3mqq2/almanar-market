@@ -105,8 +105,8 @@
                     <span><i class="ti ti-barcode me-1"></i>{{ $product->barcode }}</span>
                     <span class="text-muted">|</span>
                 @endif
-                <span class="badge {{ $product->status === 'active' ? 'bg-success' : 'bg-secondary' }}">
-                    {{ $product->status === 'active' ? 'نشط' : 'غير نشط' }}
+                <span class="badge {{ $product->status == 'active' ? 'bg-success' : 'bg-secondary' }}">
+                    {{ $product->status == 'active' ? 'نشط' : 'غير نشط' }}
                 </span>
             </div>
         </div>
@@ -187,8 +187,8 @@
                             <tr>
                                 <td class="info-label">الحالة</td>
                                 <td>
-                                    <span class="badge {{ $product->status === 'active' ? 'bg-success' : 'bg-secondary' }}">
-                                        {{ $product->status === 'active' ? 'نشط' : 'غير نشط' }}
+                                    <span class="badge {{ $product->status == 'active' ? 'bg-success' : 'bg-secondary' }}">
+                                        {{ $product->status == 'active' ? 'نشط' : 'غير نشط' }}
                                     </span>
                                 </td>
                             </tr>
@@ -752,7 +752,7 @@
                     </div>
                     <div class="mb-3">
                         <div class="form-check form-switch">
-                            <input type="checkbox" class="form-check-input" id="editProductStatus" name="status" {{ $product->status === 'active' ? 'checked' : '' }}>
+                            <input type="checkbox" class="form-check-input" id="editProductStatus" name="status" {{ $product->status == 'active' ? 'checked' : '' }}>
                             <label class="form-check-label" for="editProductStatus">نشط</label>
                         </div>
                     </div>
@@ -1050,7 +1050,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const hash = window.location.hash.substring(1);
     if (hash) {
         activateTab(hash);
-        if (hash === 'units') {
+        if (hash == 'units') {
             showToast('تم إنشاء الصنف بنجاح! يرجى إكمال بيانات الوحدات والأسعار', 'success');
         }
         history.replaceState(null, null, window.location.pathname);
@@ -1166,7 +1166,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'return': 'مرتجع'
                 };
 
-                if (result.batches.length === 0) {
+                if (result.batches.length == 0) {
                     container.innerHTML = `
                         <table class="table table-sm table-hover table-bordered mb-0">
                             <thead >
@@ -1362,7 +1362,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const baseCost = parseFloat(baseCostInput?.value) || 0;
 
         document.querySelectorAll('.unit-row').forEach((row, index) => {
-            if (index === 0) {
+            if (index == 0) {
                 calculateSellPrice(row);
                 return;
             }
@@ -1785,7 +1785,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 const tbody = document.getElementById('barcodesTableBody');
-                if (tbody.children.length === 0) {
+                if (tbody.children.length == 0) {
                     tbody.innerHTML = `
                         <tr id="noBarcodesRow">
                             <td colspan="5" class="text-center text-muted py-4">

@@ -55,22 +55,22 @@ class User extends Authenticatable
 
     public function isManager(): bool
     {
-        return $this->role === 'manager';
+        return $this->role == 'manager';
     }
 
     public function isCashier(): bool
     {
-        return $this->role === 'cashier';
+        return $this->role == 'cashier';
     }
 
     public function isPriceChecker(): bool
     {
-        return $this->role === 'price_checker';
+        return $this->role == 'price_checker';
     }
 
     public function isActive(): bool
     {
-        return $this->status === true;
+        return $this->status == true;
     }
 
     public function canAccessCashbox(int $cashboxId): bool

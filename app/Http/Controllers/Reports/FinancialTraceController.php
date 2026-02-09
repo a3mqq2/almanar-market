@@ -91,7 +91,7 @@ class FinancialTraceController extends Controller
             });
 
         $reference = null;
-        if ($referenceType === Purchase::class || $referenceType === 'App\\Models\\Purchase') {
+        if ($referenceType == Purchase::class || $referenceType == 'App\\Models\\Purchase') {
             $purchase = Purchase::with('supplier')->find($referenceId);
             if ($purchase) {
                 $reference = [

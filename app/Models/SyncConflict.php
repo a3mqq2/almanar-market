@@ -57,7 +57,7 @@ class SyncConflict extends Model
 
     public function isPending(): bool
     {
-        return $this->resolution === 'pending';
+        return $this->resolution == 'pending';
     }
 
     public function resolveWithServer(int $userId): bool

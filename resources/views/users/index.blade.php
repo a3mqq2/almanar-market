@@ -355,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderUsers(users, meta) {
         const tbody = document.getElementById('usersTableBody');
 
-        if (users.length === 0) {
+        if (users.length == 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="7">
@@ -379,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const roleColor = roleColors[user.role] || 'secondary';
 
             let cashboxesHtml = '-';
-            if (user.role === 'manager') {
+            if (user.role == 'manager') {
                 cashboxesHtml = '<span class="badge bg-info-subtle text-info">جميع الخزائن</span>';
             } else if (user.cashboxes && user.cashboxes.length > 0) {
                 cashboxesHtml = user.cashboxes.map(cb =>
@@ -419,21 +419,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let html = '<ul class="pagination pagination-sm mb-0">';
 
-        html += `<li class="page-item ${meta.current_page === 1 ? 'disabled' : ''}">
+        html += `<li class="page-item ${meta.current_page == 1 ? 'disabled' : ''}">
             <a class="page-link" href="#" data-page="${meta.current_page - 1}"><i class="ti ti-chevron-right"></i></a>
         </li>`;
 
         for (let i = 1; i <= meta.last_page; i++) {
-            if (i === 1 || i === meta.last_page || (i >= meta.current_page - 1 && i <= meta.current_page + 1)) {
-                html += `<li class="page-item ${i === meta.current_page ? 'active' : ''}">
+            if (i == 1 || i == meta.last_page || (i >= meta.current_page - 1 && i <= meta.current_page + 1)) {
+                html += `<li class="page-item ${i == meta.current_page ? 'active' : ''}">
                     <a class="page-link" href="#" data-page="${i}">${i}</a>
                 </li>`;
-            } else if (i === meta.current_page - 2 || i === meta.current_page + 2) {
+            } else if (i == meta.current_page - 2 || i == meta.current_page + 2) {
                 html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
             }
         }
 
-        html += `<li class="page-item ${meta.current_page === meta.last_page ? 'disabled' : ''}">
+        html += `<li class="page-item ${meta.current_page == meta.last_page ? 'disabled' : ''}">
             <a class="page-link" href="#" data-page="${meta.current_page + 1}"><i class="ti ti-chevron-left"></i></a>
         </li>`;
 
@@ -455,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = this.dataset.href;
             });
             row.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') window.location.href = this.dataset.href;
+                if (e.key == 'Enter') window.location.href = this.dataset.href;
             });
         });
     }
@@ -482,8 +482,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('th.sortable').forEach(th => {
         th.addEventListener('click', function() {
             const sort = this.dataset.sort;
-            if (currentSort === sort) {
-                currentDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+            if (currentSort == sort) {
+                currentDirection = currentDirection == 'asc' ? 'desc' : 'asc';
             } else {
                 currentSort = sort;
                 currentDirection = 'asc';
@@ -491,7 +491,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             document.querySelectorAll('.sort-icon').forEach(icon => icon.classList.remove('active'));
             this.querySelector('.sort-icon').classList.add('active');
-            this.querySelector('.sort-icon').className = `ti ti-arrow-${currentDirection === 'asc' ? 'up' : 'down'} sort-icon active`;
+            this.querySelector('.sort-icon').className = `ti ti-arrow-${currentDirection == 'asc' ? 'up' : 'down'} sort-icon active`;
 
             loadUsers(1);
         });
@@ -499,7 +499,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('userRole').addEventListener('change', function() {
         const cashboxesGroup = document.getElementById('cashboxesGroup');
-        cashboxesGroup.style.display = (this.value === 'manager' || this.value === 'price_checker') ? 'none' : 'block';
+        cashboxesGroup.style.display = (this.value == 'manager' || this.value == 'price_checker') ? 'none' : 'block';
     });
 
     window.openCreateModal = function() {
@@ -580,7 +580,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const cashboxIds = [];
-        if (role !== 'manager') {
+        if (role != 'manager') {
             document.querySelectorAll('.cashbox-checkbox:checked').forEach(cb => {
                 cashboxIds.push(parseInt(cb.value));
             });

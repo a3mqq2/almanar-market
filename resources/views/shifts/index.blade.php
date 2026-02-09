@@ -347,7 +347,7 @@ function renderTable(shifts) {
     const tbody = document.getElementById('shiftsTableBody');
     const emptyState = document.getElementById('emptyState');
 
-    if (shifts.length === 0) {
+    if (shifts.length == 0) {
         tbody.innerHTML = '';
         emptyState.classList.remove('d-none');
         return;
@@ -376,7 +376,7 @@ function renderPagination(pagination) {
     const info = document.getElementById('paginationInfo');
     const links = document.getElementById('paginationLinks');
 
-    if (pagination.total === 0) {
+    if (pagination.total == 0) {
         info.textContent = '';
         links.innerHTML = '';
         return;
@@ -391,9 +391,9 @@ function renderPagination(pagination) {
     }
 
     for (let i = 1; i <= pagination.last_page; i++) {
-        if (i === 1 || i === pagination.last_page || (i >= pagination.current_page - 2 && i <= pagination.current_page + 2)) {
-            html += `<li class="page-item ${i === pagination.current_page ? 'active' : ''}"><a class="page-link" href="#" onclick="goToPage(${i})">${i}</a></li>`;
-        } else if (i === pagination.current_page - 3 || i === pagination.current_page + 3) {
+        if (i == 1 || i == pagination.last_page || (i >= pagination.current_page - 2 && i <= pagination.current_page + 2)) {
+            html += `<li class="page-item ${i == pagination.current_page ? 'active' : ''}"><a class="page-link" href="#" onclick="goToPage(${i})">${i}</a></li>`;
+        } else if (i == pagination.current_page - 3 || i == pagination.current_page + 3) {
             html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
         }
     }
@@ -419,8 +419,8 @@ function setupSortHeaders() {
         header.addEventListener('click', function() {
             const sortField = this.dataset.sort;
 
-            if (currentSort === sortField) {
-                currentDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+            if (currentSort == sortField) {
+                currentDirection = currentDirection == 'asc' ? 'desc' : 'asc';
             } else {
                 currentSort = sortField;
                 currentDirection = 'desc';
@@ -432,7 +432,7 @@ function setupSortHeaders() {
             });
 
             this.classList.add('active');
-            this.querySelector('.sort-icon').className = `ti ti-sort-${currentDirection === 'asc' ? 'ascending' : 'descending'} sort-icon`;
+            this.querySelector('.sort-icon').className = `ti ti-sort-${currentDirection == 'asc' ? 'ascending' : 'descending'} sort-icon`;
 
             currentPage = 1;
             loadShifts();
@@ -464,7 +464,7 @@ function exportData(format) {
     const params = new URLSearchParams();
 
     Object.entries(filters).forEach(([key, value]) => {
-        if (value && key !== 'page') params.append(key, value);
+        if (value && key != 'page') params.append(key, value);
     });
 
     params.append('format', format);

@@ -52,7 +52,7 @@ class InventoryCountItem extends Model
 
     public function calculateVariance(): void
     {
-        if ($this->counted_qty !== null) {
+        if ($this->counted_qty != null) {
             $this->difference = $this->counted_qty - $this->system_qty;
             $this->variance_value = $this->difference * $this->system_cost;
         } else {
@@ -63,7 +63,7 @@ class InventoryCountItem extends Model
 
     public function getVarianceStatusAttribute(): string
     {
-        if ($this->counted_qty === null) return 'pending';
+        if ($this->counted_qty == null) return 'pending';
         if ($this->difference > 0) return 'surplus';
         if ($this->difference < 0) return 'shortage';
         return 'match';
@@ -93,6 +93,6 @@ class InventoryCountItem extends Model
 
     public function getIsCountedAttribute(): bool
     {
-        return $this->counted_qty !== null;
+        return $this->counted_qty != null;
     }
 }

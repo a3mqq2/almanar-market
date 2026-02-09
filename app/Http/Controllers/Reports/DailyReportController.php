@@ -230,7 +230,7 @@ class DailyReportController extends Controller
                 $status = 'low_stock';
             }
 
-            if ($daysToExpiry !== null && $daysToExpiry <= 7) {
+            if ($daysToExpiry != null && $daysToExpiry <= 7) {
                 $status = $daysToExpiry < 0 ? 'expired' : 'expiring_soon';
             }
 

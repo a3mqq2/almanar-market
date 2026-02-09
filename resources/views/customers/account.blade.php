@@ -300,12 +300,12 @@
                                     <tr>
                                         <td>{{ $t->transaction_date->format('Y-m-d') }}</td>
                                         <td>
-                                            <span class="badge bg-{{ $t->type === 'debit' ? 'danger' : 'success' }}">
+                                            <span class="badge bg-{{ $t->type == 'debit' ? 'danger' : 'success' }}">
                                                 {{ $t->type_arabic }}
                                             </span>
                                         </td>
-                                        <td class="{{ $t->type === 'debit' ? 'transaction-debit' : 'transaction-credit' }} fw-bold">
-                                            {{ $t->type === 'debit' ? '+' : '-' }}{{ number_format($t->amount, 2) }}
+                                        <td class="{{ $t->type == 'debit' ? 'transaction-debit' : 'transaction-credit' }} fw-bold">
+                                            {{ $t->type == 'debit' ? '+' : '-' }}{{ number_format($t->amount, 2) }}
                                         </td>
                                         <td class="fw-medium">{{ number_format($t->balance_after, 2) }}</td>
                                         <td>{{ $t->description ?? '-' }}</td>
@@ -743,11 +743,11 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('currentBalance').textContent = formatted;
         document.getElementById('txCurrentBalance').textContent = formatted;
 
-        if (totalDebit !== null) {
+        if (totalDebit != null) {
             document.getElementById('totalDebit').textContent = parseFloat(totalDebit).toFixed(2);
             document.getElementById('txTotalDebit').textContent = parseFloat(totalDebit).toFixed(2);
         }
-        if (totalCredit !== null) {
+        if (totalCredit != null) {
             document.getElementById('totalCredit').textContent = parseFloat(totalCredit).toFixed(2);
             document.getElementById('txTotalCredit').textContent = parseFloat(totalCredit).toFixed(2);
         }
@@ -921,7 +921,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderLedger(data, meta) {
         const tbody = document.getElementById('ledgerTableBody');
 
-        if (data.length === 0) {
+        if (data.length == 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="8">
@@ -945,12 +945,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${rowNum}</td>
                     <td>${t.transaction_date}</td>
                     <td>
-                        <span class="badge bg-${t.type === 'debit' ? 'danger' : 'success'}">
+                        <span class="badge bg-${t.type == 'debit' ? 'danger' : 'success'}">
                             ${t.type_arabic}
                         </span>
                     </td>
-                    <td class="${t.type === 'debit' ? 'transaction-debit' : 'transaction-credit'} fw-bold">
-                        ${t.type === 'debit' ? '+' : '-'}${parseFloat(t.amount).toFixed(2)}
+                    <td class="${t.type == 'debit' ? 'transaction-debit' : 'transaction-credit'} fw-bold">
+                        ${t.type == 'debit' ? '+' : '-'}${parseFloat(t.amount).toFixed(2)}
                     </td>
                     <td class="fw-medium">${parseFloat(t.balance_after).toFixed(2)}</td>
                     <td>${t.description || '-'}</td>
@@ -973,7 +973,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (meta.last_page > 1) {
             html += `
-                <li class="page-item ${meta.current_page === 1 ? 'disabled' : ''}">
+                <li class="page-item ${meta.current_page == 1 ? 'disabled' : ''}">
                     <a class="page-link" href="#" onclick="loadLedgerPage(${meta.current_page - 1}); return false;">
                         <i class="ti ti-chevron-right"></i>
                     </a>
@@ -981,19 +981,19 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
 
             for (let i = 1; i <= meta.last_page; i++) {
-                if (i === 1 || i === meta.last_page || (i >= meta.current_page - 2 && i <= meta.current_page + 2)) {
+                if (i == 1 || i == meta.last_page || (i >= meta.current_page - 2 && i <= meta.current_page + 2)) {
                     html += `
-                        <li class="page-item ${i === meta.current_page ? 'active' : ''}">
+                        <li class="page-item ${i == meta.current_page ? 'active' : ''}">
                             <a class="page-link" href="#" onclick="loadLedgerPage(${i}); return false;">${i}</a>
                         </li>
                     `;
-                } else if (i === meta.current_page - 3 || i === meta.current_page + 3) {
+                } else if (i == meta.current_page - 3 || i == meta.current_page + 3) {
                     html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
                 }
             }
 
             html += `
-                <li class="page-item ${meta.current_page === meta.last_page ? 'disabled' : ''}">
+                <li class="page-item ${meta.current_page == meta.last_page ? 'disabled' : ''}">
                     <a class="page-link" href="#" onclick="loadLedgerPage(${meta.current_page + 1}); return false;">
                         <i class="ti ti-chevron-left"></i>
                     </a>

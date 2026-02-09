@@ -37,7 +37,7 @@ class CashboxController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status === 'active');
+            $query->where('status', $request->status == 'active');
         }
 
         if ($request->filled('type')) {
@@ -393,11 +393,11 @@ class CashboxController extends Controller
         $query = $cashbox->transactions()->with('creator', 'relatedCashbox');
 
         if ($request->filled('type')) {
-            if ($request->type === 'in') {
+            if ($request->type == 'in') {
                 $query->whereIn('type', ['in', 'transfer_in']);
-            } elseif ($request->type === 'out') {
+            } elseif ($request->type == 'out') {
                 $query->whereIn('type', ['out', 'transfer_out']);
-            } elseif ($request->type === 'transfer') {
+            } elseif ($request->type == 'transfer') {
                 $query->whereIn('type', ['transfer_in', 'transfer_out']);
             } else {
                 $query->where('type', $request->type);

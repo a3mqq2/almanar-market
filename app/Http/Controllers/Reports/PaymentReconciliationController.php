@@ -361,7 +361,7 @@ class PaymentReconciliationController extends Controller
                     'actual' => $actual,
                     'difference' => $difference,
                     'status' => $status,
-                    'is_linked' => $method->cashbox_id === $cid,
+                    'is_linked' => $method->cashbox_id == $cid,
                 ];
             }
         }

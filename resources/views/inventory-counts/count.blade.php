@@ -413,7 +413,7 @@
                 'unit_name' => $i->product->baseUnit?->unit?->name ?? 'وحدة',
                 'system_qty' => floatval($i->system_qty),
                 'system_cost' => floatval($i->system_cost),
-                'counted_qty' => $i->counted_qty !== null ? floatval($i->counted_qty) : null,
+                'counted_qty' => $i->counted_qty != null ? floatval($i->counted_qty) : null,
                 'difference' => floatval($i->difference),
                 'variance_status' => $i->variance_status,
                 'notes' => $i->notes,
@@ -451,7 +451,7 @@
         function initTheme() {
             const config = JSON.parse(sessionStorage.getItem('__THEME_CONFIG__') || '{}');
             let theme = config.theme || 'light';
-            if (theme === 'system') {
+            if (theme == 'system') {
                 theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             }
             document.documentElement.setAttribute('data-bs-theme', theme);
@@ -460,7 +460,7 @@
 
         function setupEventListeners() {
             document.getElementById('searchInput').addEventListener('keypress', async (e) => {
-                if (e.key === 'Enter') {
+                if (e.key == 'Enter') {
                     const value = e.target.value.trim();
                     if (value) {
                         await findByBarcode(value);
@@ -479,7 +479,7 @@
             document.getElementById('countedQty').addEventListener('input', calculateVariance);
 
             document.getElementById('countedQty').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') saveCount();
+                if (e.key == 'Enter') saveCount();
             });
 
             document.getElementById('completeBtn').addEventListener('click', confirmComplete);
@@ -497,7 +497,7 @@
         }
 
         async function findByBarcode(barcode) {
-            const item = items.find(i => i.barcode === barcode);
+            const item = items.find(i => i.barcode == barcode);
             if (item) {
                 selectItem(item);
             } else {
@@ -514,7 +514,7 @@
             document.getElementById('currentProductName').textContent = item.product_name;
             document.getElementById('currentProductBarcode').textContent = item.barcode || 'بدون باركود';
             document.getElementById('systemQty').textContent = formatNumber(item.system_qty);
-            document.getElementById('countedQty').value = item.counted_qty !== null ? item.counted_qty : '';
+            document.getElementById('countedQty').value = item.counted_qty != null ? item.counted_qty : '';
             document.getElementById('itemNotes').value = item.notes || '';
 
             calculateVariance();
@@ -522,7 +522,7 @@
             document.getElementById('countedQty').select();
 
             document.querySelectorAll('.product-item').forEach(el => {
-                el.classList.toggle('active', parseInt(el.dataset.id) === item.id);
+                el.classList.toggle('active', parseInt(el.dataset.id) == item.id);
             });
         }
 
@@ -554,7 +554,7 @@
             const countedQty = document.getElementById('countedQty').value;
             const notes = document.getElementById('itemNotes').value;
 
-            if (countedQty === '') {
+            if (countedQty == '') {
                 showToast('يرجى إدخال الكمية المجرودة', 'warning');
                 return;
             }
@@ -581,8 +581,8 @@
                 if (data.success) {
                     showToast('تم حفظ الجرد', 'success');
 
-                    const index = items.findIndex(i => i.id === currentItem.id);
-                    if (index !== -1) {
+                    const index = items.findIndex(i => i.id == currentItem.id);
+                    if (index != -1) {
                         items[index].counted_qty = data.item.counted_qty;
                         items[index].difference = data.item.difference;
                         items[index].variance_status = data.item.variance_status;
@@ -603,7 +603,7 @@
         }
 
         function moveToNextItem() {
-            const uncounted = items.find(i => i.counted_qty === null);
+            const uncounted = items.find(i => i.counted_qty == null);
             if (uncounted) {
                 selectItem(uncounted);
             } else {
@@ -619,7 +619,7 @@
 
         function updateProgress(progress = null) {
             if (!progress) {
-                const counted = items.filter(i => i.counted_qty !== null).length;
+                const counted = items.filter(i => i.counted_qty != null).length;
                 progress = {
                     counted_items: counted,
                     total_items: items.length,
@@ -638,13 +638,13 @@
 
             switch (filter) {
                 case 'pending':
-                    filtered = items.filter(i => i.counted_qty === null);
+                    filtered = items.filter(i => i.counted_qty == null);
                     break;
                 case 'counted':
-                    filtered = items.filter(i => i.counted_qty !== null);
+                    filtered = items.filter(i => i.counted_qty != null);
                     break;
                 case 'variance':
-                    filtered = items.filter(i => i.counted_qty !== null && i.difference !== 0);
+                    filtered = items.filter(i => i.counted_qty != null && i.difference != 0);
                     break;
             }
 
@@ -656,14 +656,14 @@
             }
 
             listEl.innerHTML = filtered.map(item => `
-                <div class="product-item ${item.id === currentItem?.id ? 'active' : ''} ${getStatusClass(item)}"
+                <div class="product-item ${item.id == currentItem?.id ? 'active' : ''} ${getStatusClass(item)}"
                      data-id="${item.id}" onclick='selectItem(${JSON.stringify(item)})'>
                     <div>
                         <div class="product-name">${item.product_name}</div>
                         <div class="product-barcode">${item.barcode || 'بدون باركود'}</div>
                     </div>
                     <div>
-                        ${item.counted_qty !== null
+                        ${item.counted_qty != null
                             ? `<span class="badge bg-${getStatusBadge(item)}">${formatNumber(item.counted_qty)}</span>`
                             : '<span class="badge bg-secondary">-</span>'}
                     </div>
@@ -672,7 +672,7 @@
         }
 
         function getStatusClass(item) {
-            if (item.counted_qty === null) return '';
+            if (item.counted_qty == null) return '';
             if (item.difference > 0) return 'surplus';
             if (item.difference < 0) return 'shortage';
             return 'match';
@@ -732,7 +732,7 @@
 
         function toggleTheme() {
             const current = document.documentElement.getAttribute('data-bs-theme');
-            const newTheme = current === 'dark' ? 'light' : 'dark';
+            const newTheme = current == 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-bs-theme', newTheme);
 
             let config = JSON.parse(sessionStorage.getItem('__THEME_CONFIG__') || '{}');
@@ -745,7 +745,7 @@
         function updateThemeIcon() {
             const theme = document.documentElement.getAttribute('data-bs-theme');
             const icon = document.querySelector('#themeToggle i');
-            icon.className = theme === 'dark' ? 'ti ti-sun' : 'ti ti-moon';
+            icon.className = theme == 'dark' ? 'ti ti-sun' : 'ti ti-moon';
         }
 
         function appendNum(num) {

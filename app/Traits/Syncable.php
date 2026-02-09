@@ -78,7 +78,7 @@ trait Syncable
 
     public function needsSync(): bool
     {
-        return $this->synced_at === null || $this->updated_at > $this->synced_at;
+        return $this->synced_at == null || $this->updated_at > $this->synced_at;
     }
 
     public function markAsSynced(): bool

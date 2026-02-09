@@ -222,8 +222,8 @@
                                     <div class="col-md-4 mb-3">
                                         <label for="status" class="form-label">حالة الصنف <span class="text-danger">*</span></label>
                                         <select class="form-select @error('status') is-invalid @enderror" id="" name="status" required>
-                                            <option value="active" {{ old('status', 'active') === 'active' ? 'selected' : '' }}>نشط</option>
-                                            <option value="inactive" {{ old('status') === 'inactive' ? 'selected' : '' }}>غير نشط</option>
+                                            <option value="active" {{ old('status', 'active') == 'active' ? 'selected' : '' }}>نشط</option>
+                                            <option value="inactive" {{ old('status') == 'inactive' ? 'selected' : '' }}>غير نشط</option>
                                         </select>
                                         @error('status')
                                             <div class="invalid-feedback">{{ $message }}</div>
@@ -422,7 +422,7 @@ document.addEventListener('DOMContentLoaded', function() {
         steps.forEach((step, index) => {
             const stepNum = index + 1;
             step.classList.remove('active', 'completed');
-            if (stepNum === currentStep) {
+            if (stepNum == currentStep) {
                 step.classList.add('active');
             } else if (stepNum < currentStep) {
                 step.classList.add('completed');
@@ -431,14 +431,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         contents.forEach(content => {
             content.classList.remove('active');
-            if (parseInt(content.dataset.step) === currentStep) {
+            if (parseInt(content.dataset.step) == currentStep) {
                 content.classList.add('active');
             }
         });
 
-        prevBtn.style.display = currentStep === 1 ? 'none' : 'inline-flex';
-        nextBtn.style.display = currentStep === totalSteps ? 'none' : 'inline-flex';
-        submitBtn.style.display = currentStep === totalSteps ? 'inline-flex' : 'none';
+        prevBtn.style.display = currentStep == 1 ? 'none' : 'inline-flex';
+        nextBtn.style.display = currentStep == totalSteps ? 'none' : 'inline-flex';
+        submitBtn.style.display = currentStep == totalSteps ? 'inline-flex' : 'none';
     }
 
     function validateStep(step) {
@@ -475,7 +475,7 @@ document.addEventListener('DOMContentLoaded', function() {
     steps.forEach(step => {
         step.addEventListener('click', function() {
             const stepNum = parseInt(this.dataset.step);
-            if (stepNum < currentStep || (stepNum === currentStep + 1 && validateStep(currentStep))) {
+            if (stepNum < currentStep || (stepNum == currentStep + 1 && validateStep(currentStep))) {
                 currentStep = stepNum;
                 updateWizard();
             }
@@ -498,7 +498,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const removeImageBtn = document.getElementById('removeImage');
 
     imageUploadZone.addEventListener('click', function(e) {
-        if (e.target.id !== 'removeImage' && !e.target.closest('#removeImage')) {
+        if (e.target.id != 'removeImage' && !e.target.closest('#removeImage')) {
             imageInput.click();
         }
     });
@@ -568,7 +568,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const baseCost = parseFloat(baseCostInput.value) || 0;
 
         document.querySelectorAll('.unit-row').forEach((row, index) => {
-            if (index === 0) {
+            if (index == 0) {
                 calculateSellPrice(row);
                 return;
             }

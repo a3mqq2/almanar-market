@@ -167,7 +167,7 @@ class ExpenseController extends Controller
         $categories = ExpenseCategory::active()->orderBy('name')->get(['id', 'name']);
         $cashboxes = Cashbox::active()->orderBy('name')->get(['id', 'name']);
 
-        if ($type === 'daily') {
+        if ($type == 'daily') {
             $reportData = $this->expenseService->getDailyReport($dateFrom);
         } else {
             $reportData = $this->expenseService->getCategoryReport($dateFrom, $dateTo);

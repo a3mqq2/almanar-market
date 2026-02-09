@@ -36,11 +36,11 @@ class CustomerController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status === 'active');
+            $query->where('status', $request->status == 'active');
         }
 
         if ($request->filled('allow_credit')) {
-            $query->where('allow_credit', $request->allow_credit === 'yes');
+            $query->where('allow_credit', $request->allow_credit == 'yes');
         }
 
         $sortField = $request->get('sort', 'created_at');

@@ -124,12 +124,12 @@ class Sale extends Model
 
     public function getIsPaidAttribute(): bool
     {
-        return $this->payment_status === 'paid';
+        return $this->payment_status == 'paid';
     }
 
     public function getIsCreditAttribute(): bool
     {
-        return $this->payment_status === 'credit';
+        return $this->payment_status == 'credit';
     }
 
     public function canBeCancelled(): bool
@@ -141,7 +141,7 @@ class Sale extends Model
     {
         $this->subtotal = $this->items->sum('total_price');
 
-        if ($this->discount_type === 'percentage') {
+        if ($this->discount_type == 'percentage') {
             $this->discount_amount = ($this->subtotal * $this->discount_value) / 100;
         } else {
             $this->discount_amount = $this->discount_value ?? 0;
@@ -196,6 +196,6 @@ class Sale extends Model
 
     public function canBeReturned(): bool
     {
-        return $this->status === 'completed' && $this->total > $this->total_returned;
+        return $this->status == 'completed' && $this->total > $this->total_returned;
     }
 }

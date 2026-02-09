@@ -443,12 +443,12 @@
 
         const urlParams = new URLSearchParams(window.location.search);
 
-        if (urlParams.get('width') === '58') {
+        if (urlParams.get('width') == '58') {
             document.body.classList.remove('width-80mm');
             document.body.classList.add('width-58mm');
         }
 
-        if (urlParams.get('auto') === '1') {
+        if (urlParams.get('auto') == '1') {
             window.onload = function() {
                 setTimeout(function() {
                     window.print();
@@ -457,7 +457,7 @@
         }
 
         window.onafterprint = function() {
-            if (urlParams.get('close') === '1') {
+            if (urlParams.get('close') == '1') {
                 window.close();
             }
         };

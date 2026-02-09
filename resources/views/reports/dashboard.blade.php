@@ -1299,7 +1299,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Toast notification
     function showToast(message, type = 'success') {
-        if (typeof Swal !== 'undefined') {
+        if (typeof Swal != 'undefined') {
             Swal.fire({
                 toast: true,
                 position: 'top-end',

@@ -44,13 +44,13 @@ class SyncController extends Controller
             foreach ($changes as $change) {
                 $result = $this->processChange($change, $deviceId);
 
-                if ($result['status'] === 'synced') {
+                if ($result['status'] == 'synced') {
                     $synced[] = [
                         'log_id' => $change['id'] ?? null,
                         'local_id' => $change['record_id'],
                         'server_id' => $result['server_id'],
                     ];
-                } elseif ($result['status'] === 'conflict') {
+                } elseif ($result['status'] == 'conflict') {
                     $conflicts[] = [
                         'log_id' => $change['id'] ?? null,
                         'local_id' => $change['record_id'],

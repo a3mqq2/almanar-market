@@ -37,7 +37,7 @@ class ShiftsReportController extends Controller
 
         $exportService = new ReportExportService();
 
-        if ($format === 'excel') {
+        if ($format == 'excel') {
             return $exportService->exportExcel(
                 $reportData['shifts'],
                 'shifts_report',

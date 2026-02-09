@@ -92,7 +92,7 @@ class InventoryCountController extends Controller
     {
         $inventoryCount->load(['items.product', 'items.unit', 'countedByUser', 'approvedByUser']);
 
-        if ($inventoryCount->status === 'in_progress') {
+        if ($inventoryCount->status == 'in_progress') {
             return redirect()->route('inventory-counts.count', $inventoryCount);
         }
 
@@ -120,7 +120,7 @@ class InventoryCountController extends Controller
 
     public function count(InventoryCount $inventoryCount)
     {
-        if ($inventoryCount->status !== 'in_progress') {
+        if ($inventoryCount->status != 'in_progress') {
             return redirect()->route('inventory-counts.show', $inventoryCount);
         }
 
@@ -253,7 +253,7 @@ class InventoryCountController extends Controller
 
     public function review(InventoryCount $inventoryCount)
     {
-        if ($inventoryCount->status !== 'completed') {
+        if ($inventoryCount->status != 'completed') {
             return redirect()->route('inventory-counts.show', $inventoryCount);
         }
 

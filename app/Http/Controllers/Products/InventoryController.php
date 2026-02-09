@@ -303,7 +303,7 @@ class InventoryController extends Controller
 
             $baseCostPrice = 0;
             foreach ($validated['units'] as $index => $unitData) {
-                $isBase = $index === 0;
+                $isBase = $index == 0;
 
                 if ($isBase) {
                     $baseCostPrice = $unitData['cost_price'] ?? 0;

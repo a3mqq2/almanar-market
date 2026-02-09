@@ -216,7 +216,7 @@ class ProductController extends Controller
 
             $baseCostPrice = 0;
             foreach ($validated['units'] as $index => $unitData) {
-                $isBase = $index === 0;
+                $isBase = $index == 0;
 
                 if ($isBase) {
                     $baseCostPrice = $unitData['cost_price'] ?? 0;
@@ -349,7 +349,7 @@ class ProductController extends Controller
 
             $baseCostPrice = 0;
             foreach ($validated['units'] as $index => $unitData) {
-                $isBase = $index === 0;
+                $isBase = $index == 0;
 
                 if ($isBase) {
                     $baseCostPrice = $unitData['cost_price'] ?? 0;
@@ -569,7 +569,7 @@ class ProductController extends Controller
 
     public function destroyBarcode(Product $product, ProductBarcode $barcode)
     {
-        if ($barcode->product_id !== $product->id) {
+        if ($barcode->product_id != $product->id) {
             return response()->json([
                 'success' => false,
                 'message' => 'الباركود لا ينتمي لهذا المنتج',

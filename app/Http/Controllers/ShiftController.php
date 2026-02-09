@@ -106,7 +106,7 @@ class ShiftController extends Controller
         }
 
         $cashboxes = Cashbox::whereIn('id', $cashboxIds)->where('status', true)->get();
-        if ($cashboxes->count() !== $cashboxIds->count()) {
+        if ($cashboxes->count() != $cashboxIds->count()) {
             return response()->json([
                 'success' => false,
                 'message' => 'بعض الصناديق غير موجودة أو غير نشطة',
@@ -175,7 +175,7 @@ class ShiftController extends Controller
 
     public function addCashbox(Request $request, Shift $shift)
     {
-        if ($shift->status !== 'open') {
+        if ($shift->status != 'open') {
             return response()->json([
                 'success' => false,
                 'message' => 'الوردية مغلقة',
@@ -265,7 +265,7 @@ class ShiftController extends Controller
                         'type' => $sc->cashbox->type,
                         'opening_balance' => round($sc->opening_balance, 2),
                         'expected_balance' => round($sc->expected_balance, 2),
-                        'closing_balance' => $sc->closing_balance !== null ? round($sc->closing_balance, 2) : null,
+                        'closing_balance' => $sc->closing_balance != null ? round($sc->closing_balance, 2) : null,
                         'difference' => round($sc->difference, 2),
                         'total_in' => round($sc->total_in, 2),
                         'total_out' => round($sc->total_out, 2),
@@ -277,7 +277,7 @@ class ShiftController extends Controller
 
     public function close(Request $request, Shift $shift)
     {
-        if ($shift->status !== 'open') {
+        if ($shift->status != 'open') {
             return response()->json([
                 'success' => false,
                 'message' => 'الوردية مغلق بالفعل',
@@ -370,7 +370,7 @@ class ShiftController extends Controller
 
     public function forceClose(Request $request, Shift $shift)
     {
-        if ($shift->status !== 'open') {
+        if ($shift->status != 'open') {
             return response()->json([
                 'success' => false,
                 'message' => 'الوردية مغلق بالفعل',
@@ -536,7 +536,7 @@ class ShiftController extends Controller
             'returns' => fn($q) => $q->where('status', 'completed'),
         ]);
 
-        if ($shift->status === 'open') {
+        if ($shift->status == 'open') {
             $shift->recalculateTotals();
             $shift->save();
             $shift->load('shiftCashboxes.cashbox:id,name,type');
@@ -569,7 +569,7 @@ class ShiftController extends Controller
                         'name' => $sc->cashbox->name,
                         'type' => $sc->cashbox->type,
                         'opening_balance' => round($sc->opening_balance, 2),
-                        'closing_balance' => $sc->closing_balance !== null ? round($sc->closing_balance, 2) : null,
+                        'closing_balance' => $sc->closing_balance != null ? round($sc->closing_balance, 2) : null,
                         'expected_balance' => round($sc->expected_balance, 2),
                         'difference' => round($sc->difference, 2),
                         'total_in' => round($sc->total_in, 2),
@@ -642,7 +642,7 @@ class ShiftController extends Controller
                     'type' => $sc->cashbox->type,
                     'opening_balance' => round($sc->opening_balance, 2),
                     'expected_balance' => round($sc->expected_balance, 2),
-                    'closing_balance' => $sc->closing_balance !== null ? round($sc->closing_balance, 2) : null,
+                    'closing_balance' => $sc->closing_balance != null ? round($sc->closing_balance, 2) : null,
                     'difference' => round($sc->difference, 2),
                     'total_in' => round($sc->total_in, 2),
                     'total_out' => round($sc->total_out, 2),

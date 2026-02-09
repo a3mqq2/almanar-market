@@ -124,7 +124,7 @@ class Purchase extends Model
     // Methods
     public function canBeEdited(): bool
     {
-        return $this->status === 'draft';
+        return $this->status == 'draft';
     }
 
     public function canBeCancelled(): bool
@@ -136,7 +136,7 @@ class Purchase extends Model
     {
         $this->subtotal = $this->items->sum('total_price');
 
-        if ($this->discount_type === 'percentage') {
+        if ($this->discount_type == 'percentage') {
             $this->discount_amount = ($this->subtotal * $this->discount_value) / 100;
         } else {
             $this->discount_amount = $this->discount_value;

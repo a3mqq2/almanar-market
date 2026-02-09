@@ -214,7 +214,7 @@ document.getElementById('expenseForm').addEventListener('submit', async function
 });
 
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
+    if (e.key == 'Escape') {
         window.location = '{{ route('expenses.index') }}';
     }
 });

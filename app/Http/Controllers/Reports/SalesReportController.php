@@ -40,7 +40,7 @@ class SalesReportController extends Controller
 
         $exportService = new ReportExportService();
 
-        if ($format === 'excel') {
+        if ($format == 'excel') {
             return $exportService->exportExcel(
                 $reportData['invoices'],
                 'sales_report',

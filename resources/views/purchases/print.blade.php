@@ -357,7 +357,7 @@
             <tr>
                 <td class="label">
                     الخصم
-                    @if($purchase->discount_type === 'percentage')
+                    @if($purchase->discount_type == 'percentage')
                         ({{ $purchase->discount_value }}%)
                     @endif
                 </td>
@@ -374,7 +374,7 @@
                 <td class="label">الإجمالي</td>
                 <td class="value">{{ number_format($purchase->total, 2) }}</td>
             </tr>
-            @if($purchase->payment_type === 'credit')
+            @if($purchase->payment_type == 'credit')
             <tr>
                 <td class="label">المدفوع</td>
                 <td class="value" style="color: #060;">{{ number_format($purchase->paid_amount, 2) }}</td>

@@ -38,7 +38,7 @@ class SuppliersReportController extends Controller
 
         $exportService = new ReportExportService();
 
-        if ($format === 'excel') {
+        if ($format == 'excel') {
             return $exportService->exportExcel(
                 $reportData['suppliers'],
                 'suppliers_report',
@@ -84,9 +84,9 @@ class SuppliersReportController extends Controller
         }
 
         if (!empty($filters['balance_status'])) {
-            if ($filters['balance_status'] === 'with_balance') {
+            if ($filters['balance_status'] == 'with_balance') {
                 $query->where('current_balance', '!=', 0);
-            } elseif ($filters['balance_status'] === 'no_balance') {
+            } elseif ($filters['balance_status'] == 'no_balance') {
                 $query->where('current_balance', 0);
             }
         }

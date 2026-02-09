@@ -323,7 +323,7 @@
                     </div>
                     <div class="cashbox-row">
                         <span class="label">رصيد الإغلاق</span>
-                        <span class="value">{{ $shiftCashbox->closing_balance !== null ? number_format($shiftCashbox->closing_balance, 2) : '-' }}</span>
+                        <span class="value">{{ $shiftCashbox->closing_balance != null ? number_format($shiftCashbox->closing_balance, 2) : '-' }}</span>
                     </div>
                     <div class="difference-row d-flex justify-content-between align-items-center">
                         <span class="fw-medium">الفرق</span>
@@ -416,8 +416,8 @@
                                 <td>{{ $sale->payments->pluck('paymentMethod.name')->filter()->implode(', ') ?: '-' }}</td>
                                 <td class="fw-medium">{{ number_format($sale->total, 2) }}</td>
                                 <td>
-                                    <span class="badge bg-{{ $sale->status === 'completed' ? 'success' : ($sale->status === 'cancelled' ? 'danger' : 'warning') }}">
-                                        {{ $sale->status === 'completed' ? 'مكتملة' : ($sale->status === 'cancelled' ? 'ملغاة' : 'معلقة') }}
+                                    <span class="badge bg-{{ $sale->status == 'completed' ? 'success' : ($sale->status == 'cancelled' ? 'danger' : 'warning') }}">
+                                        {{ $sale->status == 'completed' ? 'مكتملة' : ($sale->status == 'cancelled' ? 'ملغاة' : 'معلقة') }}
                                     </span>
                                 </td>
                                 <td>{{ $sale->created_at->format('Y/m/d H:i') }}</td>

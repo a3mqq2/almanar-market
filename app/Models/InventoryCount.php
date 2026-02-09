@@ -42,13 +42,13 @@ class InventoryCount extends Model
     protected static function booted(): void
     {
         static::updating(function (InventoryCount $count) {
-            if ($count->getOriginal('status') === 'approved') {
+            if ($count->getOriginal('status') == 'approved') {
                 throw new \Exception('لا يمكن تعديل جرد معتمد');
             }
         });
 
         static::deleting(function (InventoryCount $count) {
-            if ($count->status === 'approved') {
+            if ($count->status == 'approved') {
                 throw new \Exception('لا يمكن حذف جرد معتمد');
             }
         });
@@ -129,28 +129,28 @@ class InventoryCount extends Model
 
     public function getProgressPercentageAttribute(): int
     {
-        if ($this->total_items === 0) return 0;
+        if ($this->total_items == 0) return 0;
         return (int) round(($this->counted_items / $this->total_items) * 100);
     }
 
     public function canStart(): bool
     {
-        return $this->status === 'draft';
+        return $this->status == 'draft';
     }
 
     public function canCount(): bool
     {
-        return $this->status === 'in_progress';
+        return $this->status == 'in_progress';
     }
 
     public function canComplete(): bool
     {
-        return $this->status === 'in_progress' && $this->counted_items === $this->total_items;
+        return $this->status == 'in_progress' && $this->counted_items == $this->total_items;
     }
 
     public function canApprove(): bool
     {
-        return $this->status === 'completed';
+        return $this->status == 'completed';
     }
 
     public function canCancel(): bool

@@ -60,7 +60,7 @@
                 <span class="menu-text">الخزينة</span>
             </a>
         </li>
-        @if(Auth::user()->role === 'manager')
+        @if(Auth::user()->role == 'manager')
         <li class="side-nav-item">
             <a href="{{route('expenses.index')}}" class="side-nav-link">
                 <span class="menu-icon"><i class="ti ti-receipt-2"></i></span>
@@ -82,7 +82,7 @@
                 <span class="menu-text">تتبع العمليات</span>
             </a>
         </li>
-        @if(Auth::user()->role === 'manager')
+        @if(Auth::user()->role == 'manager')
         <li class="side-nav-item">
             <a href="{{route('reports.index')}}" class="side-nav-link">
                 <span class="menu-icon"><i class="ti ti-report-analytics"></i></span>

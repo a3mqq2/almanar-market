@@ -37,7 +37,7 @@ class ExpensesReportController extends Controller
 
         $exportService = new ReportExportService();
 
-        if ($format === 'excel') {
+        if ($format == 'excel') {
             return $exportService->exportExcel(
                 $reportData['expenses'],
                 'expenses_report',

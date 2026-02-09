@@ -26,7 +26,7 @@ class FinancialTransactionService
         $paidAmount = $purchase->paid_amount ?? 0;
         $remainingAmount = $purchase->total - $paidAmount;
 
-        if ($purchase->payment_type === 'credit') {
+        if ($purchase->payment_type == 'credit') {
             $result['supplier_transaction'] = $this->createSupplierDebit(
                 $supplier,
                 $purchase->total,

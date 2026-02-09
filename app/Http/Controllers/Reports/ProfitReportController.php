@@ -41,7 +41,7 @@ class ProfitReportController extends Controller
 
         $exportService = new ReportExportService();
 
-        if ($format === 'excel') {
+        if ($format == 'excel') {
             return $exportService->exportExcel(
                 $reportData['by_date'],
                 'profit_report',

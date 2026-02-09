@@ -354,8 +354,8 @@
                     <td class="col-date">{{ $transaction->transaction_date->format('Y-m-d') }}</td>
                     <td class="col-ref">{{ $transaction->id }}</td>
                     <td class="col-desc">{{ $transaction->description }}</td>
-                    <td class="col-amount debit-amount">{{ $transaction->type === 'debit' ? number_format($transaction->amount, 2) : '-' }}</td>
-                    <td class="col-amount credit-amount">{{ $transaction->type === 'credit' ? number_format($transaction->amount, 2) : '-' }}</td>
+                    <td class="col-amount debit-amount">{{ $transaction->type == 'debit' ? number_format($transaction->amount, 2) : '-' }}</td>
+                    <td class="col-amount credit-amount">{{ $transaction->type == 'credit' ? number_format($transaction->amount, 2) : '-' }}</td>
                     <td class="col-balance {{ $transaction->balance_after > 0 ? 'balance-positive' : ($transaction->balance_after < 0 ? 'balance-negative' : '') }}">{{ number_format($transaction->balance_after, 2) }}</td>
                 </tr>
                 @endforeach

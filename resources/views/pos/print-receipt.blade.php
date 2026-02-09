@@ -418,7 +418,7 @@
             </tr>
             @if($sale->discount_amount > 0)
             <tr>
-                <td class="label">الخصم{{ $sale->discount_type === 'percentage' ? ' ('.$sale->discount_value.'%)' : '' }}:</td>
+                <td class="label">الخصم{{ $sale->discount_type == 'percentage' ? ' ('.$sale->discount_value.'%)' : '' }}:</td>
                 <td class="value">-{{ number_format($sale->discount_amount, 2) }}</td>
             </tr>
             @endif
@@ -530,7 +530,7 @@
 
         const urlParams = new URLSearchParams(window.location.search);
 
-        if (urlParams.get('width') === '58') {
+        if (urlParams.get('width') == '58') {
             document.body.classList.remove('width-80mm');
             document.body.classList.add('width-58mm');
         }
@@ -540,7 +540,7 @@
             window.opener = null;
         }
 
-        if (urlParams.get('auto') === '1') {
+        if (urlParams.get('auto') == '1') {
             window.onload = function() {
                 setTimeout(function() {
                     window.print();
@@ -549,7 +549,7 @@
         }
 
         window.onafterprint = function() {
-            if (urlParams.get('close') === '1') {
+            if (urlParams.get('close') == '1') {
                 // Use setTimeout to ensure print is fully complete
                 setTimeout(function() {
                     window.close();

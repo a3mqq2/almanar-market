@@ -39,7 +39,7 @@ class PaymentMethodsReportController extends Controller
 
         $exportService = new ReportExportService();
 
-        if ($format === 'excel') {
+        if ($format == 'excel') {
             return $exportService->exportExcel(
                 $reportData['by_method'],
                 'payment_methods_report',

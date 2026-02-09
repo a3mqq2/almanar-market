@@ -35,7 +35,7 @@ class SupplierController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status === 'active');
+            $query->where('status', $request->status == 'active');
         }
 
         $sortField = $request->get('sort', 'created_at');

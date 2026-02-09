@@ -21,7 +21,7 @@ class CheckRole
             return redirect()->route('login')->with('error', 'حسابك غير مفعل');
         }
 
-        if ($role === 'manager' && !$user->isManager()) {
+        if ($role == 'manager' && !$user->isManager()) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,

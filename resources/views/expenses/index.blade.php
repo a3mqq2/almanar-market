@@ -264,7 +264,7 @@ async function loadExpenses() {
 function renderExpenses(expenses) {
     const tbody = document.getElementById('expensesTableBody');
 
-    if (expenses.length === 0) {
+    if (expenses.length == 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="8" class="text-center py-5 text-muted">
@@ -299,7 +299,7 @@ function renderPagination(pagination) {
     const info = document.getElementById('paginationInfo');
     const nav = document.getElementById('pagination');
 
-    if (pagination.total === 0) {
+    if (pagination.total == 0) {
         info.textContent = '';
         nav.innerHTML = '';
         return;
@@ -309,21 +309,21 @@ function renderPagination(pagination) {
 
     let pages = '';
     for (let i = 1; i <= pagination.last_page; i++) {
-        if (i === 1 || i === pagination.last_page || (i >= pagination.current_page - 2 && i <= pagination.current_page + 2)) {
-            pages += `<li class="page-item ${i === pagination.current_page ? 'active' : ''}">
+        if (i == 1 || i == pagination.last_page || (i >= pagination.current_page - 2 && i <= pagination.current_page + 2)) {
+            pages += `<li class="page-item ${i == pagination.current_page ? 'active' : ''}">
                 <a class="page-link" href="#" onclick="goToPage(${i})">${i}</a>
             </li>`;
-        } else if (i === pagination.current_page - 3 || i === pagination.current_page + 3) {
+        } else if (i == pagination.current_page - 3 || i == pagination.current_page + 3) {
             pages += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
         }
     }
 
     nav.innerHTML = `
-        <li class="page-item ${pagination.current_page === 1 ? 'disabled' : ''}">
+        <li class="page-item ${pagination.current_page == 1 ? 'disabled' : ''}">
             <a class="page-link" href="#" onclick="goToPage(${pagination.current_page - 1})"><i class="ti ti-chevron-right"></i></a>
         </li>
         ${pages}
-        <li class="page-item ${pagination.current_page === pagination.last_page ? 'disabled' : ''}">
+        <li class="page-item ${pagination.current_page == pagination.last_page ? 'disabled' : ''}">
             <a class="page-link" href="#" onclick="goToPage(${pagination.current_page + 1})"><i class="ti ti-chevron-left"></i></a>
         </li>
     `;
@@ -335,8 +335,8 @@ function goToPage(page) {
 }
 
 function sortBy(field) {
-    if (currentSort === field) {
-        currentDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+    if (currentSort == field) {
+        currentDirection = currentDirection == 'asc' ? 'desc' : 'asc';
     } else {
         currentSort = field;
         currentDirection = 'desc';
@@ -350,7 +350,7 @@ function sortBy(field) {
     const header = document.querySelector(`[data-sort="${field}"]`);
     if (header) {
         header.classList.add('active');
-        header.querySelector('.sort-icon').className = `ti ti-sort-${currentDirection === 'asc' ? 'ascending' : 'descending'} sort-icon ms-1`;
+        header.querySelector('.sort-icon').className = `ti ti-sort-${currentDirection == 'asc' ? 'ascending' : 'descending'} sort-icon ms-1`;
     }
 
     currentPage = 1;
@@ -402,7 +402,7 @@ async function loadCategories() {
                         <button class="btn btn-sm btn-outline-secondary me-1" onclick="editCategory(${cat.id}, '${cat.name}')">
                             <i class="ti ti-edit"></i>
                         </button>
-                        ${cat.expenses_count === 0 ? `
+                        ${cat.expenses_count == 0 ? `
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory(${cat.id})">
                             <i class="ti ti-trash"></i>
                         </button>

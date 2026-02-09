@@ -41,7 +41,7 @@ class PosController extends Controller
             $currentShift = $this->autoOpenShift($user, $cashboxes);
         }
 
-        $hasOpenShift = $currentShift !== null;
+        $hasOpenShift = $currentShift != null;
 
         return view('pos.screen', compact('cashboxes', 'paymentMethods', 'suspendedCount', 'currentShift', 'hasOpenShift', 'isManager'));
     }
@@ -138,7 +138,7 @@ class PosController extends Controller
                 ->where('is_active', true)
                 ->first();
 
-            if ($productBarcode && $productBarcode->product && $productBarcode->product->status === 'active') {
+            if ($productBarcode && $productBarcode->product && $productBarcode->product->status == 'active') {
                 $product = $productBarcode->product;
                 $product->load(['productUnits.unit', 'baseUnit.unit', 'activeBarcodes']);
                 $barcodeLabel = $productBarcode->label;

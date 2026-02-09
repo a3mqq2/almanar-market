@@ -44,7 +44,7 @@ class UserController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status === 'active');
+            $query->where('status', $request->status == 'active');
         }
 
         if ($request->filled('role')) {
@@ -184,7 +184,7 @@ class UserController extends Controller
             'status' => $validated['status'] ?? $user->status,
         ]);
 
-        if ($oldRole !== $user->role) {
+        if ($oldRole != $user->role) {
             UserActivityLog::log('role_changed', "تم تغيير صلاحية المستخدم {$user->name} من {$oldRole} إلى {$user->role}", auth()->id(), [
                 'target_user_id' => $user->id,
                 'old_role' => $oldRole,
@@ -192,7 +192,7 @@ class UserController extends Controller
             ]);
         }
 
-        if ($oldStatus !== $user->status) {
+        if ($oldStatus != $user->status) {
             UserActivityLog::log('status_changed', "تم تغيير حالة المستخدم {$user->name}", auth()->id(), [
                 'target_user_id' => $user->id,
                 'old_status' => $oldStatus,
@@ -213,7 +213,7 @@ class UserController extends Controller
             'status' => 'required|boolean',
         ]);
 
-        if ($user->id === auth()->id()) {
+        if ($user->id == auth()->id()) {
             return response()->json([
                 'success' => false,
                 'message' => 'لا يمكنك تغيير حالة حسابك',
@@ -293,7 +293,7 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
-        if ($user->id === auth()->id()) {
+        if ($user->id == auth()->id()) {
             return response()->json([
                 'success' => false,
                 'message' => 'لا يمكنك حذف حسابك',

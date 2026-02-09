@@ -232,7 +232,7 @@ class PosService
         DB::beginTransaction();
 
         try {
-            if ($sale->status === 'completed') {
+            if ($sale->status == 'completed') {
                 foreach ($sale->items as $item) {
                     $deductions = [[
                         'batch_id' => $item->inventory_batch_id,

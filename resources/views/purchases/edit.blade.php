@@ -441,9 +441,9 @@
                         <div class="col-md-4">
                             <label class="form-label">طريقة الدفع <span class="text-danger">*</span></label>
                             <select class="form-select" id="payment_type" name="payment_type" required>
-                                <option value="credit" {{ $purchase->payment_type === 'credit' ? 'selected' : '' }}>آجل (على الحساب)</option>
-                                <option value="cash" {{ $purchase->payment_type === 'cash' ? 'selected' : '' }}>نقدي</option>
-                                <option value="bank" {{ $purchase->payment_type === 'bank' ? 'selected' : '' }}>تحويل بنكي</option>
+                                <option value="credit" {{ $purchase->payment_type == 'credit' ? 'selected' : '' }}>آجل (على الحساب)</option>
+                                <option value="cash" {{ $purchase->payment_type == 'cash' ? 'selected' : '' }}>نقدي</option>
+                                <option value="bank" {{ $purchase->payment_type == 'bank' ? 'selected' : '' }}>تحويل بنكي</option>
                             </select>
                         </div>
                         <div class="col-md-4" id="cashboxField" style="{{ in_array($purchase->payment_type, ['cash', 'bank']) ? '' : 'display: none;' }}">
@@ -547,8 +547,8 @@
                         <div class="input-group input-group-sm">
                             <select class="form-select" id="discount_type" name="discount_type" style="max-width: 90px;">
                                 <option value="" {{ !$purchase->discount_type ? 'selected' : '' }}>بدون</option>
-                                <option value="fixed" {{ $purchase->discount_type === 'fixed' ? 'selected' : '' }}>مبلغ</option>
-                                <option value="percentage" {{ $purchase->discount_type === 'percentage' ? 'selected' : '' }}>%</option>
+                                <option value="fixed" {{ $purchase->discount_type == 'fixed' ? 'selected' : '' }}>مبلغ</option>
+                                <option value="percentage" {{ $purchase->discount_type == 'percentage' ? 'selected' : '' }}>%</option>
                             </select>
                             <input type="number" class="form-control" id="discount_value" name="discount_value"
                                    value="{{ $purchase->discount_value }}" min="0" step="0.01"
@@ -646,7 +646,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const multiplier = parseFloat(selectedOption.dataset.multiplier) || 1;
         const costPrice = parseFloat(selectedOption.dataset.cost) || 0;
 
-        const item = items.find(i => i.index === index);
+        const item = items.find(i => i.index == index);
         if (item) {
             item.product_unit_id = parseInt(unitSelect.value);
             item.unit_multiplier = multiplier;
@@ -666,7 +666,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         row.querySelector('.item-total').textContent = total.toFixed(2);
 
-        const item = items.find(i => i.index === index);
+        const item = items.find(i => i.index == index);
         if (item) {
             item.quantity = quantity;
             item.unit_price = price;
@@ -680,9 +680,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const row = document.querySelector(`tr[data-index="${index}"]`);
         if (row) row.remove();
 
-        items = items.filter(i => i.index !== index);
+        items = items.filter(i => i.index != index);
 
-        if (items.length === 0) {
+        if (items.length == 0) {
             showEmptyRow();
         }
 
@@ -814,7 +814,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Barcode scanning
     barcodeInput.addEventListener('keypress', async function(e) {
-        if (e.key === 'Enter') {
+        if (e.key == 'Enter') {
             e.preventDefault();
             const barcode = this.value.trim();
             if (!barcode) return;
@@ -840,7 +840,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function addProductToItems(product) {
-        const existingItem = items.find(item => item.product_id === product.id);
+        const existingItem = items.find(item => item.product_id == product.id);
         if (existingItem) {
             const row = document.querySelector(`tr[data-index="${existingItem.index}"]`);
             if (row) {
@@ -951,9 +951,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const discountValue = parseFloat(document.getElementById('discount_value').value) || 0;
 
         let discountAmount = 0;
-        if (discountType === 'percentage') {
+        if (discountType == 'percentage') {
             discountAmount = (subtotal * discountValue) / 100;
-        } else if (discountType === 'fixed') {
+        } else if (discountType == 'fixed') {
             discountAmount = discountValue;
         }
         document.getElementById('discountDisplay').textContent = '- ' + discountAmount.toFixed(2);
@@ -980,7 +980,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('payment_type').addEventListener('change', function() {
         const cashboxField = document.getElementById('cashboxField');
         const cashboxSelect = document.getElementById('cashbox_id');
-        if (this.value === 'cash' || this.value === 'bank') {
+        if (this.value == 'cash' || this.value == 'bank') {
             cashboxField.style.display = 'block';
             cashboxSelect.required = true;
         } else {
@@ -1008,13 +1008,13 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if ((paymentType === 'cash' || paymentType === 'bank') && !saveAsDraft && !cashboxId) {
+        if ((paymentType == 'cash' || paymentType == 'bank') && !saveAsDraft && !cashboxId) {
             document.getElementById('cashbox_id').classList.add('is-invalid');
             showToast('يرجى اختيار الخزينة للدفع النقدي', 'warning');
             return;
         }
 
-        if (items.length === 0) {
+        if (items.length == 0) {
             showToast('يرجى إضافة صنف واحد على الأقل', 'warning');
             productSearch.focus();
             return;
@@ -1122,7 +1122,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Show empty row if no items
-    if (items.length === 0) {
+    if (items.length == 0) {
         showEmptyRow();
     } else {
         hideEmptyRow();

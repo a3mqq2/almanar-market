@@ -385,7 +385,7 @@
         });
 
         barcodeInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
+            if (e.key == 'Enter') {
                 clearTimeout(debounceTimer);
                 lookupBarcode(this.value);
             }

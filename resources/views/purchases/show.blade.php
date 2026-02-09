@@ -196,7 +196,7 @@
         <span class="badge status-badge-lg bg-{{ $purchase->status_color }}">{{ $purchase->status_arabic }}</span>
     </div>
     <div class="page-header-actions">
-        @if($purchase->status === 'draft')
+        @if($purchase->status == 'draft')
             <button type="button" class="btn btn-success btn-sm" id="approveBtn">
                 <i class="ti ti-check me-1"></i>اعتماد
             </button>
@@ -314,7 +314,7 @@
         </div>
 
         <!-- Cancel Info Card -->
-        @if($purchase->status === 'cancelled')
+        @if($purchase->status == 'cancelled')
             <div class="purchase-card cancel-card">
                 <div class="purchase-card-header">
                     <i class="ti ti-alert-circle"></i>
@@ -355,7 +355,7 @@
                     <div class="summary-row">
                         <span>
                             الخصم
-                            @if($purchase->discount_type === 'percentage')
+                            @if($purchase->discount_type == 'percentage')
                                 ({{ $purchase->discount_value }}%)
                             @endif
                         </span>
@@ -375,7 +375,7 @@
                     <span>{{ number_format($purchase->total, 2) }}</span>
                 </div>
 
-                @if($purchase->payment_type === 'credit')
+                @if($purchase->payment_type == 'credit')
                     <div class="summary-row">
                         <span>المدفوع:</span>
                         <span class="text-success">{{ number_format($purchase->paid_amount, 2) }}</span>
@@ -447,7 +447,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = '{{ csrf_token() }}';
 
-    @if($purchase->status === 'draft')
+    @if($purchase->status == 'draft')
     document.getElementById('approveBtn')?.addEventListener('click', function() {
         Swal.fire({
             title: 'تأكيد الاعتماد',

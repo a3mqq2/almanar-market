@@ -242,7 +242,7 @@
             </div>
         </div>
 
-        @if(Auth::user()->role === 'manager')
+        @if(Auth::user()->role == 'manager')
         <div class="col-xl-3 col-md-6">
             <div class="stat-widget" id="widget-profit">
                 <div class="d-flex justify-content-between align-items-start">
@@ -266,7 +266,7 @@
         @endif
     </div>
 
-    @if(Auth::user()->role === 'manager')
+    @if(Auth::user()->role == 'manager')
     <div class="row g-3 mb-3">
         <div class="col-xl-3 col-md-6">
             <div class="stat-widget" id="widget-expenses">
@@ -408,7 +408,7 @@
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const isManager = {{ Auth::user()->role === 'manager' ? 'true' : 'false' }};
+    const isManager = {{ Auth::user()->role == 'manager' ? 'true' : 'false' }};
     let salesChart = null;
     let paymentChart = null;
     let currentPeriod = 'daily';
@@ -436,7 +436,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function getChartColors() {
-        const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        const isDark = document.documentElement.getAttribute('data-bs-theme') == 'dark';
         return {
             text: isDark ? '#adb5bd' : '#6c757d',
             grid: isDark ? '#2d2d2d' : '#e9ecef',
@@ -603,7 +603,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function loadSalesChart(period) {
-        const url = period === 'daily' ? '/dashboard/stats/daily-chart' : '/dashboard/stats/weekly-chart';
+        const url = period == 'daily' ? '/dashboard/stats/daily-chart' : '/dashboard/stats/weekly-chart';
 
         fetch(url, {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
@@ -624,7 +624,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let series, categories;
 
-        if (period === 'daily') {
+        if (period == 'daily') {
             series = [{ name: 'المبيعات', data: data.data }];
             categories = data.labels;
         } else {
@@ -635,16 +635,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const options = {
             series: series,
             chart: {
-                type: period === 'daily' ? 'area' : 'bar',
+                type: period == 'daily' ? 'area' : 'bar',
                 height: 300,
                 background: 'transparent',
                 toolbar: { show: false },
                 fontFamily: 'inherit',
             },
-            colors: period === 'daily' ? [colors.primary] : [colors.primary, colors.warning],
+            colors: period == 'daily' ? [colors.primary] : [colors.primary, colors.warning],
             dataLabels: { enabled: false },
-            stroke: { curve: 'smooth', width: period === 'daily' ? 3 : 0 },
-            fill: period === 'daily' ? {
+            stroke: { curve: 'smooth', width: period == 'daily' ? 3 : 0 },
+            fill: period == 'daily' ? {
                 type: 'gradient',
                 gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.1, stops: [0, 100] }
             } : {},
@@ -665,7 +665,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 strokeDashArray: 3
             },
             tooltip: {
-                theme: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light',
+                theme: document.documentElement.getAttribute('data-bs-theme') == 'dark' ? 'dark' : 'light',
                 y: { formatter: function(val) { return formatNumber(val); } }
             },
             legend: {
@@ -734,7 +734,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const themeObserver = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
-            if (mutation.attributeName === 'data-bs-theme') {
+            if (mutation.attributeName == 'data-bs-theme') {
                 loadSalesChart(currentPeriod);
                 loadAllStats();
             }

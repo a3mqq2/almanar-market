@@ -53,7 +53,7 @@ class ShiftCashbox extends Model
 
     public function calculateDifference(): float
     {
-        if ($this->closing_balance === null) {
+        if ($this->closing_balance == null) {
             return 0;
         }
         return $this->closing_balance - $this->expected_balance;

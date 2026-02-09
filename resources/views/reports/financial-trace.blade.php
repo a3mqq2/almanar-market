@@ -169,12 +169,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const referenceIdInput = document.getElementById('referenceId');
 
     referenceTypeSelect.addEventListener('change', function() {
-        if (this.value === 'App\\Models\\Purchase') {
+        if (this.value == 'App\\Models\\Purchase') {
             purchaseSelectGroup.style.display = 'block';
             referenceIdGroup.style.display = 'none';
             purchaseSelect.required = true;
             referenceIdInput.required = false;
-        } else if (this.value === 'supplier_payment') {
+        } else if (this.value == 'supplier_payment') {
             purchaseSelectGroup.style.display = 'none';
             referenceIdGroup.style.display = 'block';
             purchaseSelect.required = false;
@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const referenceType = referenceTypeSelect.value;
         let referenceId = null;
 
-        if (referenceType === 'App\\Models\\Purchase') {
+        if (referenceType == 'App\\Models\\Purchase') {
             referenceId = purchaseSelect.value;
         } else {
             referenceId = referenceIdInput.value;
@@ -249,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="text-end">
                             <div class="fs-4 fw-bold text-primary">${parseFloat(data.reference.total).toFixed(2)}</div>
-                            <span class="badge bg-${data.reference.status === 'approved' ? 'success' : (data.reference.status === 'cancelled' ? 'danger' : 'warning')}">${data.reference.status_arabic}</span>
+                            <span class="badge bg-${data.reference.status == 'approved' ? 'success' : (data.reference.status == 'cancelled' ? 'danger' : 'warning')}">${data.reference.status_arabic}</span>
                         </div>
                     </div>
                     <div class="mt-3 pt-3 border-top">
@@ -286,13 +286,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <tbody>
             `;
             data.supplier_transactions.forEach(t => {
-                const amountClass = t.type === 'debit' ? 'amount-out' : 'amount-in';
+                const amountClass = t.type == 'debit' ? 'amount-out' : 'amount-in';
                 html += `
                     <tr>
                         <td class="fw-medium">${t.id}</td>
                         <td>${t.transaction_date}</td>
                         <td>${t.account_name}</td>
-                        <td><span class="badge bg-${t.type === 'debit' ? 'danger' : 'success'}">${t.type_arabic}</span></td>
+                        <td><span class="badge bg-${t.type == 'debit' ? 'danger' : 'success'}">${t.type_arabic}</span></td>
                         <td class="${amountClass}">${parseFloat(t.amount).toFixed(2)}</td>
                         <td class="fw-medium">${parseFloat(t.balance_after).toFixed(2)}</td>
                         <td>${t.cashbox_name || '<span class="text-muted">-</span>'}</td>
@@ -327,13 +327,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <tbody>
             `;
             data.cashbox_transactions.forEach(t => {
-                const amountClass = (t.type === 'in' || t.type === 'transfer_in') ? 'amount-in' : 'amount-out';
+                const amountClass = (t.type == 'in' || t.type == 'transfer_in') ? 'amount-in' : 'amount-out';
                 html += `
                     <tr>
                         <td class="fw-medium">${t.id}</td>
                         <td>${t.transaction_date}</td>
                         <td>${t.account_name}</td>
-                        <td><span class="badge bg-${(t.type === 'in' || t.type === 'transfer_in') ? 'success' : 'danger'}">${t.type_arabic}</span></td>
+                        <td><span class="badge bg-${(t.type == 'in' || t.type == 'transfer_in') ? 'success' : 'danger'}">${t.type_arabic}</span></td>
                         <td class="${amountClass}">${parseFloat(t.amount).toFixed(2)}</td>
                         <td class="fw-medium">${parseFloat(t.balance_after).toFixed(2)}</td>
                         <td>${t.description}</td>
@@ -343,8 +343,8 @@ document.addEventListener('DOMContentLoaded', function() {
             html += `</tbody></table></div></div></div>`;
         }
 
-        if ((!data.supplier_transactions || data.supplier_transactions.length === 0) &&
-            (!data.cashbox_transactions || data.cashbox_transactions.length === 0)) {
+        if ((!data.supplier_transactions || data.supplier_transactions.length == 0) &&
+            (!data.cashbox_transactions || data.cashbox_transactions.length == 0)) {
             html += `
                 <div class="empty-state">
                     <i class="ti ti-file-off d-block"></i>

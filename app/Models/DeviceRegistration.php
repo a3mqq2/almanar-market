@@ -66,17 +66,17 @@ class DeviceRegistration extends Model
 
     public function isActive(): bool
     {
-        return $this->status === 'active';
+        return $this->status == 'active';
     }
 
     public function isSuspended(): bool
     {
-        return $this->status === 'suspended';
+        return $this->status == 'suspended';
     }
 
     public function isRevoked(): bool
     {
-        return $this->status === 'revoked';
+        return $this->status == 'revoked';
     }
 
     public function updateLastSeen(string $ipAddress = null): bool

@@ -123,12 +123,12 @@ class Shift extends Model
 
     public function getIsOpenAttribute(): bool
     {
-        return $this->status === 'open';
+        return $this->status == 'open';
     }
 
     public function getIsClosedAttribute(): bool
     {
-        return $this->status === 'closed';
+        return $this->status == 'closed';
     }
 
     public function getStatusArabicAttribute(): string
@@ -186,11 +186,11 @@ class Shift extends Model
                 ->get();
 
             $this->total_cash_sales = $payments
-                ->filter(fn($p) => $p->paymentMethod && $p->paymentMethod->code === 'cash')
+                ->filter(fn($p) => $p->paymentMethod && $p->paymentMethod->code == 'cash')
                 ->sum('amount') ?? 0;
 
             $this->total_card_sales = $payments
-                ->filter(fn($p) => $p->paymentMethod && $p->paymentMethod->code === 'card')
+                ->filter(fn($p) => $p->paymentMethod && $p->paymentMethod->code == 'card')
                 ->sum('amount') ?? 0;
 
             $this->total_other_sales = $payments

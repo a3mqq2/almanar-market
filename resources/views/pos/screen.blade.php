@@ -1041,7 +1041,7 @@
             const diffElement = document.querySelector(`.cashbox-difference[data-cashbox-id="${cashboxId}"]`);
             if (diffElement) {
                 diffElement.textContent = difference.toFixed(2);
-                if (difference === 0) {
+                if (difference == 0) {
                     diffElement.className = 'fw-bold cashbox-difference text-success';
                 } else if (difference > 0) {
                     diffElement.className = 'fw-bold cashbox-difference text-info';
@@ -1068,7 +1068,7 @@
             const diffEl = document.getElementById('totalDifferenceValue');
             diffEl.textContent = totalDiff.toFixed(2);
 
-            if (totalDiff === 0) {
+            if (totalDiff == 0) {
                 diffEl.className = 'fs-5 fw-bold text-success';
             } else if (totalDiff > 0) {
                 diffEl.className = 'fs-5 fw-bold text-info';
@@ -1092,7 +1092,7 @@
                 });
             });
 
-            if (cashboxes.length === 0) {
+            if (cashboxes.length == 0) {
                 showToast('لا توجد صناديق للإغلاق', 'warning');
                 return;
             }
@@ -1355,15 +1355,15 @@
             const container = document.getElementById('productsList');
             container.innerHTML = products.map(p => {
                 let expiryInfo = '';
-                if (p.expiry_status === 'expired') {
+                if (p.expiry_status == 'expired') {
                     expiryInfo = `<span class="badge bg-danger">منتهي</span>`;
-                } else if (p.expiry_status === 'critical') {
+                } else if (p.expiry_status == 'critical') {
                     expiryInfo = `<span class="badge bg-warning text-dark">${p.days_to_expiry} يوم</span>`;
                 } else if (p.expiry_date) {
                     expiryInfo = `<small class="text-muted">${p.expiry_date}</small>`;
                 }
                 return `
-                <div class="product-item ${p.expiry_status === 'expired' ? 'border-danger' : p.expiry_status === 'critical' ? 'border-warning' : ''}" data-product='${JSON.stringify(p)}' style="${p.expiry_status === 'expired' ? 'background: #fff5f5;' : p.expiry_status === 'critical' ? 'background: #fffbeb;' : ''}">
+                <div class="product-item ${p.expiry_status == 'expired' ? 'border-danger' : p.expiry_status == 'critical' ? 'border-warning' : ''}" data-product='${JSON.stringify(p)}' style="${p.expiry_status == 'expired' ? 'background: #fff5f5;' : p.expiry_status == 'critical' ? 'background: #fffbeb;' : ''}">
                     <div class="product-info">
                         <div class="product-name">${p.name}</div>
                         <div class="product-barcode">${p.barcode || '-'} ${expiryInfo}</div>
@@ -1391,7 +1391,7 @@
             }
 
             const existingIndex = cart.findIndex(item =>
-                item.product_id === product.id && item.product_unit_id === baseUnit.id && item.barcode_label === barcodeLabel
+                item.product_id == product.id && item.product_unit_id == baseUnit.id && item.barcode_label == barcodeLabel
             );
 
             const unitPrice = parseFloat(baseUnit.sale_price) || 0;
@@ -1441,9 +1441,9 @@
                     days_to_expiry: product.days_to_expiry
                 });
 
-                if (product.expiry_status === 'expired') {
+                if (product.expiry_status == 'expired') {
                     showToast(`تحذير: ${displayName} منتهي الصلاحية!`, 'danger');
-                } else if (product.expiry_status === 'critical') {
+                } else if (product.expiry_status == 'critical') {
                     showToast(`تحذير: ${displayName} قارب على الانتهاء (${product.days_to_expiry} يوم)`, 'warning');
                 }
             }
@@ -1464,7 +1464,7 @@
         function renderCart() {
             const container = document.getElementById('cartItems');
 
-            if (cart.length === 0) {
+            if (cart.length == 0) {
                 container.innerHTML = emptyCartHtml;
                 return;
             }
@@ -1478,7 +1478,7 @@
                 let unitSelector = '';
                 if (hasMultipleUnits) {
                     const unitOptions = item.available_units.map(u =>
-                        `<option value="${u.id}" data-price="${u.sale_price}" data-multiplier="${u.multiplier}" ${u.id === item.product_unit_id ? 'selected' : ''}>${u.name}</option>`
+                        `<option value="${u.id}" data-price="${u.sale_price}" data-multiplier="${u.multiplier}" ${u.id == item.product_unit_id ? 'selected' : ''}>${u.name}</option>`
                     ).join('');
                     unitSelector = `
                         <select class="form-select form-select-sm unit-select" style="width: auto; min-width: 70px; font-size: 0.8rem;">
@@ -1490,16 +1490,16 @@
                 }
 
                 let expiryBadge = '';
-                if (item.expiry_status === 'expired') {
+                if (item.expiry_status == 'expired') {
                     expiryBadge = `<span class="badge bg-danger" title="منتهي الصلاحية"><i class="ti ti-alert-circle"></i> منتهي</span>`;
-                } else if (item.expiry_status === 'critical') {
+                } else if (item.expiry_status == 'critical') {
                     expiryBadge = `<span class="badge bg-warning text-dark" title="${item.days_to_expiry} يوم"><i class="ti ti-clock"></i> ${item.days_to_expiry}ي</span>`;
-                } else if (item.expiry_status === 'warning') {
+                } else if (item.expiry_status == 'warning') {
                     expiryBadge = `<span class="badge bg-info" title="${item.expiry_date}"><i class="ti ti-calendar"></i> ${item.days_to_expiry}ي</span>`;
                 }
 
                 return `
-                <div class="cart-item ${item.expiry_status === 'expired' ? 'border-danger' : item.expiry_status === 'critical' ? 'border-warning' : ''}" data-index="${index}" style="${item.expiry_status === 'expired' ? 'background: #fff5f5;' : item.expiry_status === 'critical' ? 'background: #fffbeb;' : ''}">
+                <div class="cart-item ${item.expiry_status == 'expired' ? 'border-danger' : item.expiry_status == 'critical' ? 'border-warning' : ''}" data-index="${index}" style="${item.expiry_status == 'expired' ? 'background: #fff5f5;' : item.expiry_status == 'critical' ? 'background: #fffbeb;' : ''}">
                     <div class="item-info">
                         <div class="item-name d-flex align-items-center gap-1">${item.name} ${expiryBadge}</div>
                         <div class="item-meta d-flex align-items-center gap-1">
@@ -1534,9 +1534,9 @@
                 item.querySelectorAll('.qty-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
                         const action = btn.dataset.action;
-                        if (action === 'plus') {
+                        if (action == 'plus') {
                             cart[index].quantity += 1;
-                        } else if (action === 'minus' && cart[index].quantity > 1) {
+                        } else if (action == 'minus' && cart[index].quantity > 1) {
                             cart[index].quantity -= 1;
                         }
                         renderCart();
@@ -1612,7 +1612,7 @@
         }
 
         document.getElementById('clearCartBtn').addEventListener('click', () => {
-            if (cart.length === 0) return;
+            if (cart.length == 0) return;
             Swal.fire({
                 title: 'تفريغ السلة؟',
                 text: 'سيتم حذف جميع المنتجات من السلة',
@@ -1636,7 +1636,7 @@
         });
 
         document.getElementById('barcodeInput').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
+            if (e.key == 'Enter') {
                 e.preventDefault();
                 const barcode = this.value.trim();
                 if (barcode) {
@@ -1646,7 +1646,7 @@
         });
 
         function openServicesModal() {
-            if (cart.length === 0) {
+            if (cart.length == 0) {
                 showToast('السلة فارغة', 'warning');
                 return;
             }
@@ -1663,7 +1663,7 @@
         });
 
         async function processPaymentWithMethod(methodId, methodName) {
-            if (cart.length === 0) {
+            if (cart.length == 0) {
                 showToast('السلة فارغة', 'warning');
                 return;
             }
@@ -1719,7 +1719,7 @@
                     window.open(`{{ url('sales') }}/${lastSaleId}/print-thermal?auto=1&close=1`, 'print_receipt', 'width=400,height=600,noopener');
                     clearCart();
                 } else {
-                    if (result.type === 'no_shift') {
+                    if (result.type == 'no_shift') {
                         hasOpenShift = false;
                         currentShiftId = null;
                         Swal.fire({
@@ -1738,7 +1738,7 @@
         }
 
         function openPaymentModal(mode) {
-            if (cart.length === 0) {
+            if (cart.length == 0) {
                 showToast('السلة فارغة', 'warning');
                 return;
             }
@@ -1767,7 +1767,7 @@
             const firstEntry = container.querySelector('.payment-entry');
             firstEntry.querySelector('.payment-amount').value = total.toFixed(2);
 
-            if (mode === 'multi') {
+            if (mode == 'multi') {
                 document.getElementById('addPaymentMethodBtn').classList.remove('d-none');
             } else {
                 document.getElementById('addPaymentMethodBtn').classList.add('d-none');
@@ -1902,7 +1902,7 @@
                     new bootstrap.Modal(document.getElementById('receiptModal')).show();
                     clearCart();
                 } else {
-                    if (result.type === 'no_shift') {
+                    if (result.type == 'no_shift') {
                         bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
                         hasOpenShift = false;
                         currentShiftId = null;
@@ -1932,7 +1932,7 @@
 
         // Quick Cash Payment (F10) - No modal, instant completion
         async function quickCashPayment() {
-            if (cart.length === 0) {
+            if (cart.length == 0) {
                 showToast('السلة فارغة', 'warning');
                 return;
             }
@@ -2003,7 +2003,7 @@
                     // Clear cart and reset
                     clearCart();
                 } else {
-                    if (result.type === 'no_shift') {
+                    if (result.type == 'no_shift') {
                         hasOpenShift = false;
                         currentShiftId = null;
                         Swal.fire({
@@ -2022,7 +2022,7 @@
         }
 
         document.getElementById('suspendBtn').addEventListener('click', async () => {
-            if (cart.length === 0) {
+            if (cart.length == 0) {
                 showToast('السلة فارغة', 'warning');
                 return;
             }
@@ -2291,7 +2291,7 @@
             const name = document.getElementById('newCustomerName').value.trim();
             const phone = document.getElementById('newCustomerPhone').value.trim();
             const creditLimit = parseFloat(document.getElementById('newCustomerCreditLimit').value) || 0;
-            const allowCredit = document.getElementById('newCustomerAllowCredit').value === '1';
+            const allowCredit = document.getElementById('newCustomerAllowCredit').value == '1';
 
             if (!name) {
                 showToast('يرجى إدخال اسم الزبون', 'warning');
@@ -2348,10 +2348,10 @@
         document.getElementById('themeToggle').addEventListener('click', () => {
             const html = document.documentElement;
             const currentTheme = html.getAttribute('data-bs-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            const newTheme = currentTheme == 'dark' ? 'light' : 'dark';
             html.setAttribute('data-bs-theme', newTheme);
             const icon = document.getElementById('themeIcon');
-            icon.className = newTheme === 'dark' ? 'ti ti-moon' : 'ti ti-sun';
+            icon.className = newTheme == 'dark' ? 'ti ti-moon' : 'ti ti-sun';
 
             let config = JSON.parse(sessionStorage.getItem('__THEME_CONFIG__') || '{}');
             config.theme = newTheme;
@@ -2362,7 +2362,7 @@
             const currentTheme = document.documentElement.getAttribute('data-bs-theme');
             const icon = document.getElementById('themeIcon');
             if (icon) {
-                icon.className = currentTheme === 'dark' ? 'ti ti-moon' : 'ti ti-sun';
+                icon.className = currentTheme == 'dark' ? 'ti ti-moon' : 'ti ti-sun';
             }
         })();
 
@@ -2391,7 +2391,7 @@
             'Delete': () => {
                 if (selectedCartIndex >= 0 && selectedCartIndex < cart.length) {
                     cart.splice(selectedCartIndex, 1);
-                    if (cart.length === 0) {
+                    if (cart.length == 0) {
                         selectedCartIndex = -1;
                     } else if (selectedCartIndex >= cart.length) {
                         selectedCartIndex = cart.length - 1;
@@ -2419,7 +2419,7 @@
         }
 
         function adjustActiveQty(delta) {
-            if (cart.length === 0) return;
+            if (cart.length == 0) return;
             if (selectedCartIndex < 0 || selectedCartIndex >= cart.length) {
                 selectedCartIndex = cart.length - 1;
                 highlightCartItem(selectedCartIndex);
@@ -2432,7 +2432,7 @@
             }
             if (newQty <= 0) {
                 cart.splice(selectedCartIndex, 1);
-                if (cart.length === 0) {
+                if (cart.length == 0) {
                     selectedCartIndex = -1;
                 } else if (selectedCartIndex >= cart.length) {
                     selectedCartIndex = cart.length - 1;
@@ -2449,7 +2449,7 @@
         }
 
         function navigateCart(direction) {
-            if (cart.length === 0) return;
+            if (cart.length == 0) return;
             selectedCartIndex += direction;
             if (selectedCartIndex < 0) selectedCartIndex = cart.length - 1;
             if (selectedCartIndex >= cart.length) selectedCartIndex = 0;
@@ -2458,8 +2458,8 @@
 
         function highlightCartItem(index) {
             document.querySelectorAll('.cart-item').forEach((item, i) => {
-                item.classList.toggle('selected', i === index);
-                if (i === index) {
+                item.classList.toggle('selected', i == index);
+                if (i == index) {
                     item.style.background = 'var(--pos-bg)';
                     item.style.borderColor = 'var(--pos-primary)';
                 } else {
@@ -2635,7 +2635,7 @@
                 checkbox.addEventListener('change', function() {
                     const index = parseInt(this.dataset.index);
                     returnItems[index].selected = this.checked;
-                    if (this.checked && returnItems[index].return_qty === 0) {
+                    if (this.checked && returnItems[index].return_qty == 0) {
                         returnItems[index].return_qty = returnItems[index].returnable_qty;
                     } else if (!this.checked) {
                         returnItems[index].return_qty = 0;
@@ -2678,7 +2678,7 @@
 
         document.getElementById('refundMethod').addEventListener('change', function() {
             const cashboxGroup = document.getElementById('cashboxSelectGroup');
-            if (this.value === 'cash') {
+            if (this.value == 'cash') {
                 cashboxGroup.classList.remove('d-none');
             } else {
                 cashboxGroup.classList.add('d-none');
@@ -2703,7 +2703,7 @@
             }
 
             const selectedItems = returnItems.filter(item => item.return_qty > 0);
-            if (selectedItems.length === 0) {
+            if (selectedItems.length == 0) {
                 showToast('يجب اختيار عناصر للإرجاع', 'warning');
                 return;
             }
@@ -2744,7 +2744,7 @@
                         reason: reason,
                         reason_notes: notes,
                         refund_method: refundMethod,
-                        cashbox_id: refundMethod === 'cash' ? cashboxId : null,
+                        cashbox_id: refundMethod == 'cash' ? cashboxId : null,
                         restore_stock: restoreStock,
                         notes: notes
                     })
@@ -2787,10 +2787,10 @@
             document.querySelectorAll('.numpad button').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const activeInput = document.activeElement;
-                    if (activeInput.tagName !== 'INPUT') return;
+                    if (activeInput.tagName != 'INPUT') return;
 
                     const num = this.dataset.num;
-                    if (num === 'clear') {
+                    if (num == 'clear') {
                         activeInput.value = activeInput.value.slice(0, -1);
                     } else {
                         activeInput.value += num;

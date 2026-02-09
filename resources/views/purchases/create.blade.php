@@ -707,7 +707,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Barcode scanning
     barcodeInput.addEventListener('keypress', async function(e) {
-        if (e.key === 'Enter') {
+        if (e.key == 'Enter') {
             e.preventDefault();
             const barcode = this.value.trim();
             if (!barcode) return;
@@ -733,7 +733,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function addProductToItems(product) {
-        const existingItem = items.find(item => item.product_id === product.id);
+        const existingItem = items.find(item => item.product_id == product.id);
         if (existingItem) {
             const row = document.querySelector(`tr[data-index="${existingItem.index}"]`);
             if (row) {
@@ -779,7 +779,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const baseCostPrice = parseFloat(item.baseCostPrice) || 0;
 
             item.units.forEach(unit => {
-                const selected = unit.id === item.product_unit_id ? 'selected' : '';
+                const selected = unit.id == item.product_unit_id ? 'selected' : '';
                 const multiplier = parseFloat(unit.multiplier) || 1;
                 const isBase = unit.is_base || multiplier == 1;
                 const costPrice = isBase ? baseCostPrice : (baseCostPrice * multiplier);
@@ -839,7 +839,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const multiplier = parseFloat(selectedOption.dataset.multiplier) || 1;
         const costPrice = parseFloat(selectedOption.dataset.cost) || 0;
 
-        const item = items.find(i => i.index === index);
+        const item = items.find(i => i.index == index);
         if (item) {
             item.product_unit_id = parseInt(unitSelect.value);
             item.unit_multiplier = multiplier;
@@ -858,7 +858,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         row.querySelector('.item-total').textContent = total.toFixed(2);
 
-        const item = items.find(i => i.index === index);
+        const item = items.find(i => i.index == index);
         if (item) {
             item.quantity = quantity;
             item.unit_price = price;
@@ -872,9 +872,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const row = document.querySelector(`tr[data-index="${index}"]`);
         row.remove();
 
-        items = items.filter(i => i.index !== index);
+        items = items.filter(i => i.index != index);
 
-        if (items.length === 0) {
+        if (items.length == 0) {
             showEmptyRow();
         }
 
@@ -904,9 +904,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const discountValue = parseFloat(document.getElementById('discount_value').value) || 0;
 
         let discountAmount = 0;
-        if (discountType === 'percentage') {
+        if (discountType == 'percentage') {
             discountAmount = (subtotal * discountValue) / 100;
-        } else if (discountType === 'fixed') {
+        } else if (discountType == 'fixed') {
             discountAmount = discountValue;
         }
         document.getElementById('discountDisplay').textContent = '- ' + discountAmount.toFixed(2);
@@ -947,7 +947,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const remainingAmountField = document.getElementById('remainingAmountField');
         const paidAmountInput = document.getElementById('paid_amount');
 
-        if (this.value === 'cash' || this.value === 'bank') {
+        if (this.value == 'cash' || this.value == 'bank') {
             cashboxField.style.display = 'block';
             paidAmountField.style.display = 'block';
             remainingAmountField.style.display = 'block';
@@ -981,13 +981,13 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if ((paymentType === 'cash' || paymentType === 'bank') && !saveAsDraft && !cashboxId) {
+        if ((paymentType == 'cash' || paymentType == 'bank') && !saveAsDraft && !cashboxId) {
             document.getElementById('cashbox_id').classList.add('is-invalid');
             showToast('يرجى اختيار الخزينة للدفع النقدي', 'warning');
             return;
         }
 
-        if (items.length === 0) {
+        if (items.length == 0) {
             showToast('يرجى إضافة صنف واحد على الأقل', 'warning');
             productSearch.focus();
             return;

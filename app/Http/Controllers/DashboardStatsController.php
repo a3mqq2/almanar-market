@@ -23,7 +23,7 @@ class DashboardStatsController extends Controller
 {
     protected function isManager()
     {
-        return Auth::user()->role === 'manager';
+        return Auth::user()->role == 'manager';
     }
 
     public function getSalesStats()

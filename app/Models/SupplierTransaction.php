@@ -72,12 +72,12 @@ class SupplierTransaction extends Model
 
     public function getIsDebitAttribute(): bool
     {
-        return $this->type === 'debit';
+        return $this->type == 'debit';
     }
 
     public function getIsCreditAttribute(): bool
     {
-        return $this->type === 'credit';
+        return $this->type == 'credit';
     }
 
     protected static function booted(): void

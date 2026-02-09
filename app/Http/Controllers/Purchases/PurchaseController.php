@@ -335,7 +335,7 @@ class PurchaseController extends Controller
 
     public function approve(Request $request, Purchase $purchase)
     {
-        if ($purchase->status !== 'draft') {
+        if ($purchase->status != 'draft') {
             return response()->json([
                 'success' => false,
                 'message' => 'لا يمكن اعتماد هذه الفاتورة',
@@ -396,7 +396,7 @@ class PurchaseController extends Controller
         DB::beginTransaction();
 
         try {
-            if ($purchase->status === 'approved') {
+            if ($purchase->status == 'approved') {
                 $this->reversePurchase($purchase);
             }
 
@@ -511,7 +511,7 @@ class PurchaseController extends Controller
                 ->where('is_active', true)
                 ->first();
 
-            if ($productBarcode && $productBarcode->product && $productBarcode->product->status === 'active') {
+            if ($productBarcode && $productBarcode->product && $productBarcode->product->status == 'active') {
                 $product = $productBarcode->product;
                 $product->load(['productUnits.unit', 'baseUnit.unit']);
                 $barcodeLabel = $productBarcode->label;

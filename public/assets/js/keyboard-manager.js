@@ -35,7 +35,7 @@
                     e.stopPropagation();
                     e.stopImmediatePropagation();
 
-                    if (self.modalOpen && key === 'Escape') {
+                    if (self.modalOpen && key == 'Escape') {
                         self.closeActiveModal();
                         return;
                     }
@@ -55,37 +55,37 @@
                     return;
                 }
 
-                if (key === 'Enter' && !isInModal) {
+                if (key == 'Enter' && !isInModal) {
                     if (self.actions['Enter']) {
                         self.actions['Enter'](e);
                     }
                 }
 
-                if (key === 'Delete' && !isInInput) {
+                if (key == 'Delete' && !isInInput) {
                     e.preventDefault();
                     if (self.actions['Delete']) {
                         self.actions['Delete'](e);
                     }
                 }
 
-                if (key === '+' && !isInInput) {
+                if (key == '+' && !isInInput) {
                     e.preventDefault();
                     if (self.actions['Plus']) {
                         self.actions['Plus'](e);
                     }
                 }
 
-                if (key === '-' && !isInInput && e.target.type !== 'number') {
+                if (key == '-' && !isInInput && e.target.type != 'number') {
                     e.preventDefault();
                     if (self.actions['Minus']) {
                         self.actions['Minus'](e);
                     }
                 }
 
-                if (key === ' ' && !isInModal) {
+                if (key == ' ' && !isInModal) {
                     const el = document.activeElement;
-                    const isPrimaryInput = el === self.primaryInput;
-                    const isEmpty = isPrimaryInput && el.value.trim() === '';
+                    const isPrimaryInput = el == self.primaryInput;
+                    const isEmpty = isPrimaryInput && el.value.trim() == '';
                     if (isEmpty || !isInInput) {
                         e.preventDefault();
                         if (self.actions[' ']) {
@@ -153,7 +153,7 @@
             const el = document.activeElement;
             if (!el) return false;
             const tag = el.tagName;
-            return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+            return tag == 'INPUT' || tag == 'TEXTAREA' || tag == 'SELECT' || el.isContentEditable;
         },
 
         isModalInputFocused: function() {
@@ -162,7 +162,7 @@
             const modal = el.closest('.modal');
             if (!modal) return false;
             const tag = el.tagName;
-            return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+            return tag == 'INPUT' || tag == 'TEXTAREA' || tag == 'SELECT';
         },
 
         focusPrimaryInput: function() {

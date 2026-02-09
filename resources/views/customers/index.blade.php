@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderCustomers(customers, meta) {
         const tbody = document.getElementById('customersTableBody');
 
-        if (customers.length === 0) {
+        if (customers.length == 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="7">
@@ -374,7 +374,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = this.dataset.href;
             });
             row.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter' || e.key === ' ') {
+                if (e.key == 'Enter' || e.key == ' ') {
                     e.preventDefault();
                     window.location.href = this.dataset.href;
                 }
@@ -393,7 +393,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (meta.last_page > 1) {
             html += `
-                <li class="page-item ${meta.current_page === 1 ? 'disabled' : ''}">
+                <li class="page-item ${meta.current_page == 1 ? 'disabled' : ''}">
                     <a class="page-link" href="#" onclick="loadCustomers(${meta.current_page - 1}); return false;">
                         <i class="ti ti-chevron-right"></i>
                     </a>
@@ -412,7 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             for (let i = startPage; i <= endPage; i++) {
                 html += `
-                    <li class="page-item ${i === meta.current_page ? 'active' : ''}">
+                    <li class="page-item ${i == meta.current_page ? 'active' : ''}">
                         <a class="page-link" href="#" onclick="loadCustomers(${i}); return false;">${i}</a>
                     </li>
                 `;
@@ -426,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             html += `
-                <li class="page-item ${meta.current_page === meta.last_page ? 'disabled' : ''}">
+                <li class="page-item ${meta.current_page == meta.last_page ? 'disabled' : ''}">
                     <a class="page-link" href="#" onclick="loadCustomers(${meta.current_page + 1}); return false;">
                         <i class="ti ti-chevron-left"></i>
                     </a>
@@ -459,8 +459,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('th.sortable').forEach(th => {
         th.addEventListener('click', function() {
             const sortField = this.dataset.sort;
-            if (currentSort === sortField) {
-                currentDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+            if (currentSort == sortField) {
+                currentDirection = currentDirection == 'asc' ? 'desc' : 'asc';
             } else {
                 currentSort = sortField;
                 currentDirection = 'asc';
@@ -473,7 +473,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const icon = this.querySelector('.sort-icon');
             icon.classList.add('active');
-            icon.className = `ti ti-arrow-${currentDirection === 'asc' ? 'up' : 'down'} sort-icon active`;
+            icon.className = `ti ti-arrow-${currentDirection == 'asc' ? 'up' : 'down'} sort-icon active`;
 
             loadCustomers(1);
         });

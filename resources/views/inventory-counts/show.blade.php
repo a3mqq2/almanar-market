@@ -97,12 +97,12 @@
         <span class="badge bg-{{ $inventoryCount->status_color }} fs-6">{{ $inventoryCount->status_arabic }}</span>
     </div>
     <div class="d-flex gap-2">
-        @if($inventoryCount->status === 'draft')
+        @if($inventoryCount->status == 'draft')
         <button class="btn btn-success" id="startBtn">
             <i class="ti ti-player-play me-1"></i>بدء الجرد
         </button>
         @endif
-        @if($inventoryCount->status === 'completed')
+        @if($inventoryCount->status == 'completed')
         <a href="{{ route('inventory-counts.review', $inventoryCount) }}" class="btn btn-primary">
             <i class="ti ti-file-check me-1"></i>مراجعة واعتماد
         </a>
@@ -140,9 +140,9 @@
     <div class="col-md-3">
         <div class="info-card">
             <div class="info-label">
-                @if($inventoryCount->status === 'approved')
+                @if($inventoryCount->status == 'approved')
                     تاريخ الاعتماد
-                @elseif($inventoryCount->status === 'completed')
+                @elseif($inventoryCount->status == 'completed')
                     تاريخ الإكمال
                 @elseif($inventoryCount->started_at)
                     تاريخ البدء
@@ -151,9 +151,9 @@
                 @endif
             </div>
             <div class="info-value">
-                @if($inventoryCount->status === 'approved')
+                @if($inventoryCount->status == 'approved')
                     {{ $inventoryCount->approved_at?->format('Y/m/d H:i') ?? '-' }}
-                @elseif($inventoryCount->status === 'completed')
+                @elseif($inventoryCount->status == 'completed')
                     {{ $inventoryCount->completed_at?->format('Y/m/d H:i') ?? '-' }}
                 @elseif($inventoryCount->started_at)
                     {{ $inventoryCount->started_at->format('Y/m/d H:i') }}
@@ -165,7 +165,7 @@
     </div>
 </div>
 
-@if($inventoryCount->status !== 'draft')
+@if($inventoryCount->status != 'draft')
 <div class="row g-3 mb-4">
     <div class="col-12">
         <div class="info-card">
@@ -219,7 +219,7 @@
 </div>
 @endif
 
-@if($inventoryCount->status === 'cancelled')
+@if($inventoryCount->status == 'cancelled')
 <div class="alert alert-danger mb-4">
     <i class="ti ti-x me-2"></i>
     <strong>سبب الإلغاء:</strong> {{ $inventoryCount->cancel_reason }}
@@ -228,7 +228,7 @@
 </div>
 @endif
 
-@if($inventoryCount->status === 'approved' && $inventoryCount->approvedByUser)
+@if($inventoryCount->status == 'approved' && $inventoryCount->approvedByUser)
 <div class="alert alert-success mb-4">
     <i class="ti ti-check me-2"></i>
     <strong>تم الاعتماد بواسطة:</strong> {{ $inventoryCount->approvedByUser->name }}
@@ -264,7 +264,7 @@
                         <td>{{ $item->product->name }}</td>
                         <td class="text-muted">{{ $item->product->barcode ?? '-' }}</td>
                         <td>{{ number_format($item->system_qty, 2) }}</td>
-                        <td>{{ $item->counted_qty !== null ? number_format($item->counted_qty, 2) : '-' }}</td>
+                        <td>{{ $item->counted_qty != null ? number_format($item->counted_qty, 2) : '-' }}</td>
                         <td class="{{ $item->difference > 0 ? 'text-success' : ($item->difference < 0 ? 'text-danger' : '') }}">
                             {{ $item->difference != 0 ? number_format($item->difference, 2) : '-' }}
                         </td>
@@ -323,7 +323,7 @@ function showToast(message, type = 'success') {
     setTimeout(() => toast.remove(), 4000);
 }
 
-@if($inventoryCount->status === 'draft')
+@if($inventoryCount->status == 'draft')
 document.getElementById('startBtn').addEventListener('click', async function() {
     const btn = this;
     btn.disabled = true;

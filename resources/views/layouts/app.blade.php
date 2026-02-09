@@ -236,9 +236,9 @@
 <!-- Sidenav Menu End -->
 
 
-            <!-- ============================================================== -->
+            <!-- ========================================== -->
             <!-- Start Main Content -->
-            <!-- ============================================================== -->
+            <!-- ========================================== -->
 
             <div class="content-page">
                 <div class="container-fluid">
@@ -282,9 +282,9 @@
 
             </div>
 
-            <!-- ============================================================== -->
+            <!-- ========================================== -->
             <!-- End of Main Content -->
-            <!-- ============================================================== -->
+            <!-- ========================================== -->
         </div>
         <!-- END wrapper -->
 
@@ -874,7 +874,7 @@
 
         <script>
         (function() {
-            const isDesktop = typeof window.desktopAPI !== 'undefined';
+            const isDesktop = typeof window.desktopAPI != 'undefined';
 
             if (!isDesktop) return;
 
@@ -938,7 +938,7 @@
             window.desktopAPI.network.onStatusChange(updateNetworkStatus);
 
             window.desktopAPI.sync.onProgress(function(data) {
-                setSyncing(data.status === 'started');
+                setSyncing(data.status == 'started');
             });
 
             window.desktopAPI.sync.onComplete(function(data) {

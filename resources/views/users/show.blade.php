@@ -70,12 +70,12 @@
     <div class="col-lg-4">
         <div class="info-card mb-4">
             <div class="text-center mb-4">
-                <div class="avatar avatar-xl bg-{{ $user->role === 'manager' ? 'info' : 'warning' }}-subtle text-{{ $user->role === 'manager' ? 'info' : 'warning' }} rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px; font-size: 2rem;">
+                <div class="avatar avatar-xl bg-{{ $user->role == 'manager' ? 'info' : 'warning' }}-subtle text-{{ $user->role == 'manager' ? 'info' : 'warning' }} rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px; font-size: 2rem;">
                     <i class="ti ti-user"></i>
                 </div>
                 <h4 class="mt-3 mb-1">{{ $user->name }}</h4>
                 <p class="text-muted mb-2"><code>{{ $user->username }}</code></p>
-                <span class="badge bg-{{ $user->role === 'manager' ? 'info' : 'warning' }}">{{ $user->role_arabic }}</span>
+                <span class="badge bg-{{ $user->role == 'manager' ? 'info' : 'warning' }}">{{ $user->role_arabic }}</span>
                 <span class="badge bg-{{ $user->status ? 'success' : 'secondary' }}">{{ $user->status_arabic }}</span>
             </div>
 
@@ -121,7 +121,7 @@
         </div>
 
         <div class="d-grid gap-2">
-            @if($user->id !== auth()->id())
+            @if($user->id != auth()->id())
                 <button type="button" class="btn btn-{{ $user->status ? 'warning' : 'success' }}" onclick="toggleStatus()">
                     <i class="ti ti-{{ $user->status ? 'lock' : 'lock-open' }} me-1"></i>
                     {{ $user->status ? 'إيقاف الحساب' : 'تفعيل الحساب' }}
@@ -157,9 +157,9 @@
                         <div class="col-md-6">
                             <label class="form-label">الدور</label>
                             <select class="form-select" id="editRole">
-                                <option value="cashier" {{ $user->role === 'cashier' ? 'selected' : '' }}>كاشير</option>
-                                <option value="manager" {{ $user->role === 'manager' ? 'selected' : '' }}>مدير</option>
-                                <option value="price_checker" {{ $user->role === 'price_checker' ? 'selected' : '' }}>جهاز الأسعار</option>
+                                <option value="cashier" {{ $user->role == 'cashier' ? 'selected' : '' }}>كاشير</option>
+                                <option value="manager" {{ $user->role == 'manager' ? 'selected' : '' }}>مدير</option>
+                                <option value="price_checker" {{ $user->role == 'price_checker' ? 'selected' : '' }}>جهاز الأسعار</option>
                             </select>
                         </div>
                     </div>
@@ -294,7 +294,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.getElementById('editRole').addEventListener('change', function() {
-        document.getElementById('cashboxesCard').style.display = (this.value === 'manager' || this.value === 'price_checker') ? 'none' : 'block';
+        document.getElementById('cashboxesCard').style.display = (this.value == 'manager' || this.value == 'price_checker') ? 'none' : 'block';
     });
 
     document.getElementById('editUsername').addEventListener('input', function() {
@@ -453,7 +453,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const password = document.getElementById('newPassword').value;
         const confirmPassword = document.getElementById('confirmPassword').value;
 
-        if (password !== confirmPassword) {
+        if (password != confirmPassword) {
             showToast('كلمات المرور غير متطابقة', 'warning');
             return;
         }
