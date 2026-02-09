@@ -534,6 +534,9 @@
                                     </td>
                                     <td>{{ $barcode->created_at->format('Y-m-d') }}</td>
                                     <td class="text-center">
+                                        <button type="button" class="btn btn-outline-primary btn-sm edit-barcode-btn" data-id="{{ $barcode->id }}" data-barcode="{{ $barcode->barcode }}" data-label="{{ $barcode->label }}" data-active="{{ $barcode->is_active ? '1' : '0' }}">
+                                            <i class="ti ti-edit"></i>
+                                        </button>
                                         <button type="button" class="btn btn-outline-danger btn-sm delete-barcode-btn" data-id="{{ $barcode->id }}">
                                             <i class="ti ti-trash"></i>
                                         </button>
@@ -846,6 +849,51 @@
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
                     <button type="submit" class="btn btn-success btn-sm" id="addBarcodeSubmit">
                         <i class="ti ti-plus me-1"></i>إضافة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Barcode Modal -->
+<div class="modal fade" id="editBarcodeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title"><i class="ti ti-edit me-1"></i>تعديل الباركود</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editBarcodeForm">
+                <input type="hidden" id="editBarcodeId">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">الباركود <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="editBarcodeValue" name="barcode" required>
+                            <button type="button" class="btn btn-outline-secondary" id="generateEditBarcodeBtn" title="توليد باركود">
+                                <i class="ti ti-refresh"></i>
+                            </button>
+                        </div>
+                        <div class="text-danger small" id="editBarcodeFeedbackNew" style="display: none;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">التسمية / الوصف</label>
+                        <input type="text" class="form-control" id="editBarcodeLabel" name="label" placeholder="مثال: نكهة الفراولة، اللون الأحمر، حجم كبير...">
+                        <small class="text-muted">التسمية تظهر عند البيع لتمييز المنتج</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الحالة</label>
+                        <select class="form-select" id="editBarcodeActive" name="is_active">
+                            <option value="1">نشط</option>
+                            <option value="0">غير نشط</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary btn-sm" id="editBarcodeSubmit">
+                        <i class="ti ti-check me-1"></i>حفظ التعديلات
                     </button>
                 </div>
             </form>
@@ -1716,6 +1764,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td><span class="badge bg-success">نشط</span></td>
                     <td>${new Date().toISOString().split('T')[0]}</td>
                     <td class="text-center">
+                        <button type="button" class="btn btn-outline-primary btn-sm edit-barcode-btn" data-id="${result.barcode.id}" data-barcode="${result.barcode.barcode}" data-label="${result.barcode.label || ''}" data-active="1">
+                            <i class="ti ti-edit"></i>
+                        </button>
                         <button type="button" class="btn btn-outline-danger btn-sm delete-barcode-btn" data-id="${result.barcode.id}">
                             <i class="ti ti-trash"></i>
                         </button>
@@ -1741,7 +1792,28 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.getElementById('barcodesTableBody').addEventListener('click', async function(e) {
+        const editBtn = e.target.closest('.edit-barcode-btn');
         const deleteBtn = e.target.closest('.delete-barcode-btn');
+
+        if (editBtn) {
+            const barcodeId = editBtn.dataset.id;
+            const barcode = editBtn.dataset.barcode;
+            const label = editBtn.dataset.label;
+            const active = editBtn.dataset.active;
+
+            document.getElementById('editBarcodeId').value = barcodeId;
+            document.getElementById('editBarcodeValue').value = barcode;
+            document.getElementById('editBarcodeLabel').value = label || '';
+            document.getElementById('editBarcodeActive').value = active;
+            document.getElementById('editBarcodeValue').classList.remove('is-valid', 'is-invalid');
+            document.getElementById('editBarcodeFeedbackNew').style.display = 'none';
+            editBarcodeValidNew = true;
+            originalEditBarcode = barcode;
+
+            new bootstrap.Modal(document.getElementById('editBarcodeModal')).show();
+            return;
+        }
+
         if (!deleteBtn) return;
 
         const barcodeId = deleteBtn.dataset.id;
@@ -1801,6 +1873,132 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             showToast('حدث خطأ في حذف الباركود', 'danger');
         }
+    });
+
+    let editBarcodeValidNew = true;
+    let editBarcodeCheckTimeoutNew = null;
+    let originalEditBarcode = '';
+
+    document.getElementById('generateEditBarcodeBtn').addEventListener('click', async function() {
+        try {
+            const response = await fetch('{{ route("products.generate-barcode") }}');
+            const result = await response.json();
+            document.getElementById('editBarcodeValue').value = result.barcode;
+            document.getElementById('editBarcodeValue').classList.remove('is-invalid');
+            document.getElementById('editBarcodeValue').classList.add('is-valid');
+            document.getElementById('editBarcodeFeedbackNew').style.display = 'none';
+            editBarcodeValidNew = true;
+        } catch (error) {
+            showToast('حدث خطأ في توليد الباركود', 'danger');
+        }
+    });
+
+    document.getElementById('editBarcodeValue').addEventListener('input', function() {
+        clearTimeout(editBarcodeCheckTimeoutNew);
+        const barcode = this.value.trim();
+
+        if (!barcode) {
+            this.classList.remove('is-invalid', 'is-valid');
+            document.getElementById('editBarcodeFeedbackNew').style.display = 'none';
+            editBarcodeValidNew = true;
+            return;
+        }
+
+        if (barcode === originalEditBarcode) {
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+            document.getElementById('editBarcodeFeedbackNew').style.display = 'none';
+            editBarcodeValidNew = true;
+            return;
+        }
+
+        editBarcodeCheckTimeoutNew = setTimeout(async () => {
+            try {
+                const response = await fetch(`{{ route("products.check-barcode") }}?barcode=${encodeURIComponent(barcode)}`);
+                const result = await response.json();
+
+                if (result.exists) {
+                    this.classList.remove('is-valid');
+                    this.classList.add('is-invalid');
+                    document.getElementById('editBarcodeFeedbackNew').textContent = 'هذا الباركود مستخدم بالفعل';
+                    document.getElementById('editBarcodeFeedbackNew').style.display = 'block';
+                    editBarcodeValidNew = false;
+                } else {
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                    document.getElementById('editBarcodeFeedbackNew').style.display = 'none';
+                    editBarcodeValidNew = true;
+                }
+            } catch (error) {
+                console.error('Error checking barcode:', error);
+            }
+        }, 300);
+    });
+
+    document.getElementById('editBarcodeForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const barcodeId = document.getElementById('editBarcodeId').value;
+        const barcode = document.getElementById('editBarcodeValue').value.trim();
+        const label = document.getElementById('editBarcodeLabel').value.trim();
+        const isActive = document.getElementById('editBarcodeActive').value;
+
+        if (!barcode) {
+            document.getElementById('editBarcodeValue').classList.add('is-invalid');
+            return;
+        }
+
+        if (!editBarcodeValidNew) {
+            document.getElementById('editBarcodeValue').focus();
+            return;
+        }
+
+        const btn = document.getElementById('editBarcodeSubmit');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+
+        try {
+            const response = await fetch(`/products/${productId}/barcodes/${barcodeId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ barcode, label, is_active: isActive })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('editBarcodeModal')).hide();
+
+                const row = document.querySelector(`tr[data-barcode-id="${barcodeId}"]`);
+                if (row) {
+                    row.innerHTML = `
+                        <td><code class="fs-6">${result.barcode.barcode}</code></td>
+                        <td>${result.barcode.label || '-'}</td>
+                        <td><span class="badge bg-${result.barcode.is_active ? 'success' : 'secondary'}">${result.barcode.is_active ? 'نشط' : 'غير نشط'}</span></td>
+                        <td>${row.cells[3].textContent}</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-outline-primary btn-sm edit-barcode-btn" data-id="${result.barcode.id}" data-barcode="${result.barcode.barcode}" data-label="${result.barcode.label || ''}" data-active="${result.barcode.is_active ? '1' : '0'}">
+                                <i class="ti ti-edit"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm delete-barcode-btn" data-id="${result.barcode.id}">
+                                <i class="ti ti-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                }
+            } else {
+                showToast(result.message || 'حدث خطأ', 'danger');
+            }
+        } catch (error) {
+            showToast('حدث خطأ في الاتصال', 'danger');
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-check me-1"></i>حفظ التعديلات';
     });
 });
 </script>

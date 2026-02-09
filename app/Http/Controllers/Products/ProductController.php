@@ -567,6 +567,41 @@ class ProductController extends Controller
         }
     }
 
+    public function updateBarcode(Request $request, Product $product, ProductBarcode $barcode)
+    {
+        if ($barcode->product_id != $product->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الباركود لا ينتمي لهذا المنتج',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'barcode' => 'required|string|unique:products,barcode|unique:product_barcodes,barcode,' . $barcode->id,
+            'label' => 'nullable|string|max:255',
+            'is_active' => 'required|in:0,1',
+        ]);
+
+        try {
+            $barcode->update([
+                'barcode' => $validated['barcode'],
+                'label' => $validated['label'],
+                'is_active' => $validated['is_active'] == '1',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث الباركود بنجاح',
+                'barcode' => $barcode->fresh(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function destroyBarcode(Product $product, ProductBarcode $barcode)
     {
         if ($barcode->product_id != $product->id) {
