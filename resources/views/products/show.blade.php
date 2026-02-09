@@ -235,8 +235,8 @@
                                     <th>الوحدة</th>
                                     <th width="100">المعامل</th>
                                     <th width="120">سعر التكلفة</th>
-                                    <th width="100">هامش الربح %</th>
                                     <th width="120">سعر البيع</th>
+                                    <th width="100">هامش الربح %</th>
                                     <th width="70"></th>
                                 </tr>
                             </thead>
@@ -266,10 +266,10 @@
                                             @endif
                                         </td>
                                         <td>
-                                            <input type="number" class="form-control form-control-sm margin-input" value="{{ number_format($margin, 2, '.', '') }}" min="0" step="0.01">
+                                            <input type="number" class="form-control form-control-sm sell-price-input" name="units[{{ $index }}][sell_price]" value="{{ number_format((float)($productUnit->sell_price ?? 0), 2, '.', '') }}" min="0" step="0.01">
                                         </td>
                                         <td>
-                                            <input type="number" class="form-control form-control-sm sell-price-display" name="units[{{ $index }}][sell_price]" value="{{ number_format((float)($productUnit->sell_price ?? 0), 2, '.', '') }}" min="0" step="0.01" readonly>
+                                            <input type="text" class="form-control form-control-sm margin-display" value="{{ number_format($margin, 2, '.', '') }}%" readonly disabled>
                                         </td>
                                         <td class="text-center">
                                             @if($productUnit->is_base_unit)
@@ -1386,32 +1386,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let unitRowIndex = {{ $product->productUnits->count() }};
 
-    function calculateSellPrice(row) {
+    function calculateMargin(row) {
         const costInput = row.querySelector('.base-cost') || row.querySelector('.calculated-cost');
-        const marginInput = row.querySelector('.margin-input');
-        const sellPriceInput = row.querySelector('.sell-price-display');
+        const sellPriceInput = row.querySelector('.sell-price-input');
+        const marginDisplay = row.querySelector('.margin-display');
 
-        if (!costInput || !marginInput || !sellPriceInput) return;
+        if (!costInput || !sellPriceInput || !marginDisplay) return;
 
         const cost = parseFloat(costInput.value) || 0;
-        const margin = parseFloat(marginInput.value) || 0;
-        const sellPrice = cost * (1 + margin / 100);
-        sellPriceInput.value = sellPrice.toFixed(2);
+        const sellPrice = parseFloat(sellPriceInput.value) || 0;
+        const margin = cost > 0 ? ((sellPrice - cost) / cost) * 100 : 0;
+        marginDisplay.value = margin.toFixed(2) + '%';
     }
 
-    function updateAllSellPrices() {
+    function updateAllMargins() {
         document.querySelectorAll('.unit-row').forEach(row => {
-            calculateSellPrice(row);
+            calculateMargin(row);
         });
     }
 
-    function updateCalculatedCostsAndPrices() {
+    function updateCalculatedCostsAndMargins() {
         const baseCostInput = document.querySelector('.base-cost');
         const baseCost = parseFloat(baseCostInput?.value) || 0;
 
         document.querySelectorAll('.unit-row').forEach((row, index) => {
             if (index == 0) {
-                calculateSellPrice(row);
+                calculateMargin(row);
                 return;
             }
 
@@ -1423,17 +1423,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 calculatedCostInput.value = (baseCost * multiplier).toFixed(2);
             }
 
-            calculateSellPrice(row);
+            calculateMargin(row);
         });
     }
 
     document.getElementById('unitsTableBody').addEventListener('input', function(e) {
         if (e.target.classList.contains('base-cost')) {
-            updateCalculatedCostsAndPrices();
-        } else if (e.target.classList.contains('margin-input')) {
-            calculateSellPrice(e.target.closest('.unit-row'));
+            updateCalculatedCostsAndMargins();
+        } else if (e.target.classList.contains('sell-price-input')) {
+            calculateMargin(e.target.closest('.unit-row'));
         } else if (e.target.classList.contains('multiplier-input')) {
-            updateCalculatedCostsAndPrices();
+            updateCalculatedCostsAndMargins();
         }
     });
 
@@ -1458,10 +1458,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="text" class="form-control form-control-sm calculated-cost" value="0.00" readonly disabled>
             </td>
             <td>
-                <input type="number" class="form-control form-control-sm margin-input" value="0.00" min="0" step="0.01">
+                <input type="number" class="form-control form-control-sm sell-price-input" name="units[${unitRowIndex}][sell_price]" value="0.00" min="0" step="0.01">
             </td>
             <td>
-                <input type="number" class="form-control form-control-sm sell-price-display" name="units[${unitRowIndex}][sell_price]" value="0.00" min="0" step="0.01" readonly>
+                <input type="text" class="form-control form-control-sm margin-display" value="0.00%" readonly disabled>
             </td>
             <td class="text-center">
                 <button type="button" class="btn btn-outline-danger btn-sm remove-unit-row">
@@ -1471,7 +1471,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         tbody.appendChild(row);
         unitRowIndex++;
-        updateCalculatedCostsAndPrices();
+        updateCalculatedCostsAndMargins();
     });
 
     document.getElementById('unitsTableBody').addEventListener('click', function(e) {
