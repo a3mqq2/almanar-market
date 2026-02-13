@@ -193,18 +193,10 @@ class SyncService
                 switch ($action) {
                     case 'created':
                     case 'updated':
-                        $model = $modelClass::find($serverId);
-                        if ($model) {
-                            $model->fill($payload);
-                            $model->synced_at = now();
-                            $model->save();
-                        } else {
-                            $model = new $modelClass();
-                            $model->fill($payload);
-                            $model->id = $serverId;
-                            $model->synced_at = now();
-                            $model->save();
-                        }
+                        $model = $this->findOrCreateModel($modelClass, $serverId, $payload);
+                        $model->fill($payload);
+                        $model->synced_at = now();
+                        $model->save();
                         $applied++;
                         break;
 
@@ -229,6 +221,34 @@ class SyncService
         }
 
         return $applied;
+    }
+
+    protected function findOrCreateModel(string $modelClass, int $serverId, array $payload)
+    {
+        $model = $modelClass::find($serverId);
+        if ($model) {
+            return $model;
+        }
+
+        if ($modelClass === 'App\Models\ProductUnit' && isset($payload['product_id'], $payload['unit_id'])) {
+            $model = $modelClass::where('product_id', $payload['product_id'])
+                ->where('unit_id', $payload['unit_id'])
+                ->first();
+            if ($model) {
+                return $model;
+            }
+        }
+
+        if ($modelClass === 'App\Models\ProductBarcode' && isset($payload['barcode'])) {
+            $model = $modelClass::where('barcode', $payload['barcode'])->first();
+            if ($model) {
+                return $model;
+            }
+        }
+
+        $model = new $modelClass();
+        $model->id = $serverId;
+        return $model;
     }
 
     public function getServerTimestamp(): ?Carbon
