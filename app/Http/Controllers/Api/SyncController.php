@@ -234,7 +234,7 @@ class SyncController extends Controller
                         'type' => $modelClass,
                         'action' => 'updated',
                         'payload' => $record->toArray(),
-                        'timestamp' => $record->updated_at->toIso8601String(),
+                        'timestamp' => $record->updated_at?->toIso8601String() ?? now()->toIso8601String(),
                     ];
                 }
             } catch (\Exception $e) {
