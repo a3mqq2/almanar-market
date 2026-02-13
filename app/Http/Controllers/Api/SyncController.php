@@ -39,6 +39,7 @@ class SyncController extends Controller
         $synced = [];
         $conflicts = [];
 
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
         DB::beginTransaction();
 
         try {
@@ -61,6 +62,7 @@ class SyncController extends Controller
             }
 
             DB::commit();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
             return response()->json([
                 'success' => true,
@@ -70,6 +72,7 @@ class SyncController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
             return response()->json([
                 'success' => false,
