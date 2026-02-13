@@ -12,17 +12,34 @@ use Illuminate\Support\Facades\Http;
 class SyncService
 {
     protected array $syncOrder = [
+        'App\Models\User',
+        'App\Models\Unit',
+        'App\Models\Supplier',
+        'App\Models\Customer',
+        'App\Models\Cashbox',
+        'App\Models\PaymentMethod',
+        'App\Models\ExpenseCategory',
+        'App\Models\Product',
+        'App\Models\ProductUnit',
+        'App\Models\ProductBarcode',
+        'App\Models\InventoryBatch',
+        'App\Models\Purchase',
+        'App\Models\PurchaseItem',
         'App\Models\Shift',
+        'App\Models\ShiftCashbox',
         'App\Models\Sale',
         'App\Models\SaleItem',
         'App\Models\SalePayment',
-        'App\Models\Expense',
-        'App\Models\StockMovement',
         'App\Models\SalesReturn',
         'App\Models\SaleReturnItem',
+        'App\Models\Expense',
+        'App\Models\StockMovement',
         'App\Models\CashboxTransaction',
         'App\Models\CustomerTransaction',
         'App\Models\SupplierTransaction',
+        'App\Models\InventoryCount',
+        'App\Models\InventoryCountItem',
+        'App\Models\UserActivityLog',
     ];
 
     public function getPendingChanges(string $deviceId): array
