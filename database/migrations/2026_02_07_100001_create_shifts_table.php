@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('terminal_id')->nullable();
-            $table->foreignId('cashbox_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('cashbox_id')->nullable()->constrained()->nullOnDelete();
 
             $table->decimal('opening_cash', 15, 2)->default(0);
             $table->decimal('closing_cash', 15, 2)->nullable();

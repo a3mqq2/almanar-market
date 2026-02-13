@@ -160,6 +160,10 @@ class SyncService
     {
         $applied = 0;
 
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = OFF');
+        }
+
         DB::beginTransaction();
 
         try {
@@ -171,25 +175,20 @@ class SyncService
 
                 switch ($action) {
                     case 'created':
-                        $existing = $modelClass::find($serverId);
-                        if (!$existing) {
-                            $model = new $modelClass();
-                            $model->fill($payload);
-                            $model->id = $serverId;
-                            $model->synced_at = now();
-                            $model->save();
-                            $applied++;
-                        }
-                        break;
-
                     case 'updated':
                         $model = $modelClass::find($serverId);
                         if ($model) {
                             $model->fill($payload);
                             $model->synced_at = now();
                             $model->save();
-                            $applied++;
+                        } else {
+                            $model = new $modelClass();
+                            $model->fill($payload);
+                            $model->id = $serverId;
+                            $model->synced_at = now();
+                            $model->save();
                         }
+                        $applied++;
                         break;
 
                     case 'deleted':
@@ -206,6 +205,10 @@ class SyncService
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
+        } finally {
+            if (DB::connection()->getDriverName() === 'sqlite') {
+                DB::statement('PRAGMA foreign_keys = ON');
+            }
         }
 
         return $applied;
