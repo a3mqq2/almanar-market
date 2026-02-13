@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Syncable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProductBarcode extends Model
 {
+    use Syncable;
     protected $fillable = [
         'product_id',
         'barcode',

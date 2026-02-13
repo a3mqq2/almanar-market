@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Syncable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InventoryCountItem extends Model
 {
+    use Syncable;
     protected $fillable = [
         'inventory_count_id',
         'product_id',

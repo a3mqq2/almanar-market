@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Syncable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ShiftCashbox extends Model
 {
+    use Syncable;
     protected $fillable = [
         'shift_id',
         'cashbox_id',
