@@ -175,13 +175,34 @@ class SyncController extends Controller
         $since = $request->input('since') ? Carbon::parse($request->input('since')) : null;
 
         $syncableModels = [
+            \App\Models\User::class,
+            \App\Models\Unit::class,
+            \App\Models\Supplier::class,
+            \App\Models\Customer::class,
+            \App\Models\Cashbox::class,
+            \App\Models\PaymentMethod::class,
+            \App\Models\ExpenseCategory::class,
+            \App\Models\Product::class,
+            \App\Models\ProductUnit::class,
+            \App\Models\ProductBarcode::class,
+            \App\Models\InventoryBatch::class,
+            \App\Models\Purchase::class,
+            \App\Models\PurchaseItem::class,
             \App\Models\Shift::class,
+            \App\Models\ShiftCashbox::class,
             \App\Models\Sale::class,
             \App\Models\SaleItem::class,
             \App\Models\SalePayment::class,
+            \App\Models\SalesReturn::class,
+            \App\Models\SaleReturnItem::class,
             \App\Models\Expense::class,
             \App\Models\StockMovement::class,
-            \App\Models\SalesReturn::class,
+            \App\Models\CashboxTransaction::class,
+            \App\Models\CustomerTransaction::class,
+            \App\Models\SupplierTransaction::class,
+            \App\Models\InventoryCount::class,
+            \App\Models\InventoryCountItem::class,
+            \App\Models\UserActivityLog::class,
         ];
 
         $changes = [];
