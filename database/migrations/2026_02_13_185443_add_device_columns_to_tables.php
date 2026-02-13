@@ -22,8 +22,12 @@ return new class extends Migration
 
     public function up(): void
     {
-        foreach ($this->syncableTables as $table) {
-                Schema::table($table, function (Blueprint $table) {
+        foreach ($this->syncableTables as $tableName) {
+
+            Schema::table($tableName, function (Blueprint $table) {
+
+                if (!Schema::hasColumn($table->getTable(), 'device_id')) {
+
                     $table->string('device_id', 36)->nullable()->after('id');
                     $table->string('local_uuid', 36)->nullable()->after('device_id');
                     $table->timestamp('synced_at')->nullable();
@@ -32,21 +36,29 @@ return new class extends Migration
                     $table->index('device_id');
                     $table->index('local_uuid');
                     $table->index('synced_at');
-                });
+
+                }
+            });
         }
     }
 
     public function down(): void
     {
         foreach ($this->syncableTables as $tableName) {
-            if (Schema::hasTable($tableName)) {
-                Schema::table($tableName, function (Blueprint $table) use ($tableName) {
-                    $table->dropIndex([$tableName . '_device_id_index']);
-                    $table->dropIndex([$tableName . '_local_uuid_index']);
-                    $table->dropIndex([$tableName . '_synced_at_index']);
-                    $table->dropColumn(['device_id', 'local_uuid', 'synced_at', 'sync_version']);
-                });
-            }
+
+            Schema::table($tableName, function (Blueprint $table) use ($tableName) {
+
+                $table->dropIndex($tableName.'_device_id_index');
+                $table->dropIndex($tableName.'_local_uuid_index');
+                $table->dropIndex($tableName.'_synced_at_index');
+
+                $table->dropColumn([
+                    'device_id',
+                    'local_uuid',
+                    'synced_at',
+                    'sync_version'
+                ]);
+            });
         }
     }
 };
