@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SyncController extends Controller
 {
@@ -208,27 +209,36 @@ class SyncController extends Controller
         $changes = [];
 
         foreach ($syncableModels as $modelClass) {
-            $query = $modelClass::query();
+            try {
+                $tableName = (new $modelClass)->getTable();
+                $hasDeviceId = Schema::hasColumn($tableName, 'device_id');
 
-            if ($since) {
-                $query->where('updated_at', '>', $since);
-            }
+                $query = $modelClass::query();
 
-            $query->where(function ($q) use ($deviceId) {
-                $q->whereNull('device_id')
-                    ->orWhere('device_id', '!=', $deviceId);
-            });
+                if ($since) {
+                    $query->where('updated_at', '>', $since);
+                }
 
-            $records = $query->get();
+                if ($hasDeviceId) {
+                    $query->where(function ($q) use ($deviceId) {
+                        $q->whereNull('device_id')
+                            ->orWhere('device_id', '!=', $deviceId);
+                    });
+                }
 
-            foreach ($records as $record) {
-                $changes[] = [
-                    'id' => $record->id,
-                    'type' => $modelClass,
-                    'action' => 'updated',
-                    'payload' => $record->toArray(),
-                    'timestamp' => $record->updated_at->toIso8601String(),
-                ];
+                $records = $query->get();
+
+                foreach ($records as $record) {
+                    $changes[] = [
+                        'id' => $record->id,
+                        'type' => $modelClass,
+                        'action' => 'updated',
+                        'payload' => $record->toArray(),
+                        'timestamp' => $record->updated_at->toIso8601String(),
+                    ];
+                }
+            } catch (\Exception $e) {
+                continue;
             }
         }
 
