@@ -38,16 +38,46 @@
   "build": {
     "appId": "com.almanar.market",
     "productName": "Almanar Market POS",
-
-    "win": {
-      "target": "nsis"
+    "directories": {
+      "output": "dist"
     },
 
-    "asar": true,
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
+    },
+
+    "asar": false,
 
     "files": [
-      "**/*",
-      "!node_modules/.cache/**"
+      "electron/**/*",
+      "public/**/*",
+      "resources/views/**/*",
+      "routes/**/*",
+      "app/**/*",
+      "bootstrap/**/*",
+      "config/**/*",
+      "database/**/*",
+      "storage/**/*",
+      "vendor/**/*",
+      "artisan",
+      ".env"
+    ],
+
+    "extraResources": [
+      {
+        "from": "php",
+        "to": "php",
+        "filter": ["**/*"]
+      }
     ]
   }
 }
