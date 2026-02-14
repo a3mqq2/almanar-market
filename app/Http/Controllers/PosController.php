@@ -109,7 +109,7 @@ class PosController extends Controller
             ->pluck('product_id');
 
         $products = Product::with(['productUnits.unit', 'baseUnit.unit', 'activeBarcodes'])
-            ->where('status', true)
+            ->where('status', 'active')
             ->where(function ($q) use ($query, $productIdsFromBarcodes) {
                 $q->where('name', 'like', "%{$query}%")
                   ->orWhere('barcode', 'like', "%{$query}%")
@@ -129,7 +129,7 @@ class PosController extends Controller
 
         $product = Product::with(['productUnits.unit', 'baseUnit.unit', 'activeBarcodes'])
             ->where('barcode', $barcode)
-            ->where('status', true)
+            ->where('status', 'active')
             ->first();
 
         if (!$product) {
