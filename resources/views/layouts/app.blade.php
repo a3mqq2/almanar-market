@@ -13,10 +13,8 @@
         <!-- App favicon -->
         <link rel="shortcut icon" href="{{ asset('assets/images/logo-sm.png') }}" />
 
-        <!-- IBM Plex Sans Arabic Font -->
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <!-- IBM Plex Sans Arabic Font (Local) -->
+        <link href="{{ asset('assets/fonts/fonts.css') }}" rel="stylesheet" type="text/css" />
 
         <!-- Vector Maps css -->
         <link href="{{ asset('assets/plugins/jsvectormap/jsvectormap.min.css') }}" rel="stylesheet" type="text/css" />

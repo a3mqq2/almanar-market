@@ -405,7 +405,7 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script src="{{ asset('assets/plugins/apexcharts/apexcharts.min.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const isManager = {{ Auth::user()->role == 'manager' ? 'true' : 'false' }};

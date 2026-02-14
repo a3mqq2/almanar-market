@@ -58,18 +58,7 @@
     "asar": false,
 
     "files": [
-      "electron/**/*",
-      "public/**/*",
-      "resources/views/**/*",
-      "routes/**/*",
-      "app/**/*",
-      "bootstrap/**/*",
-      "config/**/*",
-      "database/**/*",
-      "storage/**/*",
-      "vendor/**/*",
-      "artisan",
-      ".env"
+      "electron/**/*"
     ],
 
     "extraResources": [
@@ -77,6 +66,59 @@
         "from": "php",
         "to": "php",
         "filter": ["**/*"]
+      },
+      {
+        "from": "public",
+        "to": "public",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "resources/views",
+        "to": "resources/views",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "routes",
+        "to": "routes",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "app",
+        "to": "app",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "bootstrap",
+        "to": "bootstrap",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "config",
+        "to": "config",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "database",
+        "to": "database",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "storage",
+        "to": "storage",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "vendor",
+        "to": "vendor",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "artisan",
+        "to": "artisan"
+      },
+      {
+        "from": ".env",
+        "to": ".env"
       }
     ]
   }
