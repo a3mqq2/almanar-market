@@ -338,4 +338,18 @@ Route::prefix('api/sync')->middleware('auth')->group(function () {
         $sync = new \App\Services\SyncService();
         return response()->json($sync->getSyncStatus(config('desktop.device_id')));
     });
+
+    Route::get('/check-connection', function () {
+        if (!config('desktop.mode')) {
+            return response()->json(['online' => false]);
+        }
+        try {
+            $response = \Illuminate\Support\Facades\Http::withOptions(['verify' => false])
+                ->timeout(5)
+                ->get(config('desktop.server_url') . '/api/v1/sync/timestamp');
+            return response()->json(['online' => $response->successful()]);
+        } catch (\Exception $e) {
+            return response()->json(['online' => false]);
+        }
+    });
 });

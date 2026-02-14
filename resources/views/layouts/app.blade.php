@@ -978,13 +978,15 @@
 
             async function checkServerConnection() {
                 try {
-                    const response = await fetch('{{ config("desktop.server_url") }}/api/v1/sync/timestamp', {
+                    const response = await fetch('/api/sync/check-connection', {
                         method: 'GET',
-                        mode: 'cors',
-                        cache: 'no-cache',
-                        signal: AbortSignal.timeout(5000)
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        signal: AbortSignal.timeout(10000)
                     });
-                    isOnline = response.ok;
+                    const result = await response.json();
+                    isOnline = result.online === true;
                 } catch (e) {
                     isOnline = false;
                 }
