@@ -341,15 +341,30 @@ Route::prefix('api/sync')->middleware('auth')->group(function () {
 
     Route::get('/check-connection', function () {
         if (!config('desktop.mode')) {
-            return response()->json(['online' => false]);
+            return response()->json(['online' => false, 'reason' => 'desktop mode disabled']);
         }
+
+        $serverUrl = config('desktop.server_url');
+        if (empty($serverUrl)) {
+            return response()->json(['online' => false, 'reason' => 'server url not configured']);
+        }
+
         try {
             $response = \Illuminate\Support\Facades\Http::withOptions(['verify' => false])
                 ->timeout(5)
-                ->get(config('desktop.server_url') . '/api/v1/sync/timestamp');
-            return response()->json(['online' => $response->successful()]);
+                ->get($serverUrl . '/api/v1/sync/timestamp');
+
+            return response()->json([
+                'online' => $response->successful(),
+                'status' => $response->status(),
+                'url' => $serverUrl,
+            ]);
         } catch (\Exception $e) {
-            return response()->json(['online' => false]);
+            return response()->json([
+                'online' => false,
+                'reason' => $e->getMessage(),
+                'url' => $serverUrl,
+            ]);
         }
     });
 });
