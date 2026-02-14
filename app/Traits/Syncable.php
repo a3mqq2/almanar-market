@@ -7,6 +7,18 @@ use Illuminate\Support\Str;
 
 trait Syncable
 {
+    public static bool $syncLoggingEnabled = true;
+
+    public static function disableSyncLogging(): void
+    {
+        static::$syncLoggingEnabled = false;
+    }
+
+    public static function enableSyncLogging(): void
+    {
+        static::$syncLoggingEnabled = true;
+    }
+
     public static function bootSyncable(): void
     {
         static::creating(function ($model) {
@@ -17,19 +29,19 @@ trait Syncable
         });
 
         static::created(function ($model) {
-            if (config('desktop.mode')) {
+            if (config('desktop.mode') && static::$syncLoggingEnabled) {
                 $model->logSyncEvent('created');
             }
         });
 
         static::updated(function ($model) {
-            if (config('desktop.mode')) {
+            if (config('desktop.mode') && static::$syncLoggingEnabled) {
                 $model->logSyncEvent('updated');
             }
         });
 
         static::deleted(function ($model) {
-            if (config('desktop.mode')) {
+            if (config('desktop.mode') && static::$syncLoggingEnabled) {
                 $model->logSyncEvent('deleted');
             }
         });
@@ -37,6 +49,10 @@ trait Syncable
 
     public function logSyncEvent(string $action): void
     {
+        if (!static::$syncLoggingEnabled) {
+            return;
+        }
+
         SyncLog::create([
             'device_id' => config('desktop.device_id'),
             'syncable_type' => get_class($this),

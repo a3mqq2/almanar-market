@@ -183,6 +183,12 @@ class SyncService
             DB::statement('PRAGMA foreign_keys = OFF');
         }
 
+        foreach ($this->syncOrder as $modelClass) {
+            if (method_exists($modelClass, 'disableSyncLogging')) {
+                $modelClass::disableSyncLogging();
+            }
+        }
+
         DB::beginTransaction();
 
         try {
@@ -226,6 +232,12 @@ class SyncService
         } finally {
             if (DB::connection()->getDriverName() === 'sqlite') {
                 DB::statement('PRAGMA foreign_keys = ON');
+            }
+
+            foreach ($this->syncOrder as $modelClass) {
+                if (method_exists($modelClass, 'enableSyncLogging')) {
+                    $modelClass::enableSyncLogging();
+                }
             }
         }
 
