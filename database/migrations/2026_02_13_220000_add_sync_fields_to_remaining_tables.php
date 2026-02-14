@@ -40,14 +40,24 @@ return new class extends Migration
     public function up(): void
     {
         foreach ($this->syncableTables as $tableName) {
-            if (Schema::hasTable($tableName) && !Schema::hasColumn($tableName, 'synced_at')) {
-                Schema::table($tableName, function (Blueprint $table) {
-                    $table->string('device_id', 36)->nullable();
-                    $table->string('local_uuid', 36)->nullable();
-                    $table->timestamp('synced_at')->nullable();
-                    $table->unsignedInteger('sync_version')->default(1);
-                });
+            if (!Schema::hasTable($tableName)) {
+                continue;
             }
+
+            Schema::table($tableName, function (Blueprint $table) use ($tableName) {
+                if (!Schema::hasColumn($tableName, 'device_id')) {
+                    $table->string('device_id', 36)->nullable();
+                }
+                if (!Schema::hasColumn($tableName, 'local_uuid')) {
+                    $table->string('local_uuid', 36)->nullable();
+                }
+                if (!Schema::hasColumn($tableName, 'synced_at')) {
+                    $table->timestamp('synced_at')->nullable();
+                }
+                if (!Schema::hasColumn($tableName, 'sync_version')) {
+                    $table->unsignedInteger('sync_version')->default(1);
+                }
+            });
         }
     }
 
