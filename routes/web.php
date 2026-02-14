@@ -312,3 +312,30 @@ Route::middleware('role:manager')->prefix('expense-categories')->name('expense-c
     Route::put('/{category}', [ExpenseCategoryController::class, 'update'])->name('update');
     Route::delete('/{category}', [ExpenseCategoryController::class, 'destroy'])->name('destroy');
 });
+
+// Sync Routes (Local Desktop Mode)
+Route::prefix('api/sync')->middleware('auth')->group(function () {
+    Route::post('/pull', function () {
+        if (!config('desktop.mode')) {
+            return response()->json(['success' => false, 'message' => 'Sync not enabled']);
+        }
+        $sync = new \App\Services\SyncService();
+        return response()->json($sync->pullChanges(config('desktop.device_id')));
+    });
+    
+    Route::post('/push', function () {
+        if (!config('desktop.mode')) {
+            return response()->json(['success' => false, 'message' => 'Sync not enabled']);
+        }
+        $sync = new \App\Services\SyncService();
+        return response()->json($sync->pushChanges(config('desktop.device_id')));
+    });
+    
+    Route::get('/status', function () {
+        if (!config('desktop.mode')) {
+            return response()->json(['success' => false, 'message' => 'Sync not enabled']);
+        }
+        $sync = new \App\Services\SyncService();
+        return response()->json($sync->getSyncStatus(config('desktop.device_id')));
+    });
+});

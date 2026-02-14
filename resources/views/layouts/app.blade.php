@@ -137,7 +137,8 @@
                             </button>
                         </div>
 
-                        <div id="sync-status-indicator" class="topbar-item d-none" style="display: none !important;">
+                        @if(config('desktop.mode'))
+                        <div id="sync-status-indicator" class="topbar-item">
                             <div class="dropdown">
                                 <button class="topbar-link position-relative" data-bs-toggle="dropdown" type="button">
                                     <i class="ti ti-cloud-upload topbar-link-icon" id="sync-icon"></i>
@@ -157,13 +158,24 @@
                                         <small class="text-muted">تغييرات معلقة:</small>
                                         <div id="pending-changes-count" class="fw-medium">0</div>
                                     </div>
-                                    <button type="button" id="manual-sync-btn" class="btn btn-primary btn-sm w-100">
+                                    <div class="d-flex gap-2">
+                                        <button type="button" id="sync-pull-btn" class="btn btn-outline-primary btn-sm flex-fill">
+                                            <i class="ti ti-cloud-download me-1"></i>
+                                            سحب
+                                        </button>
+                                        <button type="button" id="sync-push-btn" class="btn btn-outline-success btn-sm flex-fill">
+                                            <i class="ti ti-cloud-upload me-1"></i>
+                                            رفع
+                                        </button>
+                                    </div>
+                                    <button type="button" id="manual-sync-btn" class="btn btn-primary btn-sm w-100 mt-2">
                                         <i class="ti ti-refresh me-1"></i>
-                                        مزامنة الآن
+                                        مزامنة كاملة
                                     </button>
                                 </div>
                             </div>
                         </div>
+                        @endif
 
                         <div id="user-dropdown-detailed" class="topbar-item nav-user">
                             <div class="dropdown">
@@ -872,115 +884,119 @@
 
         @stack('scripts')
 
+        @if(config('desktop.mode'))
         <script>
         (function() {
-            const isDesktop = typeof window.desktopAPI != 'undefined';
-
-            if (!isDesktop) return;
-
-            const syncIndicator = document.getElementById('sync-status-indicator');
             const syncIcon = document.getElementById('sync-icon');
             const syncBadge = document.getElementById('sync-badge');
             const networkStatusText = document.getElementById('network-status-text');
             const lastSyncTime = document.getElementById('last-sync-time');
             const pendingChangesCount = document.getElementById('pending-changes-count');
             const manualSyncBtn = document.getElementById('manual-sync-btn');
+            const syncPullBtn = document.getElementById('sync-pull-btn');
+            const syncPushBtn = document.getElementById('sync-push-btn');
 
-            if (syncIndicator) {
-                syncIndicator.classList.remove('d-none');
-                syncIndicator.style.display = 'flex';
-            }
-
-            function updateNetworkStatus(isOnline) {
-                if (isOnline) {
-                    networkStatusText.textContent = 'متصل';
-                    networkStatusText.className = 'badge bg-success';
-                    syncIcon.className = 'ti ti-cloud-upload topbar-link-icon';
+            function setButtonLoading(btn, loading, originalHtml) {
+                if (loading) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="ti ti-loader me-1" style="animation: spin 1s linear infinite;"></i>';
                 } else {
-                    networkStatusText.textContent = 'غير متصل';
-                    networkStatusText.className = 'badge bg-danger';
-                    syncIcon.className = 'ti ti-cloud-off topbar-link-icon text-danger';
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
                 }
             }
 
-            function updateSyncStatus(status) {
-                if (status.pendingCount > 0) {
-                    syncBadge.textContent = status.pendingCount;
-                    syncBadge.classList.remove('d-none');
-                } else {
-                    syncBadge.classList.add('d-none');
-                }
-
-                pendingChangesCount.textContent = status.pendingCount || 0;
-
-                if (status.lastSyncTime) {
-                    const date = new Date(status.lastSyncTime);
-                    lastSyncTime.textContent = date.toLocaleString('ar-SA');
-                }
-
-                updateNetworkStatus(status.isOnline);
+            function showResult(success, message) {
+                const alertClass = success ? 'alert-success' : 'alert-danger';
+                const icon = success ? 'ti-check' : 'ti-x';
+                const toast = document.createElement('div');
+                toast.className = `alert ${alertClass} position-fixed bottom-0 end-0 m-3 d-flex align-items-center`;
+                toast.style.zIndex = '9999';
+                toast.innerHTML = `<i class="ti ${icon} me-2"></i>${message}`;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
             }
 
-            function setSyncing(isSyncing) {
-                if (isSyncing) {
-                    syncIcon.className = 'ti ti-loader topbar-link-icon';
-                    syncIcon.style.animation = 'spin 1s linear infinite';
-                    manualSyncBtn.disabled = true;
-                    manualSyncBtn.innerHTML = '<i class="ti ti-loader me-1"></i> جاري المزامنة...';
-                } else {
-                    syncIcon.className = 'ti ti-cloud-upload topbar-link-icon';
-                    syncIcon.style.animation = '';
-                    manualSyncBtn.disabled = false;
-                    manualSyncBtn.innerHTML = '<i class="ti ti-refresh me-1"></i> مزامنة الآن';
-                }
+            async function syncAction(action) {
+                const response = await fetch(`/api/sync/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    }
+                });
+                return await response.json();
             }
 
-            window.desktopAPI.network.onStatusChange(updateNetworkStatus);
-
-            window.desktopAPI.sync.onProgress(function(data) {
-                setSyncing(data.status == 'started');
-            });
-
-            window.desktopAPI.sync.onComplete(function(data) {
-                setSyncing(false);
-                if (data.success) {
-                    lastSyncTime.textContent = new Date().toLocaleString('ar-SA');
-                }
-            });
-
-            window.desktopAPI.sync.onError(function(data) {
-                setSyncing(false);
-            });
-
-            manualSyncBtn.addEventListener('click', async function() {
-                setSyncing(true);
-                await window.desktopAPI.sync.trigger();
-            });
-
-            async function init() {
-                const isOnline = await window.desktopAPI.network.isOnline();
-                updateNetworkStatus(isOnline);
-
-                const status = await window.desktopAPI.sync.getStatus();
-                if (status) {
-                    updateSyncStatus(status);
-                }
-
-                const lastSync = await window.desktopAPI.sync.getLastSync();
-                if (lastSync) {
-                    lastSyncTime.textContent = new Date(lastSync).toLocaleString('ar-SA');
-                }
+            if (syncPullBtn) {
+                syncPullBtn.addEventListener('click', async function() {
+                    const originalHtml = this.innerHTML;
+                    setButtonLoading(this, true);
+                    try {
+                        const result = await syncAction('pull');
+                        showResult(result.success, result.success ? `تم سحب ${result.pulled || 0} سجل` : result.message);
+                        if (result.success) lastSyncTime.textContent = new Date().toLocaleString('ar-SA');
+                    } catch (e) {
+                        showResult(false, 'حدث خطأ في السحب');
+                    }
+                    setButtonLoading(this, false, originalHtml);
+                });
             }
 
-            init();
-            setInterval(async function() {
-                const status = await window.desktopAPI.sync.getStatus();
-                if (status) {
-                    updateSyncStatus(status);
-                }
-            }, 30000);
+            if (syncPushBtn) {
+                syncPushBtn.addEventListener('click', async function() {
+                    const originalHtml = this.innerHTML;
+                    setButtonLoading(this, true);
+                    try {
+                        const result = await syncAction('push');
+                        showResult(result.success, result.success ? `تم رفع ${result.pushed || 0} سجل` : result.message);
+                        if (result.success) lastSyncTime.textContent = new Date().toLocaleString('ar-SA');
+                    } catch (e) {
+                        showResult(false, 'حدث خطأ في الرفع');
+                    }
+                    setButtonLoading(this, false, originalHtml);
+                });
+            }
+
+            if (manualSyncBtn) {
+                manualSyncBtn.addEventListener('click', async function() {
+                    const originalHtml = this.innerHTML;
+                    setButtonLoading(this, true);
+                    try {
+                        const pullResult = await syncAction('pull');
+                        const pushResult = await syncAction('push');
+                        const success = pullResult.success && pushResult.success;
+                        showResult(success, success ? 'تمت المزامنة بنجاح' : 'حدث خطأ في المزامنة');
+                        if (success) lastSyncTime.textContent = new Date().toLocaleString('ar-SA');
+                    } catch (e) {
+                        showResult(false, 'حدث خطأ في المزامنة');
+                    }
+                    setButtonLoading(this, false, originalHtml);
+                });
+            }
+
+            async function updateStatus() {
+                try {
+                    const response = await fetch('/api/sync/status');
+                    const status = await response.json();
+                    if (status.pending_count > 0) {
+                        syncBadge.textContent = status.pending_count;
+                        syncBadge.classList.remove('d-none');
+                    } else {
+                        syncBadge.classList.add('d-none');
+                    }
+                    pendingChangesCount.textContent = status.pending_count || 0;
+                    if (status.last_sync) {
+                        lastSyncTime.textContent = new Date(status.last_sync).toLocaleString('ar-SA');
+                    }
+                } catch (e) {}
+            }
+
+            updateStatus();
+            setInterval(updateStatus, 30000);
         })();
         </script>
+        @endif
 
         <style>
         @keyframes spin {
