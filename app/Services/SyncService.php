@@ -194,6 +194,13 @@ class SyncService
                     case 'created':
                     case 'updated':
                         $model = $this->findOrCreateModel($modelClass, $serverId, $payload);
+
+                        if ($modelClass === 'App\Models\ProductUnit' && ($payload['is_base_unit'] ?? false)) {
+                            \App\Models\ProductUnit::where('product_id', $payload['product_id'])
+                                ->where('id', '!=', $model->id ?: 0)
+                                ->update(['is_base_unit' => false]);
+                        }
+
                         $model->fill($payload);
                         $model->synced_at = now();
                         $model->save();
@@ -231,18 +238,35 @@ class SyncService
         }
 
         if ($modelClass === 'App\Models\ProductUnit' && isset($payload['product_id'], $payload['unit_id'])) {
-            $model = $modelClass::where('product_id', $payload['product_id'])
+            $existingUnits = $modelClass::where('product_id', $payload['product_id'])
                 ->where('unit_id', $payload['unit_id'])
-                ->first();
-            if ($model) {
-                return $model;
+                ->orderBy('id')
+                ->get();
+
+            if ($existingUnits->count() > 1) {
+                $keep = $existingUnits->first();
+                $existingUnits->slice(1)->each->delete();
+                return $keep;
+            }
+
+            if ($existingUnits->count() === 1) {
+                return $existingUnits->first();
             }
         }
 
         if ($modelClass === 'App\Models\ProductBarcode' && isset($payload['barcode'])) {
-            $model = $modelClass::where('barcode', $payload['barcode'])->first();
-            if ($model) {
-                return $model;
+            $existingBarcodes = $modelClass::where('barcode', $payload['barcode'])
+                ->orderBy('id')
+                ->get();
+
+            if ($existingBarcodes->count() > 1) {
+                $keep = $existingBarcodes->first();
+                $existingBarcodes->slice(1)->each->delete();
+                return $keep;
+            }
+
+            if ($existingBarcodes->count() === 1) {
+                return $existingBarcodes->first();
             }
         }
 
