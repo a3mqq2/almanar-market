@@ -84,6 +84,7 @@ class SyncService
 
         try {
             $response = Http::withToken($device->api_token)
+                ->withOptions(['verify' => false])
                 ->timeout(30)
                 ->post(config('desktop.server_url') . '/api/v1/sync/push', [
                     'device_id' => $deviceId,
@@ -149,6 +150,7 @@ class SyncService
 
         try {
             $response = Http::withToken($device->api_token)
+                ->withOptions(['verify' => false])
                 ->timeout(30)
                 ->get(config('desktop.server_url') . '/api/v1/sync/pull', [
                     'device_id' => $deviceId,
@@ -278,7 +280,8 @@ class SyncService
     public function getServerTimestamp(): ?Carbon
     {
         try {
-            $response = Http::timeout(10)
+            $response = Http::withOptions(['verify' => false])
+                ->timeout(10)
                 ->get(config('desktop.server_url') . '/api/v1/sync/timestamp');
 
             if ($response->successful()) {
