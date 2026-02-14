@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\SyncLog;
+use App\Traits\Syncable;
 use Illuminate\Database\Eloquent\Model;
 
 abstract class SyncObserver
@@ -15,6 +16,10 @@ abstract class SyncObserver
     protected function logSync(Model $model, string $action): void
     {
         if (!$this->shouldSync()) {
+            return;
+        }
+
+        if (in_array(Syncable::class, class_uses_recursive($model))) {
             return;
         }
 

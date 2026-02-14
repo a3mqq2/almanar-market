@@ -5,6 +5,7 @@
         <meta charset="utf-8" />
         <title>تسجيل الدخول</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="csrf-token" content="{{ csrf_token() }}" />
 
         <!-- App favicon -->
         <link rel="shortcut icon" href="{{ asset('assets/images/logo-sm.png') }}" />
@@ -186,5 +187,60 @@
 
         <!-- App js -->
         <script src="{{ asset('assets/js/app.js') }}"></script>
+
+        @if(config('desktop.mode'))
+        <script>
+        (function() {
+            let isOnline = false;
+            let isSyncing = false;
+
+            async function checkServerConnection() {
+                try {
+                    const response = await fetch('{{ config("desktop.server_url") }}/api/v1/sync/timestamp', {
+                        method: 'GET',
+                        mode: 'cors',
+                        cache: 'no-cache',
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    isOnline = response.ok;
+                } catch (e) {
+                    isOnline = false;
+                }
+                return isOnline;
+            }
+
+            async function syncAction(action) {
+                const response = await fetch(`/api/sync/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    }
+                });
+                return await response.json();
+            }
+
+            async function autoSync() {
+                if (isSyncing || !isOnline) return;
+                isSyncing = true;
+                try {
+                    await syncAction('push');
+                    await syncAction('pull');
+                } catch (e) {}
+                isSyncing = false;
+            }
+
+            async function syncLoop() {
+                await checkServerConnection();
+                if (isOnline) {
+                    await autoSync();
+                }
+            }
+
+            checkServerConnection();
+            setInterval(syncLoop, 60000);
+        })();
+        </script>
+        @endif
     </body>
 </html>

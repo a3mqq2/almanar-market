@@ -973,6 +973,45 @@
                 });
             }
 
+            let isOnline = false;
+            let isSyncing = false;
+
+            async function checkServerConnection() {
+                try {
+                    const response = await fetch('{{ config("desktop.server_url") }}/api/v1/sync/timestamp', {
+                        method: 'GET',
+                        mode: 'cors',
+                        cache: 'no-cache',
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    isOnline = response.ok;
+                } catch (e) {
+                    isOnline = false;
+                }
+
+                if (networkStatusText) {
+                    networkStatusText.textContent = isOnline ? 'متصل' : 'غير متصل';
+                    networkStatusText.className = isOnline ? 'text-success' : 'text-danger';
+                }
+                if (syncIcon) {
+                    syncIcon.className = isOnline ? 'ti ti-cloud-check text-success' : 'ti ti-cloud-off text-danger';
+                }
+
+                return isOnline;
+            }
+
+            async function autoSync() {
+                if (isSyncing || !isOnline) return;
+
+                isSyncing = true;
+                try {
+                    await syncAction('push');
+                    await syncAction('pull');
+                    await updateStatus();
+                } catch (e) {}
+                isSyncing = false;
+            }
+
             async function updateStatus() {
                 try {
                     const response = await fetch('/api/sync/status');
@@ -990,7 +1029,16 @@
                 } catch (e) {}
             }
 
+            async function syncLoop() {
+                await checkServerConnection();
+                if (isOnline) {
+                    await autoSync();
+                }
+            }
+
             updateStatus();
+            checkServerConnection();
+            setInterval(syncLoop, 60000);
             setInterval(updateStatus, 30000);
         })();
         </script>
