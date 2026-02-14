@@ -162,13 +162,19 @@
         .print-btn:hover {
             background: #0056b3;
         }
+        .logo {
+            width: 50mm;
+            height: auto;
+            margin-bottom: 8px;
+            filter: brightness(0);
+        }
     </style>
 </head>
 <body>
     <button class="print-btn no-print" onclick="window.print()">طباعة</button>
 
     <div class="header">
-        <h1>المنار ماركت</h1>
+        <img src="{{ asset('logo-dark.png') }}" alt="المنار ماركت" class="logo">
         <p>البيضاء - ليبيا</p>
         <p>هاتف: 0916698784</p>
     </div>
