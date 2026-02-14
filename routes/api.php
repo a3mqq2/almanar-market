@@ -11,10 +11,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/activate', [DeviceController::class, 'activate']);
     });
 
+    Route::get('/sync/timestamp', [SyncController::class, 'timestamp']);
+
     Route::prefix('sync')->middleware('verify.device.token')->group(function () {
         Route::post('/push', [SyncController::class, 'push']);
         Route::get('/pull', [SyncController::class, 'pull']);
-        Route::get('/timestamp', [SyncController::class, 'timestamp']);
         Route::get('/status', [SyncController::class, 'status']);
         Route::post('/resolve-conflict', [SyncController::class, 'resolveConflict']);
         Route::post('/retry-failed', [SyncController::class, 'retryFailed']);
