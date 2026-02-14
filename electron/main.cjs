@@ -90,16 +90,22 @@ function createWindow() {
         icon: path.join(__dirname, '../build/icon.ico'),
         webPreferences: {
             contextIsolation: true,
-            nodeIntegration: false
+            nodeIntegration: false,
+            devTools: true
         }
     })
 
-    mainWindow.loadURL('http://127.0.0.1:' + PORT)
+    mainWindow.loadURL('http://127.0.0.1:' + PORT).then(() => {
+        if (!app.isPackaged) {
+            mainWindow.webContents.openDevTools()
+        }
+    })
 
     mainWindow.on('closed', () => {
         mainWindow = null
     })
 }
+
 
 function createLoadingWindow() {
     const loading = new BrowserWindow({
