@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="base-url" content="{{ rtrim(url('/'), '/') }}" />
     <title>جرد المخزون | {{ $inventoryCount->reference_number }}</title>
     <link rel="stylesheet" href="{{ asset('assets/css/vendors.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/app.min.css') }}">
@@ -421,6 +422,16 @@
         });
     @endphp
     <script src="{{ asset('assets/js/vendors.min.js') }}"></script>
+    <script>
+        (function() {
+            var base = document.querySelector('meta[name="base-url"]').getAttribute('content');
+            var _fetch = window.fetch;
+            window.fetch = function(url, opts) {
+                if (typeof url === 'string' && url.startsWith('/')) { url = base + url; }
+                return _fetch.call(this, url, opts);
+            };
+        })();
+    </script>
     <script>
         const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
         let currentItem = null;

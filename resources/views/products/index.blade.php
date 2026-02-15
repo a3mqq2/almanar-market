@@ -747,7 +747,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
 
             if (result.success) {
-                window.location.href = `/products/${result.product_id}#units`;
+                var base = document.querySelector('meta[name="base-url"]').getAttribute('content');
+                window.location.href = `${base}/products/${result.product_id}#units`;
             } else {
                 showToast(result.message, 'danger');
                 createProductSubmit.disabled = false;

@@ -6,6 +6,7 @@
         <title> المنار ماركت |  @yield('title')</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="csrf-token" content="{{ csrf_token() }}" />
+        <meta name="base-url" content="{{ rtrim(url('/'), '/') }}" />
         <meta name="description" content="Paces is a modern, responsive admin dashboard available on ThemeForest. Ideal for building CRM, CMS, project management tools, and custom web applications with a clean UI, flexible layouts, and rich features." />
         <meta name="keywords" content="Paces, admin dashboard, ThemeForest, Bootstrap 5 admin, responsive admin, CRM dashboard, CMS admin, web app UI, admin theme, premium admin template" />
         <meta name="author" content="Coderthemes" />
@@ -20,6 +21,18 @@
         <link href="{{ asset('assets/plugins/jsvectormap/jsvectormap.min.css') }}" rel="stylesheet" type="text/css" />
 
         <!-- Theme Config Js -->
+        <script>
+            (function() {
+                var base = document.querySelector('meta[name="base-url"]').getAttribute('content');
+                var _fetch = window.fetch;
+                window.fetch = function(url, opts) {
+                    if (typeof url === 'string' && url.startsWith('/')) {
+                        url = base + url;
+                    }
+                    return _fetch.call(this, url, opts);
+                };
+            })();
+        </script>
         <script src="{{ asset('assets/js/config.js') }}"></script>
 
         <!-- Vendor css -->
