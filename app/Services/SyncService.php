@@ -216,16 +216,20 @@ class SyncService
                                 ->update(['is_base_unit' => false]);
                         }
 
+                        $hashedPassword = null;
                         if ($modelClass === 'App\Models\User' && isset($payload['password'])) {
                             $hashedPassword = $payload['password'];
                             unset($payload['password']);
-                            $model->fill($payload);
-                            $model->attributes['password'] = $hashedPassword;
-                        } else {
-                            $model->fill($payload);
                         }
+
+                        $model->fill($payload);
                         $model->synced_at = now();
                         $model->save();
+
+                        if ($hashedPassword) {
+                            DB::table('users')->where('id', $model->id)->update(['password' => $hashedPassword]);
+                        }
+
                         $applied++;
                         break;
 
