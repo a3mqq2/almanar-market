@@ -236,7 +236,7 @@ class SyncController extends Controller
                         'id' => $record->id,
                         'type' => $modelClass,
                         'action' => 'updated',
-                        'payload' => $record->toArray(),
+                        'payload' => $record->makeVisible($record->getHidden())->toArray(),
                         'timestamp' => $record->updated_at?->toIso8601String() ?? now()->toIso8601String(),
                     ];
                 }
