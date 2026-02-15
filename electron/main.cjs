@@ -5,6 +5,7 @@ const fs = require('fs')
 const net = require('net')
 
 let phpProcess = null
+let schedulerProcess = null
 let mainWindow = null
 const PORT = 3000
 
@@ -65,11 +66,20 @@ async function startLaravel() {
     const artisanPath = getProjectPath('artisan')
     const appPath = getProjectPath()
 
+    if (!fs.existsSync(phpPath) && phpPath !== 'php') {
+        dialog.showErrorBox('Error', 'PHP not found: ' + phpPath)
+        app.quit()
+        return false
+    }
+
     if (!fs.existsSync(artisanPath)) {
         dialog.showErrorBox('Error', 'artisan not found: ' + artisanPath)
         app.quit()
         return false
     }
+
+    let phpErrors = ''
+    let phpExited = false
 
     phpProcess = spawn(
         phpPath,
@@ -86,15 +96,65 @@ async function startLaravel() {
     })
 
     phpProcess.stderr.on('data', data => {
-        console.error('PHP ERR:', data.toString())
+        const msg = data.toString()
+        console.error('PHP ERR:', msg)
+        phpErrors += msg + '\n'
     })
 
     phpProcess.on('error', err => {
-        dialog.showErrorBox('PHP Error', err.message)
+        phpExited = true
+        dialog.showErrorBox('PHP Error', 'Could not start PHP: ' + err.message + '\nPath: ' + phpPath)
         app.quit()
     })
 
-    return await waitForServer()
+    phpProcess.on('exit', (code) => {
+        if (code !== null && code !== 0) {
+            phpExited = true
+        }
+    })
+
+    const serverReady = await waitForServer()
+
+    if (!serverReady && phpExited) {
+        dialog.showErrorBox('Server Error', 'PHP exited with errors:\n\n' + (phpErrors || 'Unknown error') + '\n\nPHP: ' + phpPath + '\nCWD: ' + appPath)
+        app.quit()
+        return false
+    }
+
+    if (!serverReady) {
+        dialog.showErrorBox('Server Error', 'Server did not start in time.\n\nPHP: ' + phpPath + '\nArtisan: ' + artisanPath + '\nPort: ' + PORT + '\n\n' + (phpErrors || 'No errors captured'))
+        app.quit()
+        return false
+    }
+
+    return true
+}
+
+function startScheduler() {
+    const phpPath = getPhpPath()
+    const appPath = getProjectPath()
+
+    schedulerProcess = spawn(
+        phpPath,
+        ['artisan', 'schedule:work'],
+        {
+            cwd: appPath,
+            env: process.env,
+            windowsHide: true
+        }
+    )
+
+    schedulerProcess.stdout.on('data', data => {
+        console.log('Scheduler:', data.toString())
+    })
+
+    schedulerProcess.stderr.on('data', data => {
+        console.error('Scheduler ERR:', data.toString())
+    })
+
+    schedulerProcess.on('error', err => {
+        console.error('Scheduler failed:', err.message)
+    })
 }
 
 function createWindow() {
@@ -141,30 +201,32 @@ app.whenReady().then(async () => {
 
     const serverReady = await startLaravel()
 
+    loading.close()
+
     if (serverReady) {
-        loading.close()
         createWindow()
-    } else {
-        loading.close()
-        dialog.showErrorBox('Error', 'Server did not start')
-        app.quit()
+        startScheduler()
     }
 })
 
-app.on('window-all-closed', () => {
+function killProcesses() {
+    if (schedulerProcess) {
+        schedulerProcess.kill()
+        schedulerProcess = null
+    }
     if (phpProcess) {
         phpProcess.kill()
         phpProcess = null
     }
+}
 
+app.on('window-all-closed', () => {
+    killProcesses()
     app.quit()
 })
 
 app.on('before-quit', () => {
-    if (phpProcess) {
-        phpProcess.kill()
-        phpProcess = null
-    }
+    killProcesses()
 })
 
 app.on('activate', () => {
