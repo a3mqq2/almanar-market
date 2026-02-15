@@ -339,6 +339,11 @@
                     <span>إنهاء</span>
                 </button>
 
+                <button type="button" class="btn btn-outline-danger header-btn" id="logoutBtn" title="تسجيل الخروج">
+                    <i class="ti ti-logout"></i>
+                    <span>خروج</span>
+                </button>
+
                 <div class="header-divider d-none d-md-block"></div>
 
                 <div class="d-none d-md-flex align-items-center gap-2 px-2">
@@ -892,6 +897,22 @@
             confirmButtonText: 'حسناً'
         });
         @endif
+
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            Swal.fire({
+                title: 'تسجيل الخروج',
+                text: 'هل تريد تسجيل الخروج؟',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                confirmButtonText: 'نعم، خروج',
+                cancelButtonText: 'إلغاء'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    performLogout();
+                }
+            });
+        });
 
         document.getElementById('endShiftBtn').addEventListener('click', function() {
             if (!hasOpenShift || !currentShiftId) {
