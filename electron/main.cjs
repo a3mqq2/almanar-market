@@ -20,7 +20,7 @@ function createWindow() {
     mainWindow.maximize()
     mainWindow.show()
 
-    mainWindow.loadURL('http://127.0.0.1:8000')
+    mainWindow.loadURL('http://localhost/almanar-market/public')
 
     mainWindow.setMenu(null)
 
