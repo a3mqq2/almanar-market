@@ -85,7 +85,8 @@ class SyncService
         try {
             $response = Http::withToken($device->api_token)
                 ->withOptions(['verify' => false])
-                ->timeout(30)
+                ->timeout(60)
+                ->retry(3, 200)
                 ->post(config('desktop.server_url') . '/api/v1/sync/push', [
                     'device_id' => $deviceId,
                     'changes' => $changes,
@@ -151,7 +152,8 @@ class SyncService
         try {
             $response = Http::withToken($device->api_token)
                 ->withOptions(['verify' => false])
-                ->timeout(30)
+                ->timeout(60)
+                ->retry(3, 200)
                 ->get(config('desktop.server_url') . '/api/v1/sync/pull', [
                     'device_id' => $deviceId,
                     'since' => $since?->toIso8601String(),
@@ -293,7 +295,8 @@ class SyncService
     {
         try {
             $response = Http::withOptions(['verify' => false])
-                ->timeout(10)
+                ->timeout(60)
+                ->retry(3, 200)
                 ->get(config('desktop.server_url') . '/api/v1/sync/timestamp');
 
             if ($response->successful()) {
