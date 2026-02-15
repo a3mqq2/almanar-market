@@ -7,7 +7,7 @@ const net = require('net')
 let phpProcess = null
 let schedulerProcess = null
 let mainWindow = null
-const PORT = 3000
+const PORT = 8000
 
 function getProjectPath(relativePath = '') {
     if (app.isPackaged) {
@@ -83,7 +83,7 @@ async function startLaravel() {
 
     phpProcess = spawn(
         phpPath,
-        ['artisan', 'serve', '--host=127.0.0.1', '--port=' + PORT],
+        ['artisan', 'serve'],
         {
             cwd: appPath,
             env: process.env,
