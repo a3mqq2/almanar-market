@@ -1040,8 +1040,8 @@
 
             updateStatus();
             checkServerConnection();
-            setInterval(syncLoop, 60000);
-            setInterval(updateStatus, 30000);
+            setInterval(syncLoop, 300000);
+            setInterval(updateStatus, 300000);
         })();
         </script>
         @endif

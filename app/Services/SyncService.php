@@ -7,19 +7,78 @@ use App\Models\SyncConflict;
 use App\Models\SyncLog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 
 class SyncService
 {
-    protected function http(): \Illuminate\Http\Client\PendingRequest
+    protected function curlRequest(string $method, string $url, array $data = [], ?string $token = null): array
     {
-        return Http::withOptions([
-            'verify' => false,
-            'curl' => [
-                CURLOPT_SSL_VERIFYPEER => false,
-                CURLOPT_SSL_VERIFYHOST => false,
-            ],
-        ])->timeout(60)->retry(3, 200);
+        $ch = curl_init();
+
+        if ($method === 'GET' && !empty($data)) {
+            $url .= '?' . http_build_query($data);
+        }
+
+        $headers = [
+            'Content-Type: application/json',
+            'Accept: application/json',
+        ];
+
+        if ($token) {
+            $headers[] = 'Authorization: Bearer ' . $token;
+        }
+
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_TIMEOUT => 60,
+            CURLOPT_HTTPHEADER => $headers,
+        ]);
+
+        if ($method === 'POST') {
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        }
+
+        $attempts = 0;
+        $maxAttempts = 3;
+        $response = false;
+
+        while ($attempts < $maxAttempts) {
+            $response = curl_exec($ch);
+            $error = curl_error($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+            if ($response !== false && empty($error)) {
+                break;
+            }
+
+            $attempts++;
+            if ($attempts < $maxAttempts) {
+                usleep(200000);
+            }
+        }
+
+        curl_close($ch);
+
+        if ($response === false || !empty($error)) {
+            return [
+                'successful' => false,
+                'status' => 0,
+                'body' => null,
+                'error' => $error ?? 'Request failed',
+            ];
+        }
+
+        $decoded = json_decode($response, true);
+
+        return [
+            'successful' => $httpCode >= 200 && $httpCode < 300,
+            'status' => $httpCode,
+            'body' => $decoded ?? $response,
+            'error' => null,
+        ];
     }
 
     protected array $syncOrder = [
@@ -94,15 +153,15 @@ class SyncService
         }
 
         try {
-            $response = $this->http()
-                ->withToken($device->api_token)
-                ->post(config('desktop.server_url') . '/api/v1/sync/push', [
-                    'device_id' => $deviceId,
-                    'changes' => $changes,
-                ]);
+            $response = $this->curlRequest(
+                'POST',
+                config('desktop.server_url') . '/api/v1/sync/push',
+                ['device_id' => $deviceId, 'changes' => $changes],
+                $device->api_token
+            );
 
-            if ($response->successful()) {
-                $result = $response->json();
+            if ($response['successful']) {
+                $result = $response['body'];
                 $this->processPushResponse($result);
                 $device->updateLastSync();
 
@@ -114,7 +173,7 @@ class SyncService
                 ];
             }
 
-            return ['success' => false, 'message' => $response->body()];
+            return ['success' => false, 'message' => $response['error'] ?? json_encode($response['body'])];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
@@ -159,15 +218,20 @@ class SyncService
         }
 
         try {
-            $response = $this->http()
-                ->withToken($device->api_token)
-                ->get(config('desktop.server_url') . '/api/v1/sync/pull', [
-                    'device_id' => $deviceId,
-                    'since' => $since?->toIso8601String(),
-                ]);
+            $params = ['device_id' => $deviceId];
+            if ($since) {
+                $params['since'] = $since->toIso8601String();
+            }
 
-            if ($response->successful()) {
-                $result = $response->json();
+            $response = $this->curlRequest(
+                'GET',
+                config('desktop.server_url') . '/api/v1/sync/pull',
+                $params,
+                $device->api_token
+            );
+
+            if ($response['successful']) {
+                $result = $response['body'];
                 $applied = $this->applyPulledChanges($result['changes'] ?? []);
                 $device->updateLastSync();
 
@@ -178,7 +242,7 @@ class SyncService
                 ];
             }
 
-            return ['success' => false, 'message' => $response->body()];
+            return ['success' => false, 'message' => $response['error'] ?? json_encode($response['body'])];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
@@ -301,11 +365,13 @@ class SyncService
     public function getServerTimestamp(): ?Carbon
     {
         try {
-            $response = $this->http()
-                ->get(config('desktop.server_url') . '/api/v1/sync/timestamp');
+            $response = $this->curlRequest(
+                'GET',
+                config('desktop.server_url') . '/api/v1/sync/timestamp'
+            );
 
-            if ($response->successful()) {
-                return Carbon::parse($response->json('timestamp'));
+            if ($response['successful'] && isset($response['body']['timestamp'])) {
+                return Carbon::parse($response['body']['timestamp']);
             }
         } catch (\Exception $e) {
         }
