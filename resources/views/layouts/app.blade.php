@@ -24,6 +24,7 @@
         <script>
             (function() {
                 var base = document.querySelector('meta[name="base-url"]').getAttribute('content');
+                window.__baseUrl = base;
                 var _fetch = window.fetch;
                 window.fetch = function(url, opts) {
                     if (typeof url === 'string' && url.startsWith('/')) {

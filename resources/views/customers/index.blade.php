@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const balance = parseFloat(customer.current_balance || 0);
             const balanceClass = balance > 0 ? 'text-danger' : (balance < 0 ? 'text-success' : '');
             html += `
-                <tr class="clickable-row" data-href="/customers/${customer.id}/account" tabindex="0">
+                <tr class="clickable-row" data-href="${window.__baseUrl}/customers/${customer.id}/account" tabindex="0">
                     <td>${rowNum}</td>
                     <td class="fw-medium">${customer.name}</td>
                     <td dir="ltr" class="text-end">${customer.phone}</td>

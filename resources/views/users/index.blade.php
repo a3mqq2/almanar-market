@@ -388,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             html += `
-                <tr class="clickable-row" data-href="/users/${user.id}" tabindex="0">
+                <tr class="clickable-row" data-href="${window.__baseUrl}/users/${user.id}" tabindex="0">
                     <td>${rowNum}</td>
                     <td class="fw-medium">${user.name}</td>
                     <td><code>${user.username}</code></td>

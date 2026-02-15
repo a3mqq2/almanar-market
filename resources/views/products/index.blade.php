@@ -505,7 +505,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const marginClass = product.margin >= 0 ? 'profit-positive' : 'profit-negative';
 
             html += `
-                <tr class="clickable-row" data-href="/products/${product.id}" tabindex="0">
+                <tr class="clickable-row" data-href="${window.__baseUrl}/products/${product.id}" tabindex="0">
                     <td>${rowNum}</td>
                     <td>
                         ${product.image
@@ -747,8 +747,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
 
             if (result.success) {
-                var base = document.querySelector('meta[name="base-url"]').getAttribute('content');
-                window.location.href = `${base}/products/${result.product_id}#units`;
+                window.location.href = `${window.__baseUrl}/products/${result.product_id}#units`;
             } else {
                 showToast(result.message, 'danger');
                 createProductSubmit.disabled = false;

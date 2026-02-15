@@ -1284,20 +1284,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Export buttons
     document.getElementById('btnPrint').addEventListener('click', function() {
         const filters = getFilters();
-        var base = document.querySelector('meta[name="base-url"]').getAttribute('content');
-        window.open(`${base}/reports/${currentReport}/print?${filters}`, '_blank');
+        window.open(`${window.__baseUrl}/reports/${currentReport}/print?${filters}`, '_blank');
     });
 
     document.getElementById('btnExportPdf').addEventListener('click', function() {
         const filters = getFilters();
-        var base = document.querySelector('meta[name="base-url"]').getAttribute('content');
-        window.location.href = `${base}/reports/${currentReport}/export/pdf?${filters}`;
+        window.location.href = `${window.__baseUrl}/reports/${currentReport}/export/pdf?${filters}`;
     });
 
     document.getElementById('btnExportExcel').addEventListener('click', function() {
         const filters = getFilters();
-        var base = document.querySelector('meta[name="base-url"]').getAttribute('content');
-        window.location.href = `${base}/reports/${currentReport}/export/excel?${filters}`;
+        window.location.href = `${window.__baseUrl}/reports/${currentReport}/export/excel?${filters}`;
     });
 
     // Toast notification

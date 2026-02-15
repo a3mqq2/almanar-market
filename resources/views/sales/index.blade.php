@@ -296,7 +296,7 @@ document.addEventListener('DOMContentLoaded', function() {
         sales.forEach((sale, index) => {
             const rowNum = meta.from + index;
             html += `
-                <tr class="clickable-row" data-href="/sales/${sale.id}" tabindex="0">
+                <tr class="clickable-row" data-href="${window.__baseUrl}/sales/${sale.id}" tabindex="0">
                     <td>${rowNum}</td>
                     <td class="fw-medium">${sale.invoice_number}</td>
                     <td>${sale.sale_date}</td>

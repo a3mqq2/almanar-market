@@ -377,7 +377,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 : '<span class="text-muted">-</span>';
 
             html += `
-                <tr class="clickable-row" data-href="/cashboxes/${cashbox.id}" tabindex="0">
+                <tr class="clickable-row" data-href="${window.__baseUrl}/cashboxes/${cashbox.id}" tabindex="0">
                     <td>${rowNum}</td>
                     <td class="fw-medium">${cashbox.name}</td>
                     <td><span class="badge bg-${typeColor}-subtle text-${typeColor}">${cashbox.type_arabic}</span></td>
