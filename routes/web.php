@@ -350,26 +350,13 @@ Route::prefix('api/sync')->middleware('auth')->group(function () {
         }
 
         try {
-            $ch = curl_init($serverUrl . '/api/v1/sync/timestamp');
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_SSL_VERIFYPEER => false,
-                CURLOPT_SSL_VERIFYHOST => false,
-                CURLOPT_TIMEOUT => 5,
-                CURLOPT_HTTPHEADER => ['Accept: application/json'],
-            ]);
-            $result = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error = curl_error($ch);
-            curl_close($ch);
-
-            if ($result === false || !empty($error)) {
-                return response()->json(['online' => false, 'reason' => $error, 'url' => $serverUrl]);
-            }
+            $response = \Illuminate\Support\Facades\Http::withOptions([
+                'verify' => base_path('certs/cacert.pem'),
+            ])->timeout(5)->get($serverUrl . '/api/v1/sync/timestamp');
 
             return response()->json([
-                'online' => $httpCode >= 200 && $httpCode < 300,
-                'status' => $httpCode,
+                'online' => $response->successful(),
+                'status' => $response->status(),
                 'url' => $serverUrl,
             ]);
         } catch (\Exception $e) {
