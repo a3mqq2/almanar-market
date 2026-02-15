@@ -11,6 +11,17 @@ use Illuminate\Support\Facades\Http;
 
 class SyncService
 {
+    protected function http(): \Illuminate\Http\Client\PendingRequest
+    {
+        return Http::withOptions([
+            'verify' => false,
+            'curl' => [
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+            ],
+        ])->timeout(60)->retry(3, 200);
+    }
+
     protected array $syncOrder = [
         'App\Models\User',
         'App\Models\Unit',
@@ -83,10 +94,8 @@ class SyncService
         }
 
         try {
-            $response = Http::withToken($device->api_token)
-                ->withOptions(['verify' => false])
-                ->timeout(60)
-                ->retry(3, 200)
+            $response = $this->http()
+                ->withToken($device->api_token)
                 ->post(config('desktop.server_url') . '/api/v1/sync/push', [
                     'device_id' => $deviceId,
                     'changes' => $changes,
@@ -150,10 +159,8 @@ class SyncService
         }
 
         try {
-            $response = Http::withToken($device->api_token)
-                ->withOptions(['verify' => false])
-                ->timeout(60)
-                ->retry(3, 200)
+            $response = $this->http()
+                ->withToken($device->api_token)
                 ->get(config('desktop.server_url') . '/api/v1/sync/pull', [
                     'device_id' => $deviceId,
                     'since' => $since?->toIso8601String(),
@@ -294,9 +301,7 @@ class SyncService
     public function getServerTimestamp(): ?Carbon
     {
         try {
-            $response = Http::withOptions(['verify' => false])
-                ->timeout(60)
-                ->retry(3, 200)
+            $response = $this->http()
                 ->get(config('desktop.server_url') . '/api/v1/sync/timestamp');
 
             if ($response->successful()) {

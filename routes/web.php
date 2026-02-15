@@ -350,9 +350,13 @@ Route::prefix('api/sync')->middleware('auth')->group(function () {
         }
 
         try {
-            $response = \Illuminate\Support\Facades\Http::withOptions(['verify' => false])
-                ->timeout(5)
-                ->get($serverUrl . '/api/v1/sync/timestamp');
+            $response = \Illuminate\Support\Facades\Http::withOptions([
+                'verify' => false,
+                'curl' => [
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_SSL_VERIFYHOST => false,
+                ],
+            ])->timeout(5)->get($serverUrl . '/api/v1/sync/timestamp');
 
             return response()->json([
                 'online' => $response->successful(),
