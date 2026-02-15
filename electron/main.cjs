@@ -6,9 +6,9 @@ const net = require('net')
 
 let phpProcess = null
 let mainWindow = null
-const PORT = 8000
+const PORT = 3000
 
-function getResourcePath(relativePath) {
+function getProjectPath(relativePath = '') {
     if (app.isPackaged) {
         return path.join(process.resourcesPath, relativePath)
     }
@@ -16,64 +16,81 @@ function getResourcePath(relativePath) {
 }
 
 function getPhpPath() {
-    const phpPath = getResourcePath('php/php.exe')
-    if (fs.existsSync(phpPath)) {
-        return phpPath
+    const xamppPhp = 'C:\\xampp\\php\\php.exe'
+
+    if (fs.existsSync(xamppPhp)) {
+        return xamppPhp
     }
+
+    const bundledPhp = getProjectPath('php/php.exe')
+
+    if (fs.existsSync(bundledPhp)) {
+        return bundledPhp
+    }
+
     return 'php'
 }
 
 function isPortAvailable(port) {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
         const server = net.createServer()
+
         server.once('error', () => resolve(false))
+
         server.once('listening', () => {
             server.close()
             resolve(true)
         })
+
         server.listen(port, '127.0.0.1')
     })
 }
 
-async function waitForServer(maxAttempts = 30) {
+async function waitForServer(maxAttempts = 40) {
     for (let i = 0; i < maxAttempts; i++) {
-        try {
-            const available = await isPortAvailable(PORT)
-            if (!available) {
-                return true
-            }
-        } catch (e) {}
+        const available = await isPortAvailable(PORT)
+
+        if (!available) {
+            return true
+        }
+
         await new Promise(r => setTimeout(r, 500))
     }
+
     return false
 }
 
 async function startLaravel() {
     const phpPath = getPhpPath()
-    const artisanPath = getResourcePath('artisan')
-    const appPath = getResourcePath('')
+    const artisanPath = getProjectPath('artisan')
+    const appPath = getProjectPath()
 
     if (!fs.existsSync(artisanPath)) {
-        dialog.showErrorBox('Error', 'Laravel artisan not found: ' + artisanPath)
+        dialog.showErrorBox('Error', 'artisan not found: ' + artisanPath)
         app.quit()
         return false
     }
 
-    phpProcess = spawn(phpPath, ['artisan', 'serve', '--host=127.0.0.1', '--port=' + PORT], {
-        cwd: appPath,
-        env: { ...process.env, APP_ENV: 'local' }
+    phpProcess = spawn(
+        phpPath,
+        ['artisan', 'serve', '--host=127.0.0.1', '--port=' + PORT],
+        {
+            cwd: appPath,
+            env: process.env,
+            windowsHide: true
+        }
+    )
+
+    phpProcess.stdout.on('data', data => {
+        console.log('PHP:', data.toString())
     })
 
-    phpProcess.stdout.on('data', (data) => {
-        console.log('PHP: ' + data)
+    phpProcess.stderr.on('data', data => {
+        console.error('PHP ERR:', data.toString())
     })
 
-    phpProcess.stderr.on('data', (data) => {
-        console.error('PHP Error: ' + data)
-    })
-
-    phpProcess.on('error', (err) => {
-        dialog.showErrorBox('PHP Error', 'Failed to start PHP: ' + err.message)
+    phpProcess.on('error', err => {
+        dialog.showErrorBox('PHP Error', err.message)
         app.quit()
     })
 
@@ -91,21 +108,16 @@ function createWindow() {
         webPreferences: {
             contextIsolation: true,
             nodeIntegration: false,
-            devTools: false
+            devTools: !app.isPackaged
         }
     })
 
-    mainWindow.loadURL('http://127.0.0.1:' + PORT).then(() => {
-        if (!app.isPackaged) {
-            mainWindow.webContents.openDevTools()
-        }
-    })
+    mainWindow.loadURL('http://127.0.0.1:' + PORT)
 
     mainWindow.on('closed', () => {
         mainWindow = null
     })
 }
-
 
 function createLoadingWindow() {
     const loading = new BrowserWindow({
@@ -120,6 +132,7 @@ function createLoadingWindow() {
     })
 
     loading.loadFile(path.join(__dirname, 'loading.html'))
+
     return loading
 }
 
@@ -133,7 +146,7 @@ app.whenReady().then(async () => {
         createWindow()
     } else {
         loading.close()
-        dialog.showErrorBox('Error', 'Failed to start the server')
+        dialog.showErrorBox('Error', 'Server did not start')
         app.quit()
     }
 })
@@ -143,6 +156,7 @@ app.on('window-all-closed', () => {
         phpProcess.kill()
         phpProcess = null
     }
+
     app.quit()
 })
 
