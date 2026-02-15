@@ -10,6 +10,7 @@
     <script src="{{ asset('assets/js/config.js') }}"></script>
     <link href="{{ asset('assets/css/vendors.min.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/app.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/plugins/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet">
     <style>
         * { font-family: 'IBM Plex Sans Arabic', sans-serif !important; }
         :root {
