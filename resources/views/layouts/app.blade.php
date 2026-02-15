@@ -41,6 +41,7 @@
 
         <!-- App css -->
         <link href="{{ asset('assets/css/app.min.css') }}" rel="stylesheet" type="text/css" />
+        <link href="{{ asset('assets/plugins/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
 
         <style>
             * {
@@ -878,7 +879,7 @@
 
 <!-- App js -->
 <script src="{{ asset('assets/js/app.js') }}"></script>
-
+<script src="{{ asset('assets/plugins/sweetalert2/sweetalert2.min.js') }}"></script>
 
         <!-- Apex Chart js -->
         <script src="{{ asset('assets/plugins/apexcharts/apexcharts.min.js') }}"></script>

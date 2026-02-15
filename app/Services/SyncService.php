@@ -216,9 +216,13 @@ class SyncService
                                 ->update(['is_base_unit' => false]);
                         }
 
-                        $model->fill($payload);
-                        if ($modelClass === 'App\Models\User' && empty($model->password)) {
-                            $model->password = bcrypt('synced-' . $serverId);
+                        if ($modelClass === 'App\Models\User' && isset($payload['password'])) {
+                            $hashedPassword = $payload['password'];
+                            unset($payload['password']);
+                            $model->fill($payload);
+                            $model->attributes['password'] = $hashedPassword;
+                        } else {
+                            $model->fill($payload);
                         }
                         $model->synced_at = now();
                         $model->save();
