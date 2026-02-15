@@ -217,6 +217,9 @@ class SyncService
                         }
 
                         $model->fill($payload);
+                        if ($modelClass === 'App\Models\User' && empty($model->password)) {
+                            $model->password = bcrypt('synced-' . $serverId);
+                        }
                         $model->synced_at = now();
                         $model->save();
                         $applied++;
