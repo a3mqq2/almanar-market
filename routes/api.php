@@ -87,6 +87,31 @@ Route::prefix('v1')->group(function () {
         ]);
     });
 
+    Route::post('/sync/fix-timestamps', function (\Illuminate\Http\Request $request) {
+        $request->validate([
+            'sales' => 'required|array',
+            'sales.*.invoice_number' => 'required|string',
+            'sales.*.created_at' => 'required|date',
+        ]);
+
+        $fixed = [];
+        foreach ($request->input('sales') as $saleData) {
+            $sale = \App\Models\Sale::where('invoice_number', $saleData['invoice_number'])->first();
+            if ($sale) {
+                \Illuminate\Support\Facades\DB::table('sales')
+                    ->where('id', $sale->id)
+                    ->update(['created_at' => $saleData['created_at']]);
+                $fixed[] = $saleData['invoice_number'];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'fixed' => $fixed,
+            'count' => count($fixed),
+        ]);
+    });
+
     Route::post('/sync/cancel-empty-sales', function (\Illuminate\Http\Request $request) {
         $request->validate([
             'invoice_numbers' => 'required|array',

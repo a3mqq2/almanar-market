@@ -135,6 +135,9 @@ class SyncController extends Controller
                 $model->local_uuid = $payload['local_uuid'] ?? null;
                 $model->device_id = $deviceId;
                 $model->synced_at = now();
+                if (isset($payload['created_at']) && $payload['created_at']) {
+                    $model->created_at = $payload['created_at'];
+                }
                 $model->save();
 
                 return [
@@ -163,6 +166,9 @@ class SyncController extends Controller
                     $model->local_uuid = $payload['local_uuid'] ?? null;
                     $model->device_id = $deviceId;
                     $model->synced_at = now();
+                    if (isset($payload['created_at']) && $payload['created_at']) {
+                        $model->created_at = $payload['created_at'];
+                    }
                     $model->save();
 
                     return [

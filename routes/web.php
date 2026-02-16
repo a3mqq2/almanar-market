@@ -1019,6 +1019,50 @@ Route::get('/api/sync/debug', function () {
     ]);
 });
 
+Route::get('/api/sync/fix-timestamps', function () {
+    if (!config('desktop.mode')) {
+        return response()->json(['error' => 'Desktop mode only']);
+    }
+
+    $deviceId = config('desktop.device_id');
+    $device = \App\Models\DeviceRegistration::where('device_id', $deviceId)->first();
+
+    $localSales = \App\Models\Sale::whereNotNull('device_id')
+        ->where('status', '!=', 'cancelled')
+        ->get();
+
+    $salesToFix = $localSales->map(fn($s) => [
+        'invoice_number' => $s->invoice_number,
+        'created_at' => $s->created_at->toIso8601String(),
+    ])->toArray();
+
+    if (empty($salesToFix)) {
+        return response()->json(['message' => 'No device sales found']);
+    }
+
+    try {
+        $response = \Illuminate\Support\Facades\Http::withOptions([
+            'verify' => base_path('certs/cacert.pem'),
+        ])->timeout(30)
+            ->withToken($device->api_token)
+            ->post(config('desktop.server_url') . '/api/v1/sync/fix-timestamps', [
+                'sales' => $salesToFix,
+            ]);
+
+        if ($response->successful()) {
+            return response()->json([
+                'success' => true,
+                'sent' => count($salesToFix),
+                'server_response' => $response->json(),
+            ]);
+        }
+
+        return response()->json(['error' => 'Server returned ' . $response->status(), 'body' => $response->body()]);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()]);
+    }
+});
+
 Route::get('/api/sync/force-push', function () {
     if (!config('desktop.mode')) {
         return response()->json(['error' => 'Desktop mode only']);
