@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\SyncConflict;
-use App\Models\SyncLog;
 use App\Services\SyncService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -106,6 +105,14 @@ class SyncController extends Controller
                     ];
                 }
 
+                if ($modelClass === 'App\Models\Sale' && isset($payload['invoice_number'])) {
+                    $conflicting = \App\Models\Sale::where('invoice_number', $payload['invoice_number'])->first();
+                    if ($conflicting) {
+                        DB::table('sales')->where('id', $conflicting->id)
+                            ->update(['invoice_number' => $payload['invoice_number'] . '-S' . $conflicting->id]);
+                    }
+                }
+
                 $model = new $modelClass();
                 $model->fill($payload);
                 $model->device_id = $deviceId;
@@ -135,6 +142,16 @@ class SyncController extends Controller
                         'status' => 'conflict',
                         'server_data' => $model->toArray(),
                     ];
+                }
+
+                if ($modelClass === 'App\Models\Sale' && isset($payload['invoice_number'])) {
+                    $conflicting = \App\Models\Sale::where('invoice_number', $payload['invoice_number'])
+                        ->where('id', '!=', $model->id)
+                        ->first();
+                    if ($conflicting) {
+                        DB::table('sales')->where('id', $conflicting->id)
+                            ->update(['invoice_number' => $payload['invoice_number'] . '-S' . $conflicting->id]);
+                    }
                 }
 
                 $model->fill($payload);
