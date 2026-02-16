@@ -286,6 +286,13 @@ class SyncService
             }
         }
 
+        if ($modelClass === 'App\Models\Sale' && isset($payload['invoice_number'])) {
+            $existingSale = $modelClass::where('invoice_number', $payload['invoice_number'])->first();
+            if ($existingSale) {
+                return $existingSale;
+            }
+        }
+
         if ($modelClass === 'App\Models\ProductBarcode' && isset($payload['barcode'])) {
             $existingBarcodes = $modelClass::where('barcode', $payload['barcode'])
                 ->orderBy('id')
