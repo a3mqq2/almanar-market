@@ -222,6 +222,17 @@ class SyncService
                             unset($payload['password']);
                         }
 
+                        if ($modelClass === 'App\Models\Sale' && isset($payload['invoice_number'])) {
+                            $conflicting = \App\Models\Sale::where('invoice_number', $payload['invoice_number'])
+                                ->where('id', '!=', $model->id ?: 0)
+                                ->first();
+                            if ($conflicting) {
+                                $conflicting->timestamps = false;
+                                DB::table('sales')->where('id', $conflicting->id)
+                                    ->update(['invoice_number' => $payload['invoice_number'] . '-L' . $conflicting->id]);
+                            }
+                        }
+
                         $model->fill($payload);
                         $model->synced_at = now();
                         $model->save();
