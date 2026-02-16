@@ -92,6 +92,30 @@ Route::prefix('v1')->group(function () {
             }
         }
 
+        $validSaleIds = \App\Models\Sale::pluck('id')->toArray();
+        $orphanedItems = \App\Models\SaleItem::whereNotIn('sale_id', $validSaleIds)->get();
+        $orphanedCount = $orphanedItems->count();
+        if ($orphanedCount > 0) {
+            \App\Models\SaleItem::whereNotIn('sale_id', $validSaleIds)->delete();
+            $actions[] = "Deleted {$orphanedCount} orphaned sale_items (invalid sale_id)";
+        }
+
+        $orphanedPayments = \App\Models\SalePayment::whereNotIn('sale_id', $validSaleIds)->count();
+        if ($orphanedPayments > 0) {
+            \App\Models\SalePayment::whereNotIn('sale_id', $validSaleIds)->delete();
+            $actions[] = "Deleted {$orphanedPayments} orphaned sale_payments";
+        }
+
+        $salesWithNoItems = \App\Models\Sale::whereNotNull('device_id')
+            ->where('total', '>', 0)
+            ->where('status', '!=', 'cancelled')
+            ->get()
+            ->filter(fn($s) => \App\Models\SaleItem::where('sale_id', $s->id)->count() === 0);
+        if ($salesWithNoItems->count() > 0) {
+            $actions[] = "WARNING: {$salesWithNoItems->count()} device sales have total > 0 but 0 items: " .
+                $salesWithNoItems->pluck('invoice_number')->join(', ');
+        }
+
         return response()->json([
             'actions' => $actions,
             'remaining_sales' => \App\Models\Sale::count(),

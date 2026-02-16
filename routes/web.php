@@ -635,6 +635,127 @@ Route::get('/api/sync/compare', function () {
     ]);
 });
 
+Route::get('/api/sync/fix-all', function () {
+    if (!config('desktop.mode')) {
+        return response()->json(['error' => 'Desktop mode only']);
+    }
+
+    $actions = [];
+    $deviceId = config('desktop.device_id');
+    $device = \App\Models\DeviceRegistration::where('device_id', $deviceId)->first();
+
+    try {
+        $cleanupResponse = \Illuminate\Support\Facades\Http::withOptions([
+            'verify' => base_path('certs/cacert.pem'),
+        ])->timeout(30)
+            ->withToken($device->api_token)
+            ->get(config('desktop.server_url') . '/api/v1/sync/cleanup');
+
+        if ($cleanupResponse->successful()) {
+            $actions[] = 'Server cleanup: ' . json_encode($cleanupResponse->json('actions'));
+        }
+    } catch (\Exception $e) {
+        $actions[] = 'Server cleanup error: ' . $e->getMessage();
+    }
+
+    $localOnlySales = \App\Models\Sale::where('invoice_number', 'like', 'SAL-D%')->get();
+    $logsCreated = 0;
+    foreach ($localOnlySales as $sale) {
+        $hasLog = \App\Models\SyncLog::where('syncable_type', 'App\Models\Sale')
+            ->where('syncable_id', $sale->id)
+            ->where('sync_status', 'pending')
+            ->exists();
+        if (!$hasLog) {
+            \App\Models\SyncLog::create([
+                'device_id' => $deviceId,
+                'syncable_type' => 'App\Models\Sale',
+                'syncable_id' => $sale->id,
+                'action' => 'created',
+                'payload' => $sale->getAttributes(),
+                'local_timestamp' => now(),
+                'sync_status' => 'pending',
+            ]);
+            $logsCreated++;
+
+            $items = \App\Models\SaleItem::where('sale_id', $sale->id)->get();
+            foreach ($items as $item) {
+                $hasItemLog = \App\Models\SyncLog::where('syncable_type', 'App\Models\SaleItem')
+                    ->where('syncable_id', $item->id)
+                    ->where('sync_status', 'pending')
+                    ->exists();
+                if (!$hasItemLog) {
+                    \App\Models\SyncLog::create([
+                        'device_id' => $deviceId,
+                        'syncable_type' => 'App\Models\SaleItem',
+                        'syncable_id' => $item->id,
+                        'action' => 'created',
+                        'payload' => $item->getAttributes(),
+                        'local_timestamp' => now(),
+                        'sync_status' => 'pending',
+                    ]);
+                }
+            }
+
+            $payments = \App\Models\SalePayment::where('sale_id', $sale->id)->get();
+            foreach ($payments as $payment) {
+                $hasPayLog = \App\Models\SyncLog::where('syncable_type', 'App\Models\SalePayment')
+                    ->where('syncable_id', $payment->id)
+                    ->where('sync_status', 'pending')
+                    ->exists();
+                if (!$hasPayLog) {
+                    \App\Models\SyncLog::create([
+                        'device_id' => $deviceId,
+                        'syncable_type' => 'App\Models\SalePayment',
+                        'syncable_id' => $payment->id,
+                        'action' => 'created',
+                        'payload' => $payment->getAttributes(),
+                        'local_timestamp' => now(),
+                        'sync_status' => 'pending',
+                    ]);
+                }
+            }
+        }
+    }
+    if ($logsCreated > 0) {
+        $actions[] = "Created pending sync logs for {$logsCreated} D-prefixed sales";
+    }
+
+    \App\Models\SyncLog::whereIn('sync_status', ['failed', 'conflict'])->update([
+        'sync_status' => 'pending',
+        'error_message' => null,
+    ]);
+
+    $pending = \App\Models\SyncLog::where('sync_status', 'pending')->count();
+    $actions[] = "Total pending logs: {$pending}";
+
+    $sync = new \App\Services\SyncService();
+
+    $pushResult = $sync->pushChanges($deviceId);
+    $actions[] = 'Push: ' . json_encode([
+        'success' => $pushResult['success'] ?? false,
+        'pushed' => $pushResult['pushed'] ?? 0,
+        'synced' => count($pushResult['synced'] ?? []),
+        'errors' => count($pushResult['errors'] ?? []),
+    ]);
+
+    $pullResult = $sync->pullChanges($deviceId);
+    $actions[] = 'Pull: ' . json_encode([
+        'success' => $pullResult['success'] ?? false,
+        'pulled' => $pullResult['pulled'] ?? 0,
+        'applied' => $pullResult['applied'] ?? 0,
+    ]);
+
+    return response()->json([
+        'actions' => $actions,
+        'final_counts' => [
+            'local_sales' => \App\Models\Sale::count(),
+            'local_items' => \App\Models\SaleItem::count(),
+            'pending_logs' => \App\Models\SyncLog::where('sync_status', 'pending')->count(),
+            'failed_logs' => \App\Models\SyncLog::where('sync_status', 'failed')->count(),
+        ],
+    ]);
+});
+
 Route::get('/api/sync/repair-items', function () {
     if (!config('desktop.mode')) {
         return response()->json(['error' => 'Desktop mode only']);
