@@ -30,7 +30,6 @@ Route::prefix('v1')->group(function () {
         $request->validate([
             'sales' => 'required|array',
             'sales.*.invoice_number' => 'required|string',
-            'sales.*.items' => 'required|array',
         ]);
 
         $actions = [];
@@ -43,19 +42,39 @@ Route::prefix('v1')->group(function () {
                 continue;
             }
 
-            $existingCount = \App\Models\SaleItem::where('sale_id', $sale->id)->count();
-            if ($existingCount > 0) {
-                $actions[] = "SKIP: {$saleData['invoice_number']} already has {$existingCount} items";
-                continue;
+            $itemsAdded = 0;
+            if (!empty($saleData['items'])) {
+                $existingItems = \App\Models\SaleItem::where('sale_id', $sale->id)->count();
+                if ($existingItems === 0) {
+                    foreach ($saleData['items'] as $itemData) {
+                        $itemData['sale_id'] = $sale->id;
+                        unset($itemData['id'], $itemData['created_at'], $itemData['updated_at'], $itemData['synced_at'], $itemData['local_uuid'], $itemData['device_id']);
+                        \App\Models\SaleItem::create($itemData);
+                        $itemsAdded++;
+                    }
+                }
             }
 
-            foreach ($saleData['items'] as $itemData) {
-                $itemData['sale_id'] = $sale->id;
-                unset($itemData['id'], $itemData['created_at'], $itemData['updated_at'], $itemData['synced_at'], $itemData['local_uuid'], $itemData['device_id']);
-                \App\Models\SaleItem::create($itemData);
+            $paymentsAdded = 0;
+            if (!empty($saleData['payments'])) {
+                $existingPayments = \App\Models\SalePayment::where('sale_id', $sale->id)->count();
+                if ($existingPayments === 0) {
+                    foreach ($saleData['payments'] as $payData) {
+                        $payData['sale_id'] = $sale->id;
+                        unset($payData['id'], $payData['created_at'], $payData['updated_at'], $payData['synced_at'], $payData['local_uuid'], $payData['device_id']);
+                        \App\Models\SalePayment::create($payData);
+                        $paymentsAdded++;
+                    }
+                }
             }
 
-            $actions[] = "FIXED: {$saleData['invoice_number']} (id:{$sale->id}) → added " . count($saleData['items']) . " items";
+            if ($itemsAdded > 0 || $paymentsAdded > 0) {
+                $actions[] = "FIXED: {$saleData['invoice_number']} (id:{$sale->id}) → items:{$itemsAdded}, payments:{$paymentsAdded}";
+            } else {
+                $existingItems = \App\Models\SaleItem::where('sale_id', $sale->id)->count();
+                $existingPayments = \App\Models\SalePayment::where('sale_id', $sale->id)->count();
+                $actions[] = "SKIP: {$saleData['invoice_number']} already has items:{$existingItems}, payments:{$existingPayments}";
+            }
         }
 
         \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1');
@@ -64,6 +83,7 @@ Route::prefix('v1')->group(function () {
             'success' => true,
             'actions' => $actions,
             'total_items' => \App\Models\SaleItem::count(),
+            'total_payments' => \App\Models\SalePayment::count(),
         ]);
     });
 
@@ -171,6 +191,7 @@ Route::prefix('v1')->group(function () {
                 $items = \App\Models\SaleItem::where('sale_id', $s->id)
                     ->select('id', 'product_id', 'quantity', 'unit_price', 'total_price', 'cost_at_sale', 'base_quantity')
                     ->get();
+                $paymentsCount = \App\Models\SalePayment::where('sale_id', $s->id)->count();
                 return [
                     'id' => $s->id,
                     'invoice_number' => $s->invoice_number,
@@ -182,6 +203,7 @@ Route::prefix('v1')->group(function () {
                     'local_uuid' => $s->local_uuid,
                     'device_id' => $s->device_id,
                     'items_count' => $items->count(),
+                    'payments_count' => $paymentsCount,
                     'items_total' => (float) $items->sum('total_price'),
                     'items_cost' => (float) $items->sum(fn($i) => $i->cost_at_sale * $i->base_quantity),
                     'items' => $items->map(fn($i) => [

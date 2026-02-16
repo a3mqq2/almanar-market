@@ -745,14 +745,103 @@ Route::get('/api/sync/fix-all', function () {
         'applied' => $pullResult['applied'] ?? 0,
     ]);
 
+    try {
+        $compareResponse = \Illuminate\Support\Facades\Http::withOptions([
+            'verify' => base_path('certs/cacert.pem'),
+        ])->timeout(60)
+            ->withToken($device->api_token)
+            ->get(config('desktop.server_url') . '/api/v1/sync/compare');
+
+        if ($compareResponse->successful()) {
+            $serverData = $compareResponse->json();
+            $serverSales = collect($serverData['sales'] ?? [])->keyBy('invoice_number');
+            $localSales = \App\Models\Sale::all()->keyBy('invoice_number');
+
+            $salesToRepair = [];
+            foreach ($localSales as $inv => $sale) {
+                if (!$inv || !$serverSales->has($inv)) {
+                    continue;
+                }
+                $serverSale = $serverSales[$inv];
+                $localItemCount = \App\Models\SaleItem::where('sale_id', $sale->id)->count();
+                $serverItemCount = $serverSale['items_count'] ?? 0;
+
+                $serverPaymentCount = $serverSale['payments_count'] ?? 0;
+                $localPaymentCount = \App\Models\SalePayment::where('sale_id', $sale->id)->count();
+
+                $needsItemRepair = $localItemCount > 0 && $serverItemCount === 0;
+                $needsPaymentRepair = $localPaymentCount > 0 && $serverPaymentCount === 0;
+
+                if ($needsItemRepair || $needsPaymentRepair) {
+                    $repair = ['invoice_number' => $inv];
+                    if ($needsItemRepair) {
+                        $items = \App\Models\SaleItem::where('sale_id', $sale->id)->get();
+                        $repair['items'] = $items->map(fn($i) => $i->makeVisible($i->getHidden())->toArray());
+                    }
+                    if ($needsPaymentRepair) {
+                        $payments = \App\Models\SalePayment::where('sale_id', $sale->id)->get();
+                        $repair['payments'] = $payments->map(fn($p) => $p->makeVisible($p->getHidden())->toArray());
+                    }
+                    $salesToRepair[] = $repair;
+                }
+            }
+
+            if (!empty($salesToRepair)) {
+                $repairResponse = \Illuminate\Support\Facades\Http::withOptions([
+                    'verify' => base_path('certs/cacert.pem'),
+                ])->timeout(60)
+                    ->withToken($device->api_token)
+                    ->post(config('desktop.server_url') . '/api/v1/sync/repair-items', [
+                        'sales' => $salesToRepair,
+                    ]);
+
+                if ($repairResponse->successful()) {
+                    $repairResult = $repairResponse->json();
+                    $actions[] = 'Repair items: ' . json_encode($repairResult['actions'] ?? []);
+                } else {
+                    $actions[] = 'Repair items failed: ' . $repairResponse->status();
+                }
+            } else {
+                $actions[] = 'Repair items: No items need repair';
+            }
+
+            $serverWarnings = [];
+            foreach ($serverSales as $inv => $srv) {
+                if (($srv['items_count'] ?? 0) === 0 && (float)($srv['total'] ?? 0) > 0 && ($srv['status'] ?? '') !== 'cancelled') {
+                    $hasLocal = $localSales->has($inv);
+                    $localItemCount = $hasLocal ? \App\Models\SaleItem::where('sale_id', $localSales[$inv]->id)->count() : 0;
+                    $serverWarnings[] = "{$inv} (server_id:{$srv['id']}, total:{$srv['total']}, local_exists:" . ($hasLocal ? 'yes' : 'no') . ", local_items:{$localItemCount})";
+                }
+            }
+            if (!empty($serverWarnings)) {
+                $actions[] = 'WARNING: Server sales with 0 items: ' . implode(', ', $serverWarnings);
+            }
+        }
+    } catch (\Exception $e) {
+        $actions[] = 'Repair step error: ' . $e->getMessage();
+    }
+
+    $failedLogs = \App\Models\SyncLog::where('sync_status', 'failed')
+        ->select('id', 'syncable_type', 'syncable_id', 'action', 'error_message', 'retry_count')
+        ->get();
+
     return response()->json([
         'actions' => $actions,
         'final_counts' => [
             'local_sales' => \App\Models\Sale::count(),
             'local_items' => \App\Models\SaleItem::count(),
+            'local_payments' => \App\Models\SalePayment::count(),
             'pending_logs' => \App\Models\SyncLog::where('sync_status', 'pending')->count(),
-            'failed_logs' => \App\Models\SyncLog::where('sync_status', 'failed')->count(),
+            'failed_logs' => $failedLogs->count(),
         ],
+        'failed_log_details' => $failedLogs->map(fn($l) => [
+            'id' => $l->id,
+            'type' => class_basename($l->syncable_type),
+            'record_id' => $l->syncable_id,
+            'action' => $l->action,
+            'error' => $l->error_message,
+            'retries' => $l->retry_count,
+        ]),
     ]);
 });
 
@@ -791,17 +880,28 @@ Route::get('/api/sync/repair-items', function () {
         $localItemCount = \App\Models\SaleItem::where('sale_id', $sale->id)->count();
         $serverItemCount = $serverSale['items_count'] ?? 0;
 
-        if ($localItemCount > 0 && $serverItemCount === 0) {
-            $items = \App\Models\SaleItem::where('sale_id', $sale->id)->get();
-            $salesToRepair[] = [
-                'invoice_number' => $inv,
-                'items' => $items->map(fn($i) => $i->makeVisible($i->getHidden())->toArray()),
-            ];
+        $serverPaymentCount = $serverSale['payments_count'] ?? 0;
+        $localPaymentCount = \App\Models\SalePayment::where('sale_id', $sale->id)->count();
+
+        $needsItemRepair = $localItemCount > 0 && $serverItemCount === 0;
+        $needsPaymentRepair = $localPaymentCount > 0 && $serverPaymentCount === 0;
+
+        if ($needsItemRepair || $needsPaymentRepair) {
+            $repair = ['invoice_number' => $inv];
+            if ($needsItemRepair) {
+                $items = \App\Models\SaleItem::where('sale_id', $sale->id)->get();
+                $repair['items'] = $items->map(fn($i) => $i->makeVisible($i->getHidden())->toArray());
+            }
+            if ($needsPaymentRepair) {
+                $payments = \App\Models\SalePayment::where('sale_id', $sale->id)->get();
+                $repair['payments'] = $payments->map(fn($p) => $p->makeVisible($p->getHidden())->toArray());
+            }
+            $salesToRepair[] = $repair;
         }
     }
 
     if (empty($salesToRepair)) {
-        return response()->json(['message' => 'No items need repair', 'checked' => $localSales->count()]);
+        return response()->json(['message' => 'No items/payments need repair', 'checked' => $localSales->count()]);
     }
 
     try {
