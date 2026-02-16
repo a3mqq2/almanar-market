@@ -87,6 +87,98 @@ Route::prefix('v1')->group(function () {
         ]);
     });
 
+    Route::get('/sync/fix-duplicates', function () {
+        $actions = [];
+
+        $duplicates = \Illuminate\Support\Facades\DB::table('product_units')
+            ->select('product_id', 'unit_id', \Illuminate\Support\Facades\DB::raw('COUNT(*) as cnt'), \Illuminate\Support\Facades\DB::raw('MIN(id) as keep_id'))
+            ->groupBy('product_id', 'unit_id')
+            ->having('cnt', '>', 1)
+            ->get();
+
+        $totalDeleted = 0;
+        foreach ($duplicates as $dup) {
+            $keep = \App\Models\ProductUnit::find($dup->keep_id);
+            $extras = \App\Models\ProductUnit::where('product_id', $dup->product_id)
+                ->where('unit_id', $dup->unit_id)
+                ->where('id', '!=', $dup->keep_id)
+                ->get();
+
+            $hasBase = $extras->contains('is_base_unit', true) || ($keep && $keep->is_base_unit);
+            if ($hasBase && $keep && !$keep->is_base_unit) {
+                $baseExtra = $extras->firstWhere('is_base_unit', true);
+                if ($baseExtra) {
+                    $keep->update([
+                        'is_base_unit' => true,
+                        'sell_price' => $baseExtra->sell_price,
+                        'cost_price' => $baseExtra->cost_price,
+                        'multiplier' => $baseExtra->multiplier,
+                    ]);
+                }
+            }
+
+            foreach ($extras as $extra) {
+                $extra->delete();
+                $totalDeleted++;
+            }
+
+            $product = \App\Models\Product::find($dup->product_id);
+            $unit = \App\Models\Unit::find($dup->unit_id);
+            $actions[] = "Product:{$product?->name} Unit:{$unit?->name} - deleted {$extras->count()} duplicates (kept id:{$dup->keep_id})";
+        }
+
+        $baseConflicts = \Illuminate\Support\Facades\DB::table('product_units')
+            ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(is_base_unit) as base_count'))
+            ->groupBy('product_id')
+            ->having('base_count', '>', 1)
+            ->get();
+
+        foreach ($baseConflicts as $conflict) {
+            $units = \App\Models\ProductUnit::where('product_id', $conflict->product_id)
+                ->where('is_base_unit', true)
+                ->orderBy('id')
+                ->get();
+
+            $keep = $units->first();
+            $units->slice(1)->each(fn($u) => $u->update(['is_base_unit' => false]));
+
+            $product = \App\Models\Product::find($conflict->product_id);
+            $actions[] = "Product:{$product?->name} - fixed {$units->count()} base units (kept id:{$keep->id})";
+        }
+
+        $noBase = \Illuminate\Support\Facades\DB::table('product_units')
+            ->select('product_id')
+            ->groupBy('product_id')
+            ->having(\Illuminate\Support\Facades\DB::raw('SUM(is_base_unit)'), '=', 0)
+            ->get();
+
+        foreach ($noBase as $nb) {
+            $first = \App\Models\ProductUnit::where('product_id', $nb->product_id)
+                ->where('multiplier', 1)
+                ->orderBy('id')
+                ->first();
+
+            if (!$first) {
+                $first = \App\Models\ProductUnit::where('product_id', $nb->product_id)
+                    ->orderBy('id')
+                    ->first();
+            }
+
+            if ($first) {
+                $first->update(['is_base_unit' => true]);
+                $product = \App\Models\Product::find($nb->product_id);
+                $actions[] = "Product:{$product?->name} - set base unit (id:{$first->id})";
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'duplicates_deleted' => $totalDeleted,
+            'actions' => $actions,
+            'total_product_units' => \App\Models\ProductUnit::count(),
+        ]);
+    });
+
     Route::post('/sync/fix-timestamps', function (\Illuminate\Http\Request $request) {
         $request->validate([
             'sales' => 'required|array',

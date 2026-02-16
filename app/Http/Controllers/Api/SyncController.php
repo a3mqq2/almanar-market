@@ -214,6 +214,8 @@ class SyncController extends Controller
     protected function getCompositeUniqueKeys(string $modelClass): ?array
     {
         $map = [
+            'App\Models\ProductUnit' => ['product_id', 'unit_id'],
+            'App\Models\ProductBarcode' => ['product_id', 'barcode'],
             'App\Models\ShiftCashbox' => ['shift_id', 'cashbox_id'],
             'App\Models\InventoryCountItem' => ['inventory_count_id', 'product_id'],
         ];
