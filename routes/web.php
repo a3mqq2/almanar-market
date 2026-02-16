@@ -467,3 +467,39 @@ Route::get('/api/sync/compare', function () {
             ],
         ]);
     });
+
+Route::get('/api/sync/cleanup', function () {
+    if (!config('desktop.mode')) {
+        return response()->json(['error' => 'Desktop mode only']);
+    }
+
+    $actions = [];
+
+    $localSuffixed = \App\Models\Sale::where('invoice_number', 'like', '%-L%')->get();
+    foreach ($localSuffixed as $sale) {
+        $original = preg_replace('/-L\d+$/', '', $sale->invoice_number);
+        $conflict = \App\Models\Sale::where('invoice_number', $original)->first();
+        if (!$conflict) {
+            \Illuminate\Support\Facades\DB::table('sales')
+                ->where('id', $sale->id)
+                ->update(['invoice_number' => $original]);
+            $actions[] = "Local: renamed {$sale->invoice_number} → {$original}";
+        } else {
+            $actions[] = "Local: skipped {$sale->invoice_number} (conflict with id:{$conflict->id})";
+        }
+    }
+
+    $pendingLogs = \App\Models\SyncLog::where('sync_status', 'pending')->count();
+    $failedLogs = \App\Models\SyncLog::where('sync_status', 'failed')->count();
+
+    \App\Models\SyncLog::whereIn('sync_status', ['failed', 'conflict'])->update([
+        'sync_status' => 'pending',
+        'error_message' => null,
+    ]);
+    $actions[] = "Reset {$failedLogs} failed logs to pending";
+
+    return response()->json([
+        'actions' => $actions,
+        'pending_sync_logs' => $pendingLogs + $failedLogs,
+    ]);
+});

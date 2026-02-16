@@ -26,6 +26,38 @@ Route::prefix('v1')->group(function () {
         Route::post('/device/heartbeat', [DeviceController::class, 'heartbeat']);
     });
 
+    Route::get('/sync/cleanup', function () {
+        $actions = [];
+
+        $suffixed = \App\Models\Sale::where('invoice_number', 'like', '%-S%')->get();
+        foreach ($suffixed as $sale) {
+            $itemCount = \App\Models\SaleItem::where('sale_id', $sale->id)->count();
+            \App\Models\SaleItem::where('sale_id', $sale->id)->delete();
+            \App\Models\SalePayment::where('sale_id', $sale->id)->delete();
+            $sale->delete();
+            $actions[] = "Deleted junk: {$sale->invoice_number} (id:{$sale->id}, items:{$itemCount})";
+        }
+
+        $drafts = \App\Models\Sale::where('status', 'draft')
+            ->where('total', 0)
+            ->whereNotNull('device_id')
+            ->get();
+        foreach ($drafts as $sale) {
+            $itemCount = \App\Models\SaleItem::where('sale_id', $sale->id)->count();
+            if ($itemCount === 0) {
+                \App\Models\SalePayment::where('sale_id', $sale->id)->delete();
+                $sale->delete();
+                $actions[] = "Deleted empty draft: {$sale->invoice_number} (id:{$sale->id})";
+            }
+        }
+
+        return response()->json([
+            'actions' => $actions,
+            'remaining_sales' => \App\Models\Sale::count(),
+            'remaining_items' => \App\Models\SaleItem::count(),
+        ]);
+    });
+
     Route::get('/sync/compare', function () {
         $sales = \App\Models\Sale::select('id', 'invoice_number', 'total', 'status', 'local_uuid', 'device_id', 'created_at')
             ->orderBy('id')
