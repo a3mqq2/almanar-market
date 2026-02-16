@@ -635,6 +635,81 @@ Route::get('/api/sync/compare', function () {
     ]);
 });
 
+Route::get('/api/sync/repair-items', function () {
+    if (!config('desktop.mode')) {
+        return response()->json(['error' => 'Desktop mode only']);
+    }
+
+    try {
+        $compareResponse = \Illuminate\Support\Facades\Http::withOptions([
+            'verify' => base_path('certs/cacert.pem'),
+        ])->timeout(60)
+            ->withToken(config('desktop.api_token'))
+            ->get(config('desktop.server_url') . '/api/v1/sync/compare');
+
+        if (!$compareResponse->successful()) {
+            return response()->json(['error' => 'Server compare failed: ' . $compareResponse->status()]);
+        }
+
+        $serverData = $compareResponse->json();
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()]);
+    }
+
+    $serverSales = collect($serverData['sales'] ?? [])->keyBy('invoice_number');
+    $localSales = \App\Models\Sale::all()->keyBy('invoice_number');
+
+    $salesToRepair = [];
+
+    foreach ($localSales as $inv => $sale) {
+        if (!$inv || !$serverSales->has($inv)) {
+            continue;
+        }
+
+        $serverSale = $serverSales[$inv];
+        $localItemCount = \App\Models\SaleItem::where('sale_id', $sale->id)->count();
+        $serverItemCount = $serverSale['items_count'] ?? 0;
+
+        if ($localItemCount > 0 && $serverItemCount === 0) {
+            $items = \App\Models\SaleItem::where('sale_id', $sale->id)->get();
+            $salesToRepair[] = [
+                'invoice_number' => $inv,
+                'items' => $items->map(fn($i) => $i->makeVisible($i->getHidden())->toArray()),
+            ];
+        }
+    }
+
+    if (empty($salesToRepair)) {
+        return response()->json(['message' => 'No items need repair', 'checked' => $localSales->count()]);
+    }
+
+    try {
+        $device = \App\Models\DeviceRegistration::where('device_id', config('desktop.device_id'))->first();
+        $repairResponse = \Illuminate\Support\Facades\Http::withOptions([
+            'verify' => base_path('certs/cacert.pem'),
+        ])->timeout(60)
+            ->withToken($device->api_token)
+            ->post(config('desktop.server_url') . '/api/v1/sync/repair-items', [
+                'sales' => $salesToRepair,
+            ]);
+
+        if ($repairResponse->successful()) {
+            return response()->json([
+                'success' => true,
+                'repaired' => count($salesToRepair),
+                'server_response' => $repairResponse->json(),
+            ]);
+        }
+
+        return response()->json([
+            'error' => 'Repair failed: ' . $repairResponse->status(),
+            'body' => $repairResponse->body(),
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()]);
+    }
+});
+
 Route::get('/api/sync/cleanup', function () {
     if (!config('desktop.mode')) {
         return response()->json(['error' => 'Desktop mode only']);

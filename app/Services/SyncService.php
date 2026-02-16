@@ -49,6 +49,19 @@ class SyncService
         'App\Models\UserActivityLog',
     ];
 
+    protected array $foreignKeyMap = [
+        'App\Models\SaleItem' => ['sale_id' => 'App\Models\Sale'],
+        'App\Models\SalePayment' => ['sale_id' => 'App\Models\Sale'],
+        'App\Models\SaleReturnItem' => ['sales_return_id' => 'App\Models\SalesReturn'],
+        'App\Models\PurchaseItem' => ['purchase_id' => 'App\Models\Purchase'],
+        'App\Models\ShiftCashbox' => ['shift_id' => 'App\Models\Shift'],
+        'App\Models\CashboxTransaction' => ['shift_id' => 'App\Models\Shift'],
+        'App\Models\StockMovement' => ['sale_id' => 'App\Models\Sale', 'purchase_id' => 'App\Models\Purchase'],
+        'App\Models\InventoryCountItem' => ['inventory_count_id' => 'App\Models\InventoryCount'],
+        'App\Models\CustomerTransaction' => ['customer_id' => 'App\Models\Customer'],
+        'App\Models\SupplierTransaction' => ['supplier_id' => 'App\Models\Supplier'],
+    ];
+
     public function getPendingChanges(string $deviceId): array
     {
         $changes = [];
@@ -61,18 +74,49 @@ class SyncService
                 ->get();
 
             foreach ($logs as $log) {
+                $payload = $log->payload;
+                $payload = $this->remapForeignKeys($modelClass, $payload);
+
                 $changes[] = [
                     'id' => $log->id,
                     'type' => $log->syncable_type,
                     'record_id' => $log->syncable_id,
                     'action' => $log->action,
-                    'payload' => $log->payload,
+                    'payload' => $payload,
                     'timestamp' => $log->local_timestamp->toIso8601String(),
                 ];
             }
         }
 
         return $changes;
+    }
+
+    protected function remapForeignKeys(string $modelClass, array $payload): array
+    {
+        if (!isset($this->foreignKeyMap[$modelClass])) {
+            return $payload;
+        }
+
+        foreach ($this->foreignKeyMap[$modelClass] as $fkField => $parentClass) {
+            if (!isset($payload[$fkField]) || empty($payload[$fkField])) {
+                continue;
+            }
+
+            $localId = $payload[$fkField];
+
+            $parentLog = SyncLog::where('syncable_type', $parentClass)
+                ->where('syncable_id', $localId)
+                ->where('sync_status', 'synced')
+                ->whereNotNull('server_id')
+                ->orderBy('synced_at', 'desc')
+                ->first();
+
+            if ($parentLog && $parentLog->server_id) {
+                $payload[$fkField] = $parentLog->server_id;
+            }
+        }
+
+        return $payload;
     }
 
     public function pushChanges(string $deviceId): array

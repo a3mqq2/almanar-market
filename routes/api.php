@@ -26,6 +26,47 @@ Route::prefix('v1')->group(function () {
         Route::post('/device/heartbeat', [DeviceController::class, 'heartbeat']);
     });
 
+    Route::post('/sync/repair-items', function (\Illuminate\Http\Request $request) {
+        $request->validate([
+            'sales' => 'required|array',
+            'sales.*.invoice_number' => 'required|string',
+            'sales.*.items' => 'required|array',
+        ]);
+
+        $actions = [];
+        \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0');
+
+        foreach ($request->input('sales') as $saleData) {
+            $sale = \App\Models\Sale::where('invoice_number', $saleData['invoice_number'])->first();
+            if (!$sale) {
+                $actions[] = "NOT FOUND: {$saleData['invoice_number']}";
+                continue;
+            }
+
+            $existingCount = \App\Models\SaleItem::where('sale_id', $sale->id)->count();
+            if ($existingCount > 0) {
+                $actions[] = "SKIP: {$saleData['invoice_number']} already has {$existingCount} items";
+                continue;
+            }
+
+            foreach ($saleData['items'] as $itemData) {
+                $itemData['sale_id'] = $sale->id;
+                unset($itemData['id'], $itemData['created_at'], $itemData['updated_at'], $itemData['synced_at'], $itemData['local_uuid'], $itemData['device_id']);
+                \App\Models\SaleItem::create($itemData);
+            }
+
+            $actions[] = "FIXED: {$saleData['invoice_number']} (id:{$sale->id}) → added " . count($saleData['items']) . " items";
+        }
+
+        \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1');
+
+        return response()->json([
+            'success' => true,
+            'actions' => $actions,
+            'total_items' => \App\Models\SaleItem::count(),
+        ]);
+    });
+
     Route::get('/sync/cleanup', function () {
         $actions = [];
 

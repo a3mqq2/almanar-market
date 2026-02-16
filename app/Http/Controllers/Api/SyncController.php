@@ -38,15 +38,18 @@ class SyncController extends Controller
         $synced = [];
         $conflicts = [];
         $errors = [];
+        $idMap = [];
 
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
         DB::beginTransaction();
 
         foreach ($changes as $change) {
             try {
+                $change['payload'] = $this->remapForeignKeys($change['type'], $change['payload'], $idMap, $deviceId);
                 $result = $this->processChange($change, $deviceId);
 
                 if ($result['status'] == 'synced') {
+                    $idMap[$change['type']][$change['record_id']] = $result['server_id'];
                     $synced[] = [
                         'log_id' => $change['id'] ?? null,
                         'local_id' => $change['record_id'],
@@ -263,6 +266,63 @@ class SyncController extends Controller
             DB::table($table)->where('id', $conflicting->id)
                 ->update([$uniqueField => $payload[$uniqueField] . '-S' . $conflicting->id]);
         }
+    }
+
+    protected function getForeignKeyMapping(): array
+    {
+        return [
+            'App\Models\SaleItem' => ['sale_id' => 'App\Models\Sale'],
+            'App\Models\SalePayment' => ['sale_id' => 'App\Models\Sale'],
+            'App\Models\SaleReturnItem' => ['sales_return_id' => 'App\Models\SalesReturn'],
+            'App\Models\PurchaseItem' => ['purchase_id' => 'App\Models\Purchase'],
+            'App\Models\ShiftCashbox' => ['shift_id' => 'App\Models\Shift'],
+            'App\Models\CashboxTransaction' => ['shift_id' => 'App\Models\Shift'],
+            'App\Models\StockMovement' => ['sale_id' => 'App\Models\Sale', 'purchase_id' => 'App\Models\Purchase'],
+            'App\Models\InventoryCountItem' => ['inventory_count_id' => 'App\Models\InventoryCount'],
+        ];
+    }
+
+    protected function remapForeignKeys(string $modelClass, array $payload, array $idMap, string $deviceId): array
+    {
+        $fkMapping = $this->getForeignKeyMapping();
+        if (!isset($fkMapping[$modelClass])) {
+            return $payload;
+        }
+
+        foreach ($fkMapping[$modelClass] as $fkField => $parentClass) {
+            if (!isset($payload[$fkField]) || empty($payload[$fkField])) {
+                continue;
+            }
+
+            $localId = $payload[$fkField];
+
+            if (isset($idMap[$parentClass][$localId])) {
+                $payload[$fkField] = $idMap[$parentClass][$localId];
+                continue;
+            }
+
+            $parent = $parentClass::find($localId);
+            if ($parent) {
+                continue;
+            }
+
+            $parentByUuid = null;
+            if (isset($payload['local_uuid'])) {
+                $tableName = (new $parentClass)->getTable();
+                if (Schema::hasColumn($tableName, 'device_id')) {
+                    $parentByUuid = $parentClass::where('device_id', $deviceId)
+                        ->where('id', '!=', $localId)
+                        ->orderBy('id', 'desc')
+                        ->first();
+                }
+            }
+
+            if ($parentByUuid) {
+                $payload[$fkField] = $parentByUuid->id;
+            }
+        }
+
+        return $payload;
     }
 
     public function pull(Request $request): JsonResponse
