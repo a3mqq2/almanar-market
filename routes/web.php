@@ -375,98 +375,176 @@ Route::get('/api/sync/compare', function () {
         return response()->json(['error' => 'Desktop mode only']);
     }
 
-        $localSales = \App\Models\Sale::select('id', 'invoice_number', 'total', 'status', 'local_uuid', 'device_id', 'synced_at', 'created_at')
-            ->orderBy('id')
-            ->get();
+    $models = [
+        'users' => \App\Models\User::class,
+        'units' => \App\Models\Unit::class,
+        'suppliers' => \App\Models\Supplier::class,
+        'customers' => \App\Models\Customer::class,
+        'cashboxes' => \App\Models\Cashbox::class,
+        'payment_methods' => \App\Models\PaymentMethod::class,
+        'expense_categories' => \App\Models\ExpenseCategory::class,
+        'products' => \App\Models\Product::class,
+        'product_units' => \App\Models\ProductUnit::class,
+        'product_barcodes' => \App\Models\ProductBarcode::class,
+        'inventory_batches' => \App\Models\InventoryBatch::class,
+        'purchases' => \App\Models\Purchase::class,
+        'purchase_items' => \App\Models\PurchaseItem::class,
+        'shifts' => \App\Models\Shift::class,
+        'shift_cashboxes' => \App\Models\ShiftCashbox::class,
+        'sales' => \App\Models\Sale::class,
+        'sale_items' => \App\Models\SaleItem::class,
+        'sale_payments' => \App\Models\SalePayment::class,
+        'sales_returns' => \App\Models\SalesReturn::class,
+        'sale_return_items' => \App\Models\SaleReturnItem::class,
+        'expenses' => \App\Models\Expense::class,
+        'stock_movements' => \App\Models\StockMovement::class,
+        'cashbox_transactions' => \App\Models\CashboxTransaction::class,
+        'customer_transactions' => \App\Models\CustomerTransaction::class,
+        'supplier_transactions' => \App\Models\SupplierTransaction::class,
+        'inventory_counts' => \App\Models\InventoryCount::class,
+        'inventory_count_items' => \App\Models\InventoryCountItem::class,
+        'user_activity_logs' => \App\Models\UserActivityLog::class,
+    ];
 
-        $localItems = \App\Models\SaleItem::count();
-
+    $localCounts = [];
+    foreach ($models as $key => $modelClass) {
         try {
-            $response = \Illuminate\Support\Facades\Http::withOptions([
-                'verify' => base_path('certs/cacert.pem'),
-            ])->timeout(15)
-                ->withToken(config('desktop.api_token'))
-                ->get(config('desktop.server_url') . '/api/v1/sync/compare', [
-                    'device_id' => config('desktop.device_id'),
-                ]);
-
-            if (!$response->successful()) {
-                return response()->json([
-                    'error' => 'Server returned ' . $response->status(),
-                    'body' => $response->body(),
-                ]);
-            }
-
-            $server = $response->json();
+            $localCounts[$key] = $modelClass::count();
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()]);
+            $localCounts[$key] = 0;
+        }
+    }
+
+    try {
+        $response = \Illuminate\Support\Facades\Http::withOptions([
+            'verify' => base_path('certs/cacert.pem'),
+        ])->timeout(30)
+            ->withToken(config('desktop.api_token'))
+            ->get(config('desktop.server_url') . '/api/v1/sync/compare');
+
+        if (!$response->successful()) {
+            return response()->json([
+                'error' => 'Server returned ' . $response->status(),
+                'body' => $response->body(),
+            ]);
         }
 
-        $serverInvoices = collect($server['sales'])->keyBy('invoice_number');
-        $localInvoices = $localSales->keyBy('invoice_number');
+        $server = $response->json();
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()]);
+    }
+
+    $serverCounts = $server['counts'] ?? [];
+
+    $summary = [];
+    foreach ($models as $key => $modelClass) {
+        $local = $localCounts[$key] ?? 0;
+        $srv = $serverCounts[$key] ?? 0;
+        $summary[$key] = [
+            'local' => $local,
+            'server' => $srv,
+            'diff' => $local - $srv,
+            'match' => $local === $srv,
+        ];
+    }
+
+    $detailConfigs = [
+        'sales' => ['unique' => 'invoice_number', 'amount' => 'total'],
+        'purchases' => ['unique' => 'invoice_number', 'amount' => 'total'],
+        'sales_returns' => ['unique' => 'return_number', 'amount' => 'total_amount'],
+        'expenses' => ['unique' => 'reference_number', 'amount' => 'amount'],
+        'inventory_counts' => ['unique' => 'reference_number', 'amount' => null],
+    ];
+
+    $details = [];
+    $serverDetails = $server['details'] ?? [];
+
+    foreach ($detailConfigs as $key => $config) {
+        $uniqueField = $config['unique'];
+        $amountField = $config['amount'];
+
+        $localRecords = collect();
+        try {
+            $modelClass = $models[$key];
+            $fields = ['id', $uniqueField, 'local_uuid'];
+            if (\Illuminate\Support\Facades\Schema::hasColumn((new $modelClass)->getTable(), 'device_id')) {
+                $fields[] = 'device_id';
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn((new $modelClass)->getTable(), 'status')) {
+                $fields[] = 'status';
+            }
+            if ($amountField) {
+                $fields[] = $amountField;
+            }
+            $localRecords = $modelClass::select($fields)->orderBy('id')->get();
+        } catch (\Exception $e) {
+            $details[$key] = ['error' => $e->getMessage()];
+            continue;
+        }
+
+        $serverRecords = collect($serverDetails[$key] ?? []);
+
+        $localByUnique = $localRecords->keyBy($uniqueField);
+        $serverByUnique = $serverRecords->keyBy($uniqueField);
 
         $onlyLocal = [];
         $onlyServer = [];
-        $onBoth = [];
-        $duplicateLocal = [];
+        $mismatched = [];
 
-        $localGrouped = $localSales->groupBy('invoice_number');
-        foreach ($localGrouped as $num => $group) {
-            if ($group->count() > 1) {
-                $duplicateLocal[$num] = $group->map(fn($s) => ['id' => $s->id, 'total' => (float) $s->total, 'status' => $s->status])->values()->toArray();
-            }
-        }
-
-        foreach ($localInvoices as $num => $sale) {
-            if ($serverInvoices->has($num)) {
-                $serverSale = $serverInvoices[$num];
-                $onBoth[] = [
-                    'invoice_number' => $num,
-                    'local_id' => $sale->id,
-                    'server_id' => $serverSale['id'],
-                    'local_total' => (float) $sale->total,
-                    'server_total' => $serverSale['total'],
-                    'match' => abs((float) $sale->total - $serverSale['total']) < 0.01,
-                ];
+        foreach ($localByUnique as $uid => $rec) {
+            if (!$uid) continue;
+            if ($serverByUnique->has($uid)) {
+                if ($amountField) {
+                    $localAmt = (float) $rec->$amountField;
+                    $serverAmt = (float) ($serverByUnique[$uid][$amountField] ?? 0);
+                    if (abs($localAmt - $serverAmt) >= 0.01) {
+                        $mismatched[] = [
+                            $uniqueField => $uid,
+                            'local_id' => $rec->id,
+                            'server_id' => $serverByUnique[$uid]['id'],
+                            'local_amount' => $localAmt,
+                            'server_amount' => $serverAmt,
+                        ];
+                    }
+                }
             } else {
-                $onlyLocal[] = [
-                    'invoice_number' => $num,
-                    'id' => $sale->id,
-                    'total' => (float) $sale->total,
-                    'status' => $sale->status,
-                    'synced_at' => $sale->synced_at,
-                ];
+                $item = [$uniqueField => $uid, 'id' => $rec->id];
+                if ($amountField) $item['amount'] = (float) $rec->$amountField;
+                if (isset($rec->status)) $item['status'] = $rec->status;
+                $onlyLocal[] = $item;
             }
         }
 
-        foreach ($serverInvoices as $num => $sale) {
-            if (!$localInvoices->has($num)) {
-                $onlyServer[] = [
-                    'invoice_number' => $num,
-                    'id' => $sale['id'],
-                    'total' => $sale['total'],
-                    'status' => $sale['status'],
-                ];
+        foreach ($serverByUnique as $uid => $rec) {
+            if (!$uid) continue;
+            if (!$localByUnique->has($uid)) {
+                $item = [$uniqueField => $uid, 'id' => $rec['id']];
+                if ($amountField) $item['amount'] = (float) ($rec[$amountField] ?? 0);
+                if (isset($rec['status'])) $item['status'] = $rec['status'];
+                $onlyServer[] = $item;
             }
         }
 
-        return response()->json([
-            'local_sales' => $localSales->count(),
-            'local_items' => $localItems,
-            'server_sales' => $server['sales_count'],
-            'server_items' => $server['sale_items_count'],
-            'on_both' => count($onBoth),
-            'only_local' => count($onlyLocal),
-            'only_server' => count($onlyServer),
-            'duplicate_local' => count($duplicateLocal),
-            'details' => [
-                'only_local' => $onlyLocal,
-                'only_server' => $onlyServer,
-                'mismatched' => collect($onBoth)->where('match', false)->values(),
-                'duplicate_local' => $duplicateLocal,
-            ],
-        ]);
-    });
+        $details[$key] = [
+            'only_local' => $onlyLocal,
+            'only_server' => $onlyServer,
+            'mismatched' => $mismatched,
+        ];
+    }
+
+    $syncLogs = [
+        'pending' => \App\Models\SyncLog::where('sync_status', 'pending')->count(),
+        'failed' => \App\Models\SyncLog::where('sync_status', 'failed')->count(),
+        'conflict' => \App\Models\SyncLog::where('sync_status', 'conflict')->count(),
+        'synced' => \App\Models\SyncLog::where('sync_status', 'synced')->count(),
+    ];
+
+    return response()->json([
+        'summary' => $summary,
+        'details' => $details,
+        'sync_logs' => $syncLogs,
+    ]);
+});
 
 Route::get('/api/sync/cleanup', function () {
     if (!config('desktop.mode')) {

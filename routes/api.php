@@ -59,23 +59,76 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::get('/sync/compare', function () {
-        $sales = \App\Models\Sale::select('id', 'invoice_number', 'total', 'status', 'local_uuid', 'device_id', 'created_at')
-            ->orderBy('id')
-            ->get()
-            ->map(fn($s) => [
-                'id' => $s->id,
-                'invoice_number' => $s->invoice_number,
-                'total' => (float) $s->total,
-                'status' => $s->status,
-                'local_uuid' => $s->local_uuid,
-                'device_id' => $s->device_id,
-                'created_at' => $s->created_at?->toIso8601String(),
-            ]);
+        $models = [
+            'users' => \App\Models\User::class,
+            'units' => \App\Models\Unit::class,
+            'suppliers' => \App\Models\Supplier::class,
+            'customers' => \App\Models\Customer::class,
+            'cashboxes' => \App\Models\Cashbox::class,
+            'payment_methods' => \App\Models\PaymentMethod::class,
+            'expense_categories' => \App\Models\ExpenseCategory::class,
+            'products' => \App\Models\Product::class,
+            'product_units' => \App\Models\ProductUnit::class,
+            'product_barcodes' => \App\Models\ProductBarcode::class,
+            'inventory_batches' => \App\Models\InventoryBatch::class,
+            'purchases' => \App\Models\Purchase::class,
+            'purchase_items' => \App\Models\PurchaseItem::class,
+            'shifts' => \App\Models\Shift::class,
+            'shift_cashboxes' => \App\Models\ShiftCashbox::class,
+            'sales' => \App\Models\Sale::class,
+            'sale_items' => \App\Models\SaleItem::class,
+            'sale_payments' => \App\Models\SalePayment::class,
+            'sales_returns' => \App\Models\SalesReturn::class,
+            'sale_return_items' => \App\Models\SaleReturnItem::class,
+            'expenses' => \App\Models\Expense::class,
+            'stock_movements' => \App\Models\StockMovement::class,
+            'cashbox_transactions' => \App\Models\CashboxTransaction::class,
+            'customer_transactions' => \App\Models\CustomerTransaction::class,
+            'supplier_transactions' => \App\Models\SupplierTransaction::class,
+            'inventory_counts' => \App\Models\InventoryCount::class,
+            'inventory_count_items' => \App\Models\InventoryCountItem::class,
+            'user_activity_logs' => \App\Models\UserActivityLog::class,
+        ];
+
+        $counts = [];
+        $details = [];
+
+        foreach ($models as $key => $modelClass) {
+            try {
+                $counts[$key] = $modelClass::count();
+            } catch (\Exception $e) {
+                $counts[$key] = 'error: ' . $e->getMessage();
+            }
+        }
+
+        $detailModels = [
+            'sales' => ['class' => \App\Models\Sale::class, 'unique' => 'invoice_number', 'fields' => ['id', 'invoice_number', 'total', 'status', 'local_uuid', 'device_id']],
+            'purchases' => ['class' => \App\Models\Purchase::class, 'unique' => 'invoice_number', 'fields' => ['id', 'invoice_number', 'total', 'status', 'local_uuid', 'device_id']],
+            'sales_returns' => ['class' => \App\Models\SalesReturn::class, 'unique' => 'return_number', 'fields' => ['id', 'return_number', 'total_amount', 'status', 'local_uuid', 'device_id']],
+            'expenses' => ['class' => \App\Models\Expense::class, 'unique' => 'reference_number', 'fields' => ['id', 'reference_number', 'amount', 'local_uuid', 'device_id']],
+            'inventory_counts' => ['class' => \App\Models\InventoryCount::class, 'unique' => 'reference_number', 'fields' => ['id', 'reference_number', 'status', 'local_uuid', 'device_id']],
+        ];
+
+        foreach ($detailModels as $key => $config) {
+            try {
+                $details[$key] = $config['class']::select($config['fields'])
+                    ->orderBy('id')
+                    ->get()
+                    ->map(function ($r) use ($config) {
+                        $arr = [];
+                        foreach ($config['fields'] as $f) {
+                            $arr[$f] = $r->$f;
+                        }
+                        return $arr;
+                    });
+            } catch (\Exception $e) {
+                $details[$key] = [];
+            }
+        }
 
         return response()->json([
-            'sales_count' => $sales->count(),
-            'sale_items_count' => \App\Models\SaleItem::count(),
-            'sales' => $sales,
+            'counts' => $counts,
+            'details' => $details,
         ]);
     });
 });
