@@ -1022,10 +1022,19 @@
 
                 isSyncing = true;
                 try {
-                    await syncAction('push');
-                    await syncAction('pull');
+                    const pushResult = await syncAction('push');
+                    if (!pushResult.success) {
+                        console.error('Sync push failed:', pushResult.message);
+                        showResult(false, 'فشل رفع البيانات: ' + (pushResult.message || '').substring(0, 100));
+                    }
+                    const pullResult = await syncAction('pull');
+                    if (!pullResult.success) {
+                        console.error('Sync pull failed:', pullResult.message);
+                    }
                     await updateStatus();
-                } catch (e) {}
+                } catch (e) {
+                    console.error('Auto sync error:', e);
+                }
                 isSyncing = false;
             }
 
@@ -1054,7 +1063,7 @@
             }
 
             updateStatus();
-            checkServerConnection();
+            setTimeout(syncLoop, 3000);
             setInterval(syncLoop, 300000);
             setInterval(updateStatus, 300000);
         })();
