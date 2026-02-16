@@ -25,4 +25,25 @@ Route::prefix('v1')->group(function () {
         Route::get('/device/status', [DeviceController::class, 'status']);
         Route::post('/device/heartbeat', [DeviceController::class, 'heartbeat']);
     });
+
+    Route::get('/sync/compare', function () {
+        $sales = \App\Models\Sale::select('id', 'invoice_number', 'total', 'status', 'local_uuid', 'device_id', 'created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn($s) => [
+                'id' => $s->id,
+                'invoice_number' => $s->invoice_number,
+                'total' => (float) $s->total,
+                'status' => $s->status,
+                'local_uuid' => $s->local_uuid,
+                'device_id' => $s->device_id,
+                'created_at' => $s->created_at?->toIso8601String(),
+            ]);
+
+        return response()->json([
+            'sales_count' => $sales->count(),
+            'sale_items_count' => \App\Models\SaleItem::count(),
+            'sales' => $sales,
+        ]);
+    })->middleware('verify.device.token');
 });

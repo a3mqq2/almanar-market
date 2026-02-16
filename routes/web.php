@@ -367,4 +367,102 @@ Route::prefix('api/sync')->middleware('auth')->group(function () {
             ]);
         }
     });
+
+    Route::get('/compare', function () {
+        if (!config('desktop.mode')) {
+            return response()->json(['error' => 'Desktop mode only']);
+        }
+
+        $localSales = \App\Models\Sale::select('id', 'invoice_number', 'total', 'status', 'local_uuid', 'device_id', 'synced_at', 'created_at')
+            ->orderBy('id')
+            ->get();
+
+        $localItems = \App\Models\SaleItem::count();
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::withOptions([
+                'verify' => base_path('certs/cacert.pem'),
+            ])->timeout(15)
+                ->withToken(config('desktop.api_token'))
+                ->get(config('desktop.server_url') . '/api/v1/sync/compare', [
+                    'device_id' => config('desktop.device_id'),
+                ]);
+
+            if (!$response->successful()) {
+                return response()->json([
+                    'error' => 'Server returned ' . $response->status(),
+                    'body' => $response->body(),
+                ]);
+            }
+
+            $server = $response->json();
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()]);
+        }
+
+        $serverInvoices = collect($server['sales'])->keyBy('invoice_number');
+        $localInvoices = $localSales->keyBy('invoice_number');
+
+        $onlyLocal = [];
+        $onlyServer = [];
+        $onBoth = [];
+        $duplicateLocal = [];
+
+        $localGrouped = $localSales->groupBy('invoice_number');
+        foreach ($localGrouped as $num => $group) {
+            if ($group->count() > 1) {
+                $duplicateLocal[$num] = $group->map(fn($s) => ['id' => $s->id, 'total' => (float) $s->total, 'status' => $s->status])->values()->toArray();
+            }
+        }
+
+        foreach ($localInvoices as $num => $sale) {
+            if ($serverInvoices->has($num)) {
+                $serverSale = $serverInvoices[$num];
+                $onBoth[] = [
+                    'invoice_number' => $num,
+                    'local_id' => $sale->id,
+                    'server_id' => $serverSale['id'],
+                    'local_total' => (float) $sale->total,
+                    'server_total' => $serverSale['total'],
+                    'match' => abs((float) $sale->total - $serverSale['total']) < 0.01,
+                ];
+            } else {
+                $onlyLocal[] = [
+                    'invoice_number' => $num,
+                    'id' => $sale->id,
+                    'total' => (float) $sale->total,
+                    'status' => $sale->status,
+                    'synced_at' => $sale->synced_at?->toIso8601String(),
+                ];
+            }
+        }
+
+        foreach ($serverInvoices as $num => $sale) {
+            if (!$localInvoices->has($num)) {
+                $onlyServer[] = [
+                    'invoice_number' => $num,
+                    'id' => $sale['id'],
+                    'total' => $sale['total'],
+                    'status' => $sale['status'],
+                ];
+            }
+        }
+
+        return response()->json([
+            'local_sales' => $localSales->count(),
+            'local_items' => $localItems,
+            'server_sales' => $server['sales_count'],
+            'server_items' => $server['sale_items_count'],
+            'on_both' => count($onBoth),
+            'only_local' => count($onlyLocal),
+            'only_server' => count($onlyServer),
+            'duplicate_local' => count($duplicateLocal),
+            'details' => [
+                'only_local' => $onlyLocal,
+                'only_server' => $onlyServer,
+                'mismatched' => collect($onBoth)->where('match', false)->values(),
+                'duplicate_local' => $duplicateLocal,
+            ],
+        ]);
+    });
 });
