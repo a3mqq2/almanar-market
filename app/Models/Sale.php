@@ -156,7 +156,8 @@ class Sale extends Model
 
     public static function generateInvoiceNumber(): string
     {
-        $prefix = 'SAL-' . date('Ym') . '-';
+        $deviceTag = config('desktop.mode') ? 'D' : '';
+        $prefix = 'SAL-' . $deviceTag . date('Ym') . '-';
         $lastSale = static::where('invoice_number', 'like', $prefix . '%')
             ->orderBy('id', 'desc')
             ->first();

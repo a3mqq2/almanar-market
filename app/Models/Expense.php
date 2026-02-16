@@ -58,7 +58,8 @@ class Expense extends Model
 
     public static function generateReferenceNumber(): string
     {
-        $prefix = 'EXP-' . date('Ym') . '-';
+        $deviceTag = config('desktop.mode') ? 'D' : '';
+        $prefix = 'EXP-' . $deviceTag . date('Ym') . '-';
         $lastExpense = static::where('reference_number', 'like', $prefix . '%')
             ->orderBy('id', 'desc')
             ->first();

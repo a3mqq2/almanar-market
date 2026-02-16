@@ -152,7 +152,8 @@ class Purchase extends Model
 
     public static function generateInvoiceNumber(): string
     {
-        $prefix = 'PUR-' . date('Ym');
+        $deviceTag = config('desktop.mode') ? 'D' : '';
+        $prefix = 'PUR-' . $deviceTag . date('Ym');
         $lastPurchase = static::where('id', '>', 0)
             ->whereYear('created_at', date('Y'))
             ->whereMonth('created_at', date('m'))

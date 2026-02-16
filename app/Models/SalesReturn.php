@@ -121,7 +121,8 @@ class SalesReturn extends Model
 
     public static function generateReturnNumber(): string
     {
-        $prefix = 'RET-' . date('Ym') . '-';
+        $deviceTag = config('desktop.mode') ? 'D' : '';
+        $prefix = 'RET-' . $deviceTag . date('Ym') . '-';
         $lastReturn = static::where('return_number', 'like', $prefix . '%')
             ->orderBy('id', 'desc')
             ->first();

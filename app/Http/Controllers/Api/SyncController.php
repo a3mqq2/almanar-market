@@ -105,13 +105,7 @@ class SyncController extends Controller
                     ];
                 }
 
-                if ($modelClass === 'App\Models\Sale' && isset($payload['invoice_number'])) {
-                    $conflicting = \App\Models\Sale::where('invoice_number', $payload['invoice_number'])->first();
-                    if ($conflicting) {
-                        DB::table('sales')->where('id', $conflicting->id)
-                            ->update(['invoice_number' => $payload['invoice_number'] . '-S' . $conflicting->id]);
-                    }
-                }
+                $this->resolveUniqueConflict($modelClass, $payload);
 
                 $model = new $modelClass();
                 $model->fill($payload);
@@ -144,15 +138,7 @@ class SyncController extends Controller
                     ];
                 }
 
-                if ($modelClass === 'App\Models\Sale' && isset($payload['invoice_number'])) {
-                    $conflicting = \App\Models\Sale::where('invoice_number', $payload['invoice_number'])
-                        ->where('id', '!=', $model->id)
-                        ->first();
-                    if ($conflicting) {
-                        DB::table('sales')->where('id', $conflicting->id)
-                            ->update(['invoice_number' => $payload['invoice_number'] . '-S' . $conflicting->id]);
-                    }
-                }
+                $this->resolveUniqueConflict($modelClass, $payload, $model->id);
 
                 $model->fill($payload);
                 $model->synced_at = now();
@@ -183,6 +169,37 @@ class SyncController extends Controller
         }
 
         return ['status' => 'error', 'message' => 'Unknown action'];
+    }
+
+    protected function getUniqueField(string $modelClass): ?string
+    {
+        $map = [
+            'App\Models\Sale' => 'invoice_number',
+            'App\Models\SalesReturn' => 'return_number',
+            'App\Models\Purchase' => 'invoice_number',
+            'App\Models\Expense' => 'reference_number',
+            'App\Models\InventoryCount' => 'reference_number',
+        ];
+
+        return $map[$modelClass] ?? null;
+    }
+
+    protected function resolveUniqueConflict(string $modelClass, array $payload, int $excludeId = 0): void
+    {
+        $uniqueField = $this->getUniqueField($modelClass);
+        if (!$uniqueField || !isset($payload[$uniqueField])) {
+            return;
+        }
+
+        $table = (new $modelClass)->getTable();
+        $conflicting = $modelClass::where($uniqueField, $payload[$uniqueField])
+            ->where('id', '!=', $excludeId)
+            ->first();
+
+        if ($conflicting) {
+            DB::table($table)->where('id', $conflicting->id)
+                ->update([$uniqueField => $payload[$uniqueField] . '-S' . $conflicting->id]);
+        }
     }
 
     public function pull(Request $request): JsonResponse

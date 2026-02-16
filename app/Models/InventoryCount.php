@@ -162,7 +162,8 @@ class InventoryCount extends Model
 
     public static function generateReferenceNumber(): string
     {
-        $prefix = 'INV-' . date('Ym') . '-';
+        $deviceTag = config('desktop.mode') ? 'D' : '';
+        $prefix = 'INV-' . $deviceTag . date('Ym') . '-';
         $lastCount = static::where('reference_number', 'like', $prefix . '%')
             ->orderBy('id', 'desc')
             ->first();
