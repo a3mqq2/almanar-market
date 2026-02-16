@@ -91,8 +91,6 @@ Route::prefix('v1')->group(function () {
         ];
 
         $counts = [];
-        $details = [];
-
         foreach ($models as $key => $modelClass) {
             try {
                 $counts[$key] = $modelClass::count();
@@ -101,14 +99,58 @@ Route::prefix('v1')->group(function () {
             }
         }
 
+        $sales = \App\Models\Sale::select('id', 'invoice_number', 'total', 'subtotal', 'discount_amount', 'tax_amount', 'status', 'local_uuid', 'device_id')
+            ->orderBy('id')
+            ->get()
+            ->map(function ($s) {
+                $items = \App\Models\SaleItem::where('sale_id', $s->id)
+                    ->select('id', 'product_id', 'quantity', 'unit_price', 'total_price', 'cost_at_sale', 'base_quantity')
+                    ->get();
+                return [
+                    'id' => $s->id,
+                    'invoice_number' => $s->invoice_number,
+                    'total' => (float) $s->total,
+                    'subtotal' => (float) $s->subtotal,
+                    'discount_amount' => (float) $s->discount_amount,
+                    'tax_amount' => (float) $s->tax_amount,
+                    'status' => $s->status,
+                    'local_uuid' => $s->local_uuid,
+                    'device_id' => $s->device_id,
+                    'items_count' => $items->count(),
+                    'items_total' => (float) $items->sum('total_price'),
+                    'items_cost' => (float) $items->sum(fn($i) => $i->cost_at_sale * $i->base_quantity),
+                    'items' => $items->map(fn($i) => [
+                        'id' => $i->id,
+                        'product_id' => $i->product_id,
+                        'qty' => (float) $i->quantity,
+                        'price' => (float) $i->unit_price,
+                        'total' => (float) $i->total_price,
+                        'cost' => (float) $i->cost_at_sale,
+                    ]),
+                ];
+            });
+
+        $financials = [
+            'total_sales' => (float) \App\Models\Sale::where('status', '!=', 'cancelled')->sum('total'),
+            'total_cost' => (float) \Illuminate\Support\Facades\DB::table('sale_items')
+                ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+                ->where('sales.status', '!=', 'cancelled')
+                ->selectRaw('SUM(sale_items.cost_at_sale * sale_items.base_quantity) as total')
+                ->value('total'),
+            'total_profit' => 0,
+            'total_expenses' => (float) \App\Models\Expense::sum('amount'),
+            'total_purchases' => (float) \App\Models\Purchase::sum('total'),
+        ];
+        $financials['total_profit'] = $financials['total_sales'] - $financials['total_cost'];
+
         $detailModels = [
-            'sales' => ['class' => \App\Models\Sale::class, 'unique' => 'invoice_number', 'fields' => ['id', 'invoice_number', 'total', 'status', 'local_uuid', 'device_id']],
             'purchases' => ['class' => \App\Models\Purchase::class, 'unique' => 'invoice_number', 'fields' => ['id', 'invoice_number', 'total', 'status', 'local_uuid', 'device_id']],
             'sales_returns' => ['class' => \App\Models\SalesReturn::class, 'unique' => 'return_number', 'fields' => ['id', 'return_number', 'total_amount', 'status', 'local_uuid', 'device_id']],
             'expenses' => ['class' => \App\Models\Expense::class, 'unique' => 'reference_number', 'fields' => ['id', 'reference_number', 'amount', 'local_uuid', 'device_id']],
             'inventory_counts' => ['class' => \App\Models\InventoryCount::class, 'unique' => 'reference_number', 'fields' => ['id', 'reference_number', 'status', 'local_uuid', 'device_id']],
         ];
 
+        $details = [];
         foreach ($detailModels as $key => $config) {
             try {
                 $details[$key] = $config['class']::select($config['fields'])
@@ -128,6 +170,8 @@ Route::prefix('v1')->group(function () {
 
         return response()->json([
             'counts' => $counts,
+            'financials' => $financials,
+            'sales' => $sales,
             'details' => $details,
         ]);
     });

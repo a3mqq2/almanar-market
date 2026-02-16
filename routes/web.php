@@ -418,7 +418,7 @@ Route::get('/api/sync/compare', function () {
     try {
         $response = \Illuminate\Support\Facades\Http::withOptions([
             'verify' => base_path('certs/cacert.pem'),
-        ])->timeout(30)
+        ])->timeout(60)
             ->withToken(config('desktop.api_token'))
             ->get(config('desktop.server_url') . '/api/v1/sync/compare');
 
@@ -435,12 +435,11 @@ Route::get('/api/sync/compare', function () {
     }
 
     $serverCounts = $server['counts'] ?? [];
-
-    $summary = [];
+    $countSummary = [];
     foreach ($models as $key => $modelClass) {
         $local = $localCounts[$key] ?? 0;
         $srv = $serverCounts[$key] ?? 0;
-        $summary[$key] = [
+        $countSummary[$key] = [
             'local' => $local,
             'server' => $srv,
             'diff' => $local - $srv,
@@ -448,42 +447,142 @@ Route::get('/api/sync/compare', function () {
         ];
     }
 
+    $localFinancials = [
+        'total_sales' => (float) \App\Models\Sale::where('status', '!=', 'cancelled')->sum('total'),
+        'total_cost' => (float) \Illuminate\Support\Facades\DB::table('sale_items')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->where('sales.status', '!=', 'cancelled')
+            ->selectRaw('SUM(sale_items.cost_at_sale * sale_items.base_quantity) as total')
+            ->value('total'),
+        'total_expenses' => (float) \App\Models\Expense::sum('amount'),
+        'total_purchases' => (float) \App\Models\Purchase::sum('total'),
+    ];
+    $localFinancials['total_profit'] = $localFinancials['total_sales'] - $localFinancials['total_cost'];
+
+    $serverFinancials = $server['financials'] ?? [];
+
+    $financialComparison = [];
+    foreach ($localFinancials as $key => $localVal) {
+        $serverVal = (float) ($serverFinancials[$key] ?? 0);
+        $financialComparison[$key] = [
+            'local' => round($localVal, 2),
+            'server' => round($serverVal, 2),
+            'diff' => round($localVal - $serverVal, 2),
+            'match' => abs($localVal - $serverVal) < 0.01,
+        ];
+    }
+
+    $serverSales = collect($server['sales'] ?? []);
+    $localSales = \App\Models\Sale::select('id', 'invoice_number', 'total', 'subtotal', 'discount_amount', 'tax_amount', 'status', 'local_uuid', 'device_id')
+        ->orderBy('id')
+        ->get();
+
+    $serverByInvoice = $serverSales->keyBy('invoice_number');
+    $localByInvoice = $localSales->keyBy('invoice_number');
+
+    $salesComparison = [
+        'only_local' => [],
+        'only_server' => [],
+        'mismatched_total' => [],
+        'mismatched_items' => [],
+    ];
+
+    foreach ($localByInvoice as $inv => $sale) {
+        if (!$inv) continue;
+        if (!$serverByInvoice->has($inv)) {
+            $localItems = \App\Models\SaleItem::where('sale_id', $sale->id)->get();
+            $salesComparison['only_local'][] = [
+                'invoice_number' => $inv,
+                'id' => $sale->id,
+                'total' => (float) $sale->total,
+                'status' => $sale->status,
+                'items_count' => $localItems->count(),
+            ];
+            continue;
+        }
+
+        $srv = $serverByInvoice[$inv];
+        $localTotal = (float) $sale->total;
+        $serverTotal = (float) $srv['total'];
+
+        if (abs($localTotal - $serverTotal) >= 0.01) {
+            $localItems = \App\Models\SaleItem::where('sale_id', $sale->id)
+                ->select('product_id', 'quantity', 'unit_price', 'total_price', 'cost_at_sale', 'base_quantity')
+                ->get();
+            $salesComparison['mismatched_total'][] = [
+                'invoice_number' => $inv,
+                'local_id' => $sale->id,
+                'server_id' => $srv['id'],
+                'local_total' => $localTotal,
+                'server_total' => $serverTotal,
+                'local_subtotal' => (float) $sale->subtotal,
+                'server_subtotal' => (float) $srv['subtotal'],
+                'local_items_count' => $localItems->count(),
+                'server_items_count' => $srv['items_count'],
+                'local_items' => $localItems->map(fn($i) => [
+                    'product_id' => $i->product_id,
+                    'qty' => (float) $i->quantity,
+                    'price' => (float) $i->unit_price,
+                    'total' => (float) $i->total_price,
+                    'cost' => (float) $i->cost_at_sale,
+                ]),
+                'server_items' => $srv['items'],
+            ];
+        } else {
+            $localItemCount = \App\Models\SaleItem::where('sale_id', $sale->id)->count();
+            $serverItemCount = $srv['items_count'];
+            if ($localItemCount !== $serverItemCount) {
+                $salesComparison['mismatched_items'][] = [
+                    'invoice_number' => $inv,
+                    'total' => $localTotal,
+                    'local_items' => $localItemCount,
+                    'server_items' => $serverItemCount,
+                ];
+            }
+        }
+    }
+
+    foreach ($serverByInvoice as $inv => $srv) {
+        if (!$inv) continue;
+        if (!$localByInvoice->has($inv)) {
+            $salesComparison['only_server'][] = [
+                'invoice_number' => $inv,
+                'id' => $srv['id'],
+                'total' => (float) $srv['total'],
+                'status' => $srv['status'],
+                'items_count' => $srv['items_count'],
+            ];
+        }
+    }
+
     $detailConfigs = [
-        'sales' => ['unique' => 'invoice_number', 'amount' => 'total'],
         'purchases' => ['unique' => 'invoice_number', 'amount' => 'total'],
         'sales_returns' => ['unique' => 'return_number', 'amount' => 'total_amount'],
         'expenses' => ['unique' => 'reference_number', 'amount' => 'amount'],
         'inventory_counts' => ['unique' => 'reference_number', 'amount' => null],
     ];
 
-    $details = [];
+    $otherDetails = [];
     $serverDetails = $server['details'] ?? [];
 
     foreach ($detailConfigs as $key => $config) {
         $uniqueField = $config['unique'];
         $amountField = $config['amount'];
 
-        $localRecords = collect();
         try {
             $modelClass = $models[$key];
-            $fields = ['id', $uniqueField, 'local_uuid'];
-            if (\Illuminate\Support\Facades\Schema::hasColumn((new $modelClass)->getTable(), 'device_id')) {
-                $fields[] = 'device_id';
-            }
+            $fields = ['id', $uniqueField];
+            if ($amountField) $fields[] = $amountField;
             if (\Illuminate\Support\Facades\Schema::hasColumn((new $modelClass)->getTable(), 'status')) {
                 $fields[] = 'status';
             }
-            if ($amountField) {
-                $fields[] = $amountField;
-            }
             $localRecords = $modelClass::select($fields)->orderBy('id')->get();
         } catch (\Exception $e) {
-            $details[$key] = ['error' => $e->getMessage()];
+            $otherDetails[$key] = ['error' => $e->getMessage()];
             continue;
         }
 
         $serverRecords = collect($serverDetails[$key] ?? []);
-
         $localByUnique = $localRecords->keyBy($uniqueField);
         $serverByUnique = $serverRecords->keyBy($uniqueField);
 
@@ -498,19 +597,12 @@ Route::get('/api/sync/compare', function () {
                     $localAmt = (float) $rec->$amountField;
                     $serverAmt = (float) ($serverByUnique[$uid][$amountField] ?? 0);
                     if (abs($localAmt - $serverAmt) >= 0.01) {
-                        $mismatched[] = [
-                            $uniqueField => $uid,
-                            'local_id' => $rec->id,
-                            'server_id' => $serverByUnique[$uid]['id'],
-                            'local_amount' => $localAmt,
-                            'server_amount' => $serverAmt,
-                        ];
+                        $mismatched[] = [$uniqueField => $uid, 'local_amount' => $localAmt, 'server_amount' => $serverAmt];
                     }
                 }
             } else {
                 $item = [$uniqueField => $uid, 'id' => $rec->id];
                 if ($amountField) $item['amount'] = (float) $rec->$amountField;
-                if (isset($rec->status)) $item['status'] = $rec->status;
                 $onlyLocal[] = $item;
             }
         }
@@ -520,16 +612,11 @@ Route::get('/api/sync/compare', function () {
             if (!$localByUnique->has($uid)) {
                 $item = [$uniqueField => $uid, 'id' => $rec['id']];
                 if ($amountField) $item['amount'] = (float) ($rec[$amountField] ?? 0);
-                if (isset($rec['status'])) $item['status'] = $rec['status'];
                 $onlyServer[] = $item;
             }
         }
 
-        $details[$key] = [
-            'only_local' => $onlyLocal,
-            'only_server' => $onlyServer,
-            'mismatched' => $mismatched,
-        ];
+        $otherDetails[$key] = ['only_local' => $onlyLocal, 'only_server' => $onlyServer, 'mismatched' => $mismatched];
     }
 
     $syncLogs = [
@@ -540,8 +627,10 @@ Route::get('/api/sync/compare', function () {
     ];
 
     return response()->json([
-        'summary' => $summary,
-        'details' => $details,
+        'financials' => $financialComparison,
+        'counts' => $countSummary,
+        'sales' => $salesComparison,
+        'other' => $otherDetails,
         'sync_logs' => $syncLogs,
     ]);
 });
