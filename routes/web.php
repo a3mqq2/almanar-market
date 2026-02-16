@@ -368,10 +368,12 @@ Route::prefix('api/sync')->middleware('auth')->group(function () {
         }
     });
 
-    Route::get('/compare', function () {
-        if (!config('desktop.mode')) {
-            return response()->json(['error' => 'Desktop mode only']);
-        }
+});
+
+Route::get('/api/sync/compare', function () {
+    if (!config('desktop.mode')) {
+        return response()->json(['error' => 'Desktop mode only']);
+    }
 
         $localSales = \App\Models\Sale::select('id', 'invoice_number', 'total', 'status', 'local_uuid', 'device_id', 'synced_at', 'created_at')
             ->orderBy('id')
@@ -465,4 +467,3 @@ Route::prefix('api/sync')->middleware('auth')->group(function () {
             ],
         ]);
     });
-});
