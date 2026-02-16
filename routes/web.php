@@ -434,7 +434,7 @@ Route::get('/api/sync/compare', function () {
                     'id' => $sale->id,
                     'total' => (float) $sale->total,
                     'status' => $sale->status,
-                    'synced_at' => $sale->synced_at?->toIso8601String(),
+                    'synced_at' => $sale->synced_at,
                 ];
             }
         }
