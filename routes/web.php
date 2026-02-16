@@ -973,6 +973,52 @@ Route::get('/api/sync/repair-items', function () {
     }
 });
 
+Route::get('/api/sync/debug', function () {
+    $desktopMode = config('desktop.mode');
+    $deviceId = config('desktop.device_id');
+
+    $recentSales = \App\Models\Sale::orderBy('id', 'desc')->take(5)->get(['id', 'invoice_number', 'total', 'status', 'local_uuid', 'device_id', 'created_at']);
+
+    $recentLogs = \App\Models\SyncLog::orderBy('id', 'desc')->take(20)->get(['id', 'syncable_type', 'syncable_id', 'action', 'sync_status', 'device_id', 'created_at']);
+
+    $logsByStatus = \App\Models\SyncLog::selectRaw('sync_status, count(*) as total')->groupBy('sync_status')->get();
+
+    $pendingForDevice = \App\Models\SyncLog::where('device_id', $deviceId)
+        ->where('sync_status', 'pending')
+        ->count();
+
+    $todayLogs = \App\Models\SyncLog::whereDate('created_at', today())->count();
+
+    $syncLoggingState = [];
+    $models = ['App\Models\Sale', 'App\Models\SaleItem', 'App\Models\SalePayment'];
+    foreach ($models as $m) {
+        $syncLoggingState[$m] = $m::$syncLoggingEnabled;
+    }
+
+    return response()->json([
+        'config' => [
+            'desktop_mode' => $desktopMode,
+            'desktop_mode_type' => gettype($desktopMode),
+            'device_id' => $deviceId,
+        ],
+        'sync_logging_enabled' => $syncLoggingState,
+        'recent_sales' => $recentSales,
+        'recent_logs' => $recentLogs->map(fn($l) => [
+            'id' => $l->id,
+            'type' => class_basename($l->syncable_type),
+            'record_id' => $l->syncable_id,
+            'action' => $l->action,
+            'status' => $l->sync_status,
+            'device_id' => $l->device_id,
+            'created_at' => $l->created_at->toDateTimeString(),
+        ]),
+        'logs_by_status' => $logsByStatus,
+        'pending_for_device' => $pendingForDevice,
+        'today_logs' => $todayLogs,
+        'total_logs' => \App\Models\SyncLog::count(),
+    ]);
+});
+
 Route::get('/api/sync/cleanup', function () {
     if (!config('desktop.mode')) {
         return response()->json(['error' => 'Desktop mode only']);
