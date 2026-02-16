@@ -42,8 +42,8 @@ class SyncController extends Controller
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
         DB::beginTransaction();
 
-        try {
-            foreach ($changes as $change) {
+        foreach ($changes as $change) {
+            try {
                 $result = $this->processChange($change, $deviceId);
 
                 if ($result['status'] == 'synced') {
@@ -67,27 +67,27 @@ class SyncController extends Controller
                         'message' => $result['message'] ?? 'Unknown error',
                     ];
                 }
+            } catch (\Exception $e) {
+                $errors[] = [
+                    'log_id' => $change['id'] ?? null,
+                    'type' => $change['type'] ?? '',
+                    'action' => $change['action'] ?? '',
+                    'record_id' => $change['record_id'] ?? 0,
+                    'message' => $e->getMessage(),
+                ];
             }
-
-            DB::commit();
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
-
-            return response()->json([
-                'success' => true,
-                'synced' => $synced,
-                'conflicts' => $conflicts,
-                'errors' => $errors,
-                'timestamp' => now()->toIso8601String(),
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
-
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 500);
         }
+
+        DB::commit();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+
+        return response()->json([
+            'success' => true,
+            'synced' => $synced,
+            'conflicts' => $conflicts,
+            'errors' => $errors,
+            'timestamp' => now()->toIso8601String(),
+        ]);
     }
 
     protected function processChange(array $change, string $deviceId): array
@@ -108,7 +108,17 @@ class SyncController extends Controller
                     ->where('device_id', $deviceId)
                     ->first();
 
+                if (!$existing) {
+                    $existing = $this->findByCompositeKey($modelClass, $payload);
+                }
+
                 if ($existing) {
+                    $existing->fill($payload);
+                    $existing->local_uuid = $payload['local_uuid'] ?? null;
+                    $existing->device_id = $deviceId;
+                    $existing->synced_at = now();
+                    $existing->save();
+
                     return [
                         'status' => 'synced',
                         'server_id' => $existing->id,
@@ -139,6 +149,10 @@ class SyncController extends Controller
                 }
 
                 if (!$model) {
+                    $model = $this->findByCompositeKey($modelClass, $payload);
+                }
+
+                if (!$model) {
                     $this->resolveUniqueConflict($modelClass, $payload);
 
                     $model = new $modelClass();
@@ -151,13 +165,6 @@ class SyncController extends Controller
                     return [
                         'status' => 'synced',
                         'server_id' => $model->id,
-                    ];
-                }
-
-                if ($model->updated_at > $timestamp) {
-                    return [
-                        'status' => 'conflict',
-                        'server_data' => $model->toArray(),
                     ];
                 }
 
@@ -193,6 +200,38 @@ class SyncController extends Controller
         }
 
         return ['status' => 'error', 'message' => 'Unknown action'];
+    }
+
+    protected function getCompositeUniqueKeys(string $modelClass): ?array
+    {
+        $map = [
+            'App\Models\ShiftCashbox' => ['shift_id', 'cashbox_id'],
+            'App\Models\InventoryCountItem' => ['inventory_count_id', 'product_id'],
+        ];
+
+        return $map[$modelClass] ?? null;
+    }
+
+    protected function findByCompositeKey(string $modelClass, array $payload, int $excludeId = 0)
+    {
+        $keys = $this->getCompositeUniqueKeys($modelClass);
+        if (!$keys) {
+            return null;
+        }
+
+        $query = $modelClass::query();
+        foreach ($keys as $key) {
+            if (!isset($payload[$key])) {
+                return null;
+            }
+            $query->where($key, $payload[$key]);
+        }
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        return $query->first();
     }
 
     protected function getUniqueField(string $modelClass): ?string
