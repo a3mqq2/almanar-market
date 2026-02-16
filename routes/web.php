@@ -475,31 +475,96 @@ Route::get('/api/sync/cleanup', function () {
 
     $actions = [];
 
-    $localSuffixed = \App\Models\Sale::where('invoice_number', 'like', '%-L%')->get();
-    foreach ($localSuffixed as $sale) {
-        $original = preg_replace('/-L\d+$/', '', $sale->invoice_number);
-        $conflict = \App\Models\Sale::where('invoice_number', $original)->first();
-        if (!$conflict) {
+    $suffixed = \App\Models\Sale::where('invoice_number', 'like', '%-S%')
+        ->orWhere('invoice_number', 'like', '%-L%')
+        ->get();
+
+    foreach ($suffixed as $sale) {
+        $original = preg_replace('/-(S|L)\d+$/', '', $sale->invoice_number);
+        $normalExists = \App\Models\Sale::where('invoice_number', $original)->exists();
+
+        if ($normalExists) {
+            \App\Models\SaleItem::where('sale_id', $sale->id)->delete();
+            \App\Models\SalePayment::where('sale_id', $sale->id)->delete();
+            \App\Models\SyncLog::where('syncable_type', 'App\Models\Sale')
+                ->where('syncable_id', $sale->id)->delete();
+            \App\Models\SyncLog::where('syncable_type', 'App\Models\SaleItem')
+                ->whereIn('syncable_id', function ($q) use ($sale) {
+                    $q->select('id')->from('sale_items')->where('sale_id', $sale->id);
+                })->delete();
+            $sale->delete();
+            $actions[] = "Deleted duplicate: {$sale->invoice_number} (id:{$sale->id}, total:{$sale->total})";
+        } else {
             \Illuminate\Support\Facades\DB::table('sales')
                 ->where('id', $sale->id)
                 ->update(['invoice_number' => $original]);
-            $actions[] = "Local: renamed {$sale->invoice_number} → {$original}";
-        } else {
-            $actions[] = "Local: skipped {$sale->invoice_number} (conflict with id:{$conflict->id})";
+            $actions[] = "Renamed: {$sale->invoice_number} → {$original}";
         }
     }
 
-    $pendingLogs = \App\Models\SyncLog::where('sync_status', 'pending')->count();
-    $failedLogs = \App\Models\SyncLog::where('sync_status', 'failed')->count();
+    $serverUrl = config('desktop.server_url');
+    $deviceId = config('desktop.device_id');
+    $mismatchedRenamed = [];
 
+    try {
+        $response = \Illuminate\Support\Facades\Http::withOptions([
+            'verify' => base_path('certs/cacert.pem'),
+        ])->timeout(15)
+            ->withToken(config('desktop.api_token'))
+            ->get($serverUrl . '/api/v1/sync/compare');
+
+        if ($response->successful()) {
+            $serverSales = collect($response->json('sales'))->keyBy('invoice_number');
+
+            $localSales = \App\Models\Sale::whereNotNull('device_id')
+                ->where('invoice_number', 'not like', '%-S%')
+                ->where('invoice_number', 'not like', '%-L%')
+                ->where('invoice_number', 'not like', 'SAL-D%')
+                ->get();
+
+            foreach ($localSales as $sale) {
+                if ($serverSales->has($sale->invoice_number)) {
+                    $serverTotal = (float) $serverSales[$sale->invoice_number]['total'];
+                    $localTotal = (float) $sale->total;
+
+                    if (abs($localTotal - $serverTotal) >= 0.01) {
+                        $prefix = 'SAL-D' . date('Ym') . '-';
+                        $lastD = \App\Models\Sale::where('invoice_number', 'like', $prefix . '____')
+                            ->orderBy('invoice_number', 'desc')
+                            ->first();
+                        $nextNum = $lastD ? ((int) substr($lastD->invoice_number, -4)) + 1 : 1;
+                        $newInvoice = $prefix . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+
+                        $oldInvoice = $sale->invoice_number;
+                        \Illuminate\Support\Facades\DB::table('sales')
+                            ->where('id', $sale->id)
+                            ->update(['invoice_number' => $newInvoice]);
+
+                        \App\Models\SyncLog::where('syncable_type', 'App\Models\Sale')
+                            ->where('syncable_id', $sale->id)
+                            ->update(['sync_status' => 'pending', 'error_message' => null]);
+
+                        $actions[] = "Renumbered: {$oldInvoice} → {$newInvoice} (local:{$localTotal}, server:{$serverTotal})";
+                        $mismatchedRenamed[] = $newInvoice;
+                    }
+                }
+            }
+        }
+    } catch (\Exception $e) {
+        $actions[] = "Server compare failed: {$e->getMessage()}";
+    }
+
+    $failedLogs = \App\Models\SyncLog::where('sync_status', 'failed')->count();
     \App\Models\SyncLog::whereIn('sync_status', ['failed', 'conflict'])->update([
         'sync_status' => 'pending',
         'error_message' => null,
     ]);
-    $actions[] = "Reset {$failedLogs} failed logs to pending";
+    if ($failedLogs > 0) {
+        $actions[] = "Reset {$failedLogs} failed logs to pending";
+    }
 
     return response()->json([
         'actions' => $actions,
-        'pending_sync_logs' => $pendingLogs + $failedLogs,
+        'mismatched_renamed' => $mismatchedRenamed,
     ]);
 });
