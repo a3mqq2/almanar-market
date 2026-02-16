@@ -107,6 +107,7 @@ class SyncService
                     'pushed' => count($changes),
                     'synced' => $result['synced'] ?? [],
                     'conflicts' => $result['conflicts'] ?? [],
+                    'errors' => $result['errors'] ?? [],
                 ];
             }
 
@@ -141,6 +142,15 @@ class SyncService
                         'server_data' => $conflict['server_data'],
                         'resolution' => 'pending',
                     ]);
+                }
+            }
+        }
+
+        if (isset($response['errors'])) {
+            foreach ($response['errors'] as $error) {
+                $log = SyncLog::find($error['log_id']);
+                if ($log) {
+                    $log->markAsFailed($error['message'] ?? 'Unknown server error');
                 }
             }
         }

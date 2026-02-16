@@ -1026,6 +1026,9 @@
                     if (!pushResult.success) {
                         console.error('Sync push failed:', pushResult.message);
                         showResult(false, 'فشل رفع البيانات: ' + (pushResult.message || '').substring(0, 100));
+                    } else if (pushResult.errors && pushResult.errors.length > 0) {
+                        console.error('Sync push errors:', pushResult.errors);
+                        showResult(false, `فشل مزامنة ${pushResult.errors.length} سجل: ${pushResult.errors[0].message}`);
                     }
                     const pullResult = await syncAction('pull');
                     if (!pullResult.success) {

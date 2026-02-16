@@ -37,6 +37,7 @@ class SyncController extends Controller
 
         $synced = [];
         $conflicts = [];
+        $errors = [];
 
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
         DB::beginTransaction();
@@ -57,6 +58,14 @@ class SyncController extends Controller
                         'local_id' => $change['record_id'],
                         'server_data' => $result['server_data'],
                     ];
+                } elseif ($result['status'] == 'error') {
+                    $errors[] = [
+                        'log_id' => $change['id'] ?? null,
+                        'type' => $change['type'],
+                        'action' => $change['action'],
+                        'record_id' => $change['record_id'],
+                        'message' => $result['message'] ?? 'Unknown error',
+                    ];
                 }
             }
 
@@ -67,6 +76,7 @@ class SyncController extends Controller
                 'success' => true,
                 'synced' => $synced,
                 'conflicts' => $conflicts,
+                'errors' => $errors,
                 'timestamp' => now()->toIso8601String(),
             ]);
         } catch (\Exception $e) {
@@ -109,6 +119,7 @@ class SyncController extends Controller
 
                 $model = new $modelClass();
                 $model->fill($payload);
+                $model->local_uuid = $payload['local_uuid'] ?? null;
                 $model->device_id = $deviceId;
                 $model->synced_at = now();
                 $model->save();
@@ -128,7 +139,19 @@ class SyncController extends Controller
                 }
 
                 if (!$model) {
-                    return ['status' => 'error', 'message' => 'Record not found'];
+                    $this->resolveUniqueConflict($modelClass, $payload);
+
+                    $model = new $modelClass();
+                    $model->fill($payload);
+                    $model->local_uuid = $payload['local_uuid'] ?? null;
+                    $model->device_id = $deviceId;
+                    $model->synced_at = now();
+                    $model->save();
+
+                    return [
+                        'status' => 'synced',
+                        'server_id' => $model->id,
+                    ];
                 }
 
                 if ($model->updated_at > $timestamp) {
@@ -141,6 +164,7 @@ class SyncController extends Controller
                 $this->resolveUniqueConflict($modelClass, $payload, $model->id);
 
                 $model->fill($payload);
+                $model->local_uuid = $payload['local_uuid'] ?? null;
                 $model->synced_at = now();
                 $model->save();
 
