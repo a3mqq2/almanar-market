@@ -123,8 +123,8 @@ class SalesReturn extends Model
     {
         $deviceTag = config('desktop.mode') ? 'D' : '';
         $prefix = 'RET-' . $deviceTag . date('Ym') . '-';
-        $lastReturn = static::where('return_number', 'like', $prefix . '%')
-            ->orderBy('id', 'desc')
+        $lastReturn = static::where('return_number', 'like', $prefix . '____')
+            ->orderBy('return_number', 'desc')
             ->first();
 
         if ($lastReturn) {

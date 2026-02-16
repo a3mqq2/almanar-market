@@ -164,8 +164,8 @@ class InventoryCount extends Model
     {
         $deviceTag = config('desktop.mode') ? 'D' : '';
         $prefix = 'INV-' . $deviceTag . date('Ym') . '-';
-        $lastCount = static::where('reference_number', 'like', $prefix . '%')
-            ->orderBy('id', 'desc')
+        $lastCount = static::where('reference_number', 'like', $prefix . '____')
+            ->orderBy('reference_number', 'desc')
             ->first();
 
         if ($lastCount) {

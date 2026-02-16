@@ -153,14 +153,18 @@ class Purchase extends Model
     public static function generateInvoiceNumber(): string
     {
         $deviceTag = config('desktop.mode') ? 'D' : '';
-        $prefix = 'PUR-' . $deviceTag . date('Ym');
-        $lastPurchase = static::where('id', '>', 0)
-            ->whereYear('created_at', date('Y'))
-            ->whereMonth('created_at', date('m'))
-            ->orderBy('id', 'desc')
+        $prefix = 'PUR-' . $deviceTag . date('Ym') . '-';
+        $lastPurchase = static::where('invoice_number', 'like', $prefix . '____')
+            ->orderBy('invoice_number', 'desc')
             ->first();
 
-        $sequence = $lastPurchase ? ((int) substr($lastPurchase->id, -4)) + 1 : 1;
-        return $prefix . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        if ($lastPurchase) {
+            $lastNumber = (int) substr($lastPurchase->invoice_number, -4);
+            $newNumber = $lastNumber + 1;
+        } else {
+            $newNumber = 1;
+        }
+
+        return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
     }
 }

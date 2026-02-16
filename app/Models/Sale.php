@@ -158,8 +158,8 @@ class Sale extends Model
     {
         $deviceTag = config('desktop.mode') ? 'D' : '';
         $prefix = 'SAL-' . $deviceTag . date('Ym') . '-';
-        $lastSale = static::where('invoice_number', 'like', $prefix . '%')
-            ->orderBy('id', 'desc')
+        $lastSale = static::where('invoice_number', 'like', $prefix . '____')
+            ->orderBy('invoice_number', 'desc')
             ->first();
 
         if ($lastSale) {

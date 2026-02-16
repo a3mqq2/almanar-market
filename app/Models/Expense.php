@@ -60,8 +60,8 @@ class Expense extends Model
     {
         $deviceTag = config('desktop.mode') ? 'D' : '';
         $prefix = 'EXP-' . $deviceTag . date('Ym') . '-';
-        $lastExpense = static::where('reference_number', 'like', $prefix . '%')
-            ->orderBy('id', 'desc')
+        $lastExpense = static::where('reference_number', 'like', $prefix . '____')
+            ->orderBy('reference_number', 'desc')
             ->first();
 
         if ($lastExpense) {
