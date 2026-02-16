@@ -87,6 +87,28 @@ Route::prefix('v1')->group(function () {
         ]);
     });
 
+    Route::post('/sync/cancel-empty-sales', function (\Illuminate\Http\Request $request) {
+        $request->validate([
+            'invoice_numbers' => 'required|array',
+            'invoice_numbers.*' => 'string',
+        ]);
+
+        $cancelled = [];
+        foreach ($request->input('invoice_numbers') as $inv) {
+            $sale = \App\Models\Sale::where('invoice_number', $inv)->first();
+            if ($sale && \App\Models\SaleItem::where('sale_id', $sale->id)->count() === 0) {
+                $sale->update(['status' => 'cancelled']);
+                $cancelled[] = $inv;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'cancelled' => $cancelled,
+            'count' => count($cancelled),
+        ]);
+    });
+
     Route::get('/sync/cleanup', function () {
         $actions = [];
 

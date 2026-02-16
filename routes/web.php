@@ -821,6 +821,48 @@ Route::get('/api/sync/fix-all', function () {
         $actions[] = 'Repair step error: ' . $e->getMessage();
     }
 
+    $duplicateErrors = \App\Models\SyncLog::where('sync_status', 'failed')
+        ->where('error_message', 'like', '%Duplicate entry%')
+        ->where('retry_count', '>=', 3)
+        ->get();
+    if ($duplicateErrors->count() > 0) {
+        $deletedTypes = [];
+        foreach ($duplicateErrors as $log) {
+            $type = class_basename($log->syncable_type);
+            $deletedTypes[$type] = ($deletedTypes[$type] ?? 0) + 1;
+            $log->update(['sync_status' => 'synced', 'error_message' => 'auto-resolved: duplicate exists on server']);
+        }
+        $actions[] = 'Auto-resolved duplicate errors: ' . json_encode($deletedTypes);
+    }
+
+    $emptySales = \App\Models\Sale::where('status', '!=', 'cancelled')
+        ->where('total', '>', 0)
+        ->get()
+        ->filter(fn($s) => \App\Models\SaleItem::where('sale_id', $s->id)->count() === 0);
+
+    $cancelledInvoices = [];
+    foreach ($emptySales as $sale) {
+        \Illuminate\Support\Facades\DB::table('sales')
+            ->where('id', $sale->id)
+            ->update(['status' => 'cancelled', 'updated_at' => now()]);
+        $cancelledInvoices[] = "{$sale->invoice_number} (total:{$sale->total})";
+    }
+    if (!empty($cancelledInvoices)) {
+        $actions[] = 'Cancelled ' . count($cancelledInvoices) . ' sales with 0 items locally: ' . implode(', ', $cancelledInvoices);
+
+        try {
+            \Illuminate\Support\Facades\Http::withOptions([
+                'verify' => base_path('certs/cacert.pem'),
+            ])->timeout(30)
+                ->withToken($device->api_token)
+                ->post(config('desktop.server_url') . '/api/v1/sync/cancel-empty-sales', [
+                    'invoice_numbers' => $emptySales->pluck('invoice_number')->toArray(),
+                ]);
+        } catch (\Exception $e) {
+            $actions[] = 'Server cancel error: ' . $e->getMessage();
+        }
+    }
+
     $failedLogs = \App\Models\SyncLog::where('sync_status', 'failed')
         ->select('id', 'syncable_type', 'syncable_id', 'action', 'error_message', 'retry_count')
         ->get();
