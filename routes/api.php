@@ -45,5 +45,5 @@ Route::prefix('v1')->group(function () {
             'sale_items_count' => \App\Models\SaleItem::count(),
             'sales' => $sales,
         ]);
-    })->middleware('verify.device.token');
+    });
 });
