@@ -1307,6 +1307,151 @@ Route::get('/api/sync/fix-cancelled-sales', function () {
     ]);
 });
 
+Route::get('/api/sync/sync-cancellations', function () {
+    if (!config('desktop.mode')) {
+        return response()->json(['error' => 'Desktop mode only']);
+    }
+
+    $deviceId = config('desktop.device_id');
+    $device = \App\Models\DeviceRegistration::where('device_id', $deviceId)->first();
+    $actions = [];
+
+    try {
+        $compareResponse = \Illuminate\Support\Facades\Http::withOptions([
+            'verify' => base_path('certs/cacert.pem'),
+        ])->timeout(60)
+            ->withToken($device->api_token)
+            ->get(config('desktop.server_url') . '/api/v1/sync/compare');
+
+        if (!$compareResponse->successful()) {
+            return response()->json(['error' => 'Server compare failed: ' . $compareResponse->status()]);
+        }
+
+        $serverSales = collect($compareResponse->json('sales') ?? []);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()]);
+    }
+
+    $serverCancelled = $serverSales->where('status', 'cancelled');
+    $fixed = 0;
+
+    foreach ($serverCancelled as $serverSale) {
+        $localSale = \App\Models\Sale::where('invoice_number', $serverSale['invoice_number'])->first();
+
+        if (!$localSale) {
+            $actions[] = "{$serverSale['invoice_number']} - not found locally";
+            continue;
+        }
+
+        if ($localSale->status === 'cancelled') {
+            continue;
+        }
+
+        $ref = "SAL-{$localSale->id}-CANCEL";
+        $alreadyProcessed = \App\Models\StockMovement::where('reference', $ref)->exists();
+
+        if (!$alreadyProcessed && $localSale->status === 'completed') {
+            $items = $localSale->items;
+            $stockRestored = 0;
+
+            foreach ($items as $item) {
+                $batch = \App\Models\InventoryBatch::find($item->inventory_batch_id);
+                if ($batch) {
+                    $product = \App\Models\Product::find($item->product_id);
+                    $currentStock = $product->total_stock ?? 0;
+                    $batch->increment('quantity', $item->base_quantity);
+
+                    \App\Models\StockMovement::create([
+                        'product_id' => $item->product_id,
+                        'batch_id' => $batch->id,
+                        'type' => 'return',
+                        'reason' => "إلغاء فاتورة #{$localSale->invoice_number} (sync-fix)",
+                        'quantity' => $item->base_quantity,
+                        'before_quantity' => $currentStock,
+                        'after_quantity' => $currentStock + $item->base_quantity,
+                        'cost_price' => $batch->cost_price,
+                        'reference' => $ref,
+                    ]);
+                    $stockRestored += $item->base_quantity;
+                }
+            }
+
+            $hasReversal = \App\Models\CashboxTransaction::where('reference_type', \App\Models\Sale::class)
+                ->where('reference_id', $localSale->id)
+                ->where('type', 'out')
+                ->exists();
+
+            $cashboxReversed = 0;
+            if (!$hasReversal) {
+                $originalTxns = \App\Models\CashboxTransaction::where('reference_type', \App\Models\Sale::class)
+                    ->where('reference_id', $localSale->id)
+                    ->where('type', 'in')
+                    ->get();
+
+                foreach ($originalTxns as $original) {
+                    $cashbox = \App\Models\Cashbox::find($original->cashbox_id);
+                    if ($cashbox) {
+                        \App\Models\CashboxTransaction::create([
+                            'cashbox_id' => $cashbox->id,
+                            'shift_id' => $original->shift_id,
+                            'type' => 'out',
+                            'amount' => $original->amount,
+                            'balance_after' => $cashbox->current_balance - $original->amount,
+                            'description' => "إلغاء فاتورة #{$localSale->invoice_number} (sync-fix)",
+                            'reference_type' => \App\Models\Sale::class,
+                            'reference_id' => $localSale->id,
+                        ]);
+                        $cashbox->decrement('current_balance', $original->amount);
+                        $cashboxReversed += $original->amount;
+                    }
+                }
+            }
+
+            $creditReversed = 0;
+            if (($localSale->credit_amount ?? 0) > 0 && $localSale->customer_id) {
+                $hasCreditReversal = \App\Models\CustomerTransaction::where('reference_type', \App\Models\Sale::class)
+                    ->where('reference_id', $localSale->id)
+                    ->where('type', 'credit')
+                    ->exists();
+
+                if (!$hasCreditReversal) {
+                    $customer = \App\Models\Customer::find($localSale->customer_id);
+                    if ($customer) {
+                        \App\Models\CustomerTransaction::create([
+                            'customer_id' => $customer->id,
+                            'type' => 'credit',
+                            'amount' => $localSale->credit_amount,
+                            'balance_after' => $customer->current_balance - $localSale->credit_amount,
+                            'description' => "إلغاء فاتورة #{$localSale->invoice_number} (sync-fix)",
+                            'reference_type' => \App\Models\Sale::class,
+                            'reference_id' => $localSale->id,
+                        ]);
+                        $customer->decrement('current_balance', $localSale->credit_amount);
+                        $creditReversed = $localSale->credit_amount;
+                    }
+                }
+            }
+
+            $actions[] = "{$localSale->invoice_number} - stock:{$stockRestored}, cashbox:{$cashboxReversed}, credit:{$creditReversed}";
+        }
+
+        $localSale->update([
+            'status' => 'cancelled',
+            'cancelled_at' => now(),
+            'cancel_reason' => 'synced from server',
+            'synced_at' => now(),
+        ]);
+        $fixed++;
+    }
+
+    return response()->json([
+        'success' => true,
+        'fixed' => $fixed,
+        'server_cancelled_count' => $serverCancelled->count(),
+        'actions' => $actions,
+    ]);
+});
+
 Route::get('/api/sync/cleanup', function () {
     if (!config('desktop.mode')) {
         return response()->json(['error' => 'Desktop mode only']);
