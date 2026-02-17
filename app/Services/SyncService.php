@@ -278,6 +278,30 @@ class SyncService
 
                         $this->resolveUniqueConflicts($modelClass, $payload, $model->id ?: 0);
 
+                        if ($modelClass === 'App\Models\Sale' && ($payload['status'] ?? '') === 'cancelled' && $model->exists && $model->status !== 'cancelled') {
+                            $this->handlePulledCancellation($model, $payload);
+                            $applied++;
+                            break;
+                        }
+
+                        if ($modelClass === 'App\Models\Purchase' && ($payload['status'] ?? '') === 'cancelled' && $model->exists && $model->status !== 'cancelled') {
+                            $this->handlePulledPurchaseCancellation($model, $payload);
+                            $applied++;
+                            break;
+                        }
+
+                        if ($modelClass === 'App\Models\SalesReturn' && $model->exists) {
+                            $this->handlePulledSalesReturn($model, $payload);
+                            $applied++;
+                            break;
+                        }
+
+                        if ($modelClass === 'App\Models\InventoryCount' && ($payload['status'] ?? '') === 'approved' && $model->exists && $model->status !== 'approved') {
+                            $this->handlePulledInventoryCountApproval($model, $payload);
+                            $applied++;
+                            break;
+                        }
+
                         $model->fill($payload);
                         $model->synced_at = now();
                         $model->save();
@@ -400,6 +424,324 @@ class SyncService
             DB::table($table)->where('id', $conflicting->id)
                 ->update([$uniqueField => $payload[$uniqueField] . '-L' . $conflicting->id]);
         }
+    }
+
+    protected function handlePulledCancellation($sale, array $payload): void
+    {
+        $ref = "SAL-{$sale->id}-CANCEL";
+        $alreadyProcessed = \App\Models\StockMovement::where('reference', $ref)->exists();
+
+        if (!$alreadyProcessed && $sale->status === 'completed') {
+            foreach ($sale->items as $item) {
+                $batch = \App\Models\InventoryBatch::find($item->inventory_batch_id);
+                if ($batch) {
+                    $currentStock = $item->product->total_stock ?? 0;
+                    $batch->increment('quantity', $item->base_quantity);
+
+                    \App\Models\StockMovement::create([
+                        'product_id' => $item->product_id,
+                        'batch_id' => $batch->id,
+                        'type' => 'return',
+                        'reason' => "إلغاء فاتورة مبيعات #{$sale->invoice_number} (sync)",
+                        'quantity' => $item->base_quantity,
+                        'before_quantity' => $currentStock,
+                        'after_quantity' => $currentStock + $item->base_quantity,
+                        'cost_price' => $batch->cost_price,
+                        'reference' => $ref,
+                    ]);
+                }
+            }
+
+            $hasReversal = \App\Models\CashboxTransaction::where('reference_type', \App\Models\Sale::class)
+                ->where('reference_id', $sale->id)
+                ->where('type', 'out')
+                ->exists();
+
+            if (!$hasReversal) {
+                $originalCashboxTxns = \App\Models\CashboxTransaction::where('reference_type', \App\Models\Sale::class)
+                    ->where('reference_id', $sale->id)
+                    ->where('type', 'in')
+                    ->get();
+
+                foreach ($originalCashboxTxns as $original) {
+                    $cashbox = \App\Models\Cashbox::find($original->cashbox_id);
+                    if ($cashbox) {
+                        \App\Models\CashboxTransaction::create([
+                            'cashbox_id' => $cashbox->id,
+                            'shift_id' => $original->shift_id,
+                            'type' => 'out',
+                            'amount' => $original->amount,
+                            'balance_after' => $cashbox->current_balance - $original->amount,
+                            'description' => "إلغاء فاتورة مبيعات #{$sale->invoice_number} (sync)",
+                            'reference_type' => \App\Models\Sale::class,
+                            'reference_id' => $sale->id,
+                        ]);
+                        $cashbox->decrement('current_balance', $original->amount);
+                    }
+                }
+            }
+
+            if (($sale->credit_amount ?? 0) > 0 && $sale->customer_id) {
+                $hasCreditReversal = \App\Models\CustomerTransaction::where('reference_type', \App\Models\Sale::class)
+                    ->where('reference_id', $sale->id)
+                    ->where('type', 'credit')
+                    ->exists();
+
+                if (!$hasCreditReversal) {
+                    $customer = \App\Models\Customer::find($sale->customer_id);
+                    if ($customer) {
+                        \App\Models\CustomerTransaction::create([
+                            'customer_id' => $customer->id,
+                            'type' => 'credit',
+                            'amount' => $sale->credit_amount,
+                            'balance_after' => $customer->current_balance - $sale->credit_amount,
+                            'description' => "إلغاء فاتورة مبيعات #{$sale->invoice_number} (sync)",
+                            'reference_type' => \App\Models\Sale::class,
+                            'reference_id' => $sale->id,
+                        ]);
+                        $customer->decrement('current_balance', $sale->credit_amount);
+                    }
+                }
+            }
+        }
+
+        $sale->update([
+            'status' => 'cancelled',
+            'cancelled_by' => $payload['cancelled_by'] ?? null,
+            'cancelled_at' => $payload['cancelled_at'] ?? now(),
+            'cancel_reason' => $payload['cancel_reason'] ?? 'synced cancellation',
+            'synced_at' => now(),
+        ]);
+    }
+
+    protected function handlePulledPurchaseCancellation($purchase, array $payload): void
+    {
+        $ref = "PUR-{$purchase->id}-CANCEL";
+        $alreadyProcessed = \App\Models\StockMovement::where('reference', $ref)->exists();
+
+        if (!$alreadyProcessed && $purchase->status === 'approved') {
+            foreach ($purchase->items as $item) {
+                $batch = \App\Models\InventoryBatch::where('purchase_item_id', $item->id)->first();
+                if ($batch && $batch->quantity > 0) {
+                    $product = \App\Models\Product::find($item->product_id);
+                    $currentStock = $product->total_stock ?? 0;
+                    $deductQty = min($batch->quantity, $item->base_quantity ?? $item->quantity);
+                    $batch->decrement('quantity', $deductQty);
+
+                    \App\Models\StockMovement::create([
+                        'product_id' => $item->product_id,
+                        'batch_id' => $batch->id,
+                        'type' => 'adjustment',
+                        'reason' => "إلغاء فاتورة مشتريات #{$purchase->invoice_number} (sync)",
+                        'quantity' => -$deductQty,
+                        'before_quantity' => $currentStock,
+                        'after_quantity' => $currentStock - $deductQty,
+                        'cost_price' => $batch->cost_price,
+                        'reference' => $ref,
+                    ]);
+                }
+            }
+
+            $hasReversal = \App\Models\SupplierTransaction::where('reference_type', \App\Models\Purchase::class)
+                ->where('reference_id', $purchase->id)
+                ->where('description', 'LIKE', '%إلغاء%')
+                ->exists();
+
+            if (!$hasReversal && $purchase->supplier_id) {
+                $supplier = \App\Models\Supplier::find($purchase->supplier_id);
+                if ($supplier) {
+                    $remaining = $purchase->total - ($purchase->paid_amount ?? 0);
+                    if ($remaining > 0) {
+                        \App\Models\SupplierTransaction::create([
+                            'supplier_id' => $supplier->id,
+                            'type' => 'credit',
+                            'amount' => $remaining,
+                            'balance_after' => $supplier->current_balance - $remaining,
+                            'description' => "إلغاء فاتورة مشتريات #{$purchase->invoice_number} (sync)",
+                            'reference_type' => \App\Models\Purchase::class,
+                            'reference_id' => $purchase->id,
+                        ]);
+                        $supplier->decrement('current_balance', $remaining);
+                    }
+
+                    if (($purchase->paid_amount ?? 0) > 0) {
+                        \App\Models\SupplierTransaction::create([
+                            'supplier_id' => $supplier->id,
+                            'type' => 'debit',
+                            'amount' => $purchase->paid_amount,
+                            'balance_after' => $supplier->current_balance + $purchase->paid_amount,
+                            'description' => "استرداد دفعة مشتريات #{$purchase->invoice_number} (sync)",
+                            'reference_type' => \App\Models\Purchase::class,
+                            'reference_id' => $purchase->id,
+                        ]);
+                        $supplier->increment('current_balance', $purchase->paid_amount);
+
+                        $cashboxTxn = \App\Models\CashboxTransaction::where('reference_type', \App\Models\Purchase::class)
+                            ->where('reference_id', $purchase->id)
+                            ->where('type', 'out')
+                            ->first();
+
+                        if ($cashboxTxn) {
+                            $cashbox = \App\Models\Cashbox::find($cashboxTxn->cashbox_id);
+                            if ($cashbox) {
+                                \App\Models\CashboxTransaction::create([
+                                    'cashbox_id' => $cashbox->id,
+                                    'shift_id' => $cashboxTxn->shift_id,
+                                    'type' => 'in',
+                                    'amount' => $purchase->paid_amount,
+                                    'balance_after' => $cashbox->current_balance + $purchase->paid_amount,
+                                    'description' => "استرداد دفعة مشتريات #{$purchase->invoice_number} (sync)",
+                                    'reference_type' => \App\Models\Purchase::class,
+                                    'reference_id' => $purchase->id,
+                                ]);
+                                $cashbox->increment('current_balance', $purchase->paid_amount);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        $purchase->update([
+            'status' => 'cancelled',
+            'synced_at' => now(),
+        ]);
+    }
+
+    protected function handlePulledSalesReturn($returnModel, array $payload): void
+    {
+        $ref = "RET-{$returnModel->id}";
+        $alreadyProcessed = \App\Models\StockMovement::where('reference', $ref)->exists();
+
+        if (!$alreadyProcessed) {
+            foreach ($returnModel->items as $item) {
+                if ($item->restore_stock ?? true) {
+                    $batch = \App\Models\InventoryBatch::where('product_id', $item->product_id)
+                        ->where('cost_price', $item->cost_price ?? 0)
+                        ->orderBy('id', 'desc')
+                        ->first();
+
+                    if (!$batch) {
+                        $batch = \App\Models\InventoryBatch::create([
+                            'product_id' => $item->product_id,
+                            'quantity' => 0,
+                            'cost_price' => $item->cost_price ?? 0,
+                            'source' => 'return',
+                        ]);
+                    }
+
+                    $product = \App\Models\Product::find($item->product_id);
+                    $currentStock = $product->total_stock ?? 0;
+                    $qty = $item->base_quantity ?? $item->quantity;
+                    $batch->increment('quantity', $qty);
+
+                    \App\Models\StockMovement::create([
+                        'product_id' => $item->product_id,
+                        'batch_id' => $batch->id,
+                        'type' => 'return',
+                        'reason' => "مرتجع مبيعات #{$returnModel->return_number} (sync)",
+                        'quantity' => $qty,
+                        'before_quantity' => $currentStock,
+                        'after_quantity' => $currentStock + $qty,
+                        'cost_price' => $item->cost_price ?? 0,
+                        'reference' => $ref,
+                    ]);
+                }
+            }
+
+            $hasCashboxTxn = \App\Models\CashboxTransaction::where('reference_type', \App\Models\SalesReturn::class)
+                ->where('reference_id', $returnModel->id)
+                ->exists();
+
+            if (!$hasCashboxTxn && ($returnModel->refund_amount ?? 0) > 0) {
+                $cashbox = \App\Models\Cashbox::first();
+                if ($cashbox) {
+                    \App\Models\CashboxTransaction::create([
+                        'cashbox_id' => $cashbox->id,
+                        'type' => 'out',
+                        'amount' => $returnModel->refund_amount,
+                        'balance_after' => $cashbox->current_balance - $returnModel->refund_amount,
+                        'description' => "مرتجع مبيعات #{$returnModel->return_number} (sync)",
+                        'reference_type' => \App\Models\SalesReturn::class,
+                        'reference_id' => $returnModel->id,
+                    ]);
+                    $cashbox->decrement('current_balance', $returnModel->refund_amount);
+                }
+            }
+        }
+
+        $returnModel->fill($payload);
+        $returnModel->synced_at = now();
+        $returnModel->save();
+    }
+
+    protected function handlePulledInventoryCountApproval($count, array $payload): void
+    {
+        $ref = "COUNT-{$count->id}";
+        $alreadyProcessed = \App\Models\StockMovement::where('reference', $ref)->exists();
+
+        if (!$alreadyProcessed) {
+            foreach ($count->items as $item) {
+                $variance = ($item->counted_quantity ?? 0) - ($item->system_quantity ?? 0);
+                if ($variance == 0) continue;
+
+                $product = \App\Models\Product::find($item->product_id);
+                if (!$product) continue;
+
+                $currentStock = $product->total_stock ?? 0;
+
+                if ($variance > 0) {
+                    $batch = \App\Models\InventoryBatch::create([
+                        'product_id' => $item->product_id,
+                        'quantity' => $variance,
+                        'cost_price' => $item->system_cost ?? 0,
+                        'source' => 'adjustment',
+                    ]);
+
+                    \App\Models\StockMovement::create([
+                        'product_id' => $item->product_id,
+                        'batch_id' => $batch->id,
+                        'type' => 'adjustment',
+                        'reason' => "جرد #{$count->reference_number} - فائض (sync)",
+                        'quantity' => $variance,
+                        'before_quantity' => $currentStock,
+                        'after_quantity' => $currentStock + $variance,
+                        'cost_price' => $item->system_cost ?? 0,
+                        'reference' => $ref,
+                    ]);
+                } else {
+                    $remaining = abs($variance);
+                    $batches = \App\Models\InventoryBatch::where('product_id', $item->product_id)
+                        ->where('quantity', '>', 0)
+                        ->orderBy('created_at')
+                        ->get();
+
+                    foreach ($batches as $batch) {
+                        if ($remaining <= 0) break;
+                        $deduct = min($batch->quantity, $remaining);
+                        $batch->decrement('quantity', $deduct);
+                        $remaining -= $deduct;
+
+                        \App\Models\StockMovement::create([
+                            'product_id' => $item->product_id,
+                            'batch_id' => $batch->id,
+                            'type' => 'adjustment',
+                            'reason' => "جرد #{$count->reference_number} - نقص (sync)",
+                            'quantity' => -$deduct,
+                            'before_quantity' => $currentStock,
+                            'after_quantity' => $currentStock - $deduct,
+                            'cost_price' => $batch->cost_price,
+                            'reference' => $ref,
+                        ]);
+                        $currentStock -= $deduct;
+                    }
+                }
+            }
+        }
+
+        $count->fill($payload);
+        $count->synced_at = now();
+        $count->save();
     }
 
     public function getServerTimestamp(): ?Carbon
