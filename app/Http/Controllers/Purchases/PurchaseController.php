@@ -441,7 +441,7 @@ class PurchaseController extends Controller
         $supplierId = $request->get('supplier_id');
 
         $products = Product::with(['productUnits.unit', 'baseUnit.unit'])
-            ->where('status', true)
+            ->where('status', 'active')
             ->where('supplier_id', $supplierId)
             ->orderBy('name')
             ->get()
