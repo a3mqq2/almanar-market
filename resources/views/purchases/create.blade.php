@@ -813,9 +813,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        const quantity = parseFloat(item.quantity) || 1;
+        const quantity = parseFloat(item.quantity);
         const unitPrice = parseFloat(item.unit_price) || 0;
         const totalPrice = parseFloat(item.total_price) || 0;
+        const isAutoLoaded = quantity === 0;
 
         row.innerHTML = `
             <td class="text-center fw-medium">${items.length}</td>
@@ -830,8 +831,9 @@ document.addEventListener('DOMContentLoaded', function() {
             </td>
             <td>
                 <input type="number" class="form-control form-control-sm item-quantity text-center"
-                       value="${quantity}" min="0.0001" step="0.0001"
-                       onchange="updateItemTotal(${item.index})" onfocus="this.select()">
+                       value="${isAutoLoaded ? '' : quantity}" min="0" step="0.0001"
+                       placeholder="0"
+                       onchange="updateItemTotal(${item.index})" oninput="updateItemTotal(${item.index})" onfocus="this.select()">
             </td>
             <td>
                 <input type="number" class="form-control form-control-sm item-price text-center"
