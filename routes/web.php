@@ -95,6 +95,9 @@ Route::middleware('role:manager')->group(function () {
 
     // Suppliers Routes
     Route::get('/suppliers/check-phone', [SupplierController::class, 'checkPhone'])->name('suppliers.check-phone');
+    Route::get('/suppliers/link-products', [SupplierController::class, 'linkProducts'])->name('suppliers.link-products');
+    Route::get('/suppliers/search-products', [SupplierController::class, 'searchProducts'])->name('suppliers.search-products');
+    Route::post('/suppliers/assign-supplier', [SupplierController::class, 'assignSupplier'])->name('suppliers.assign-supplier');
     Route::resource('suppliers', SupplierController::class)->except(['create', 'show', 'edit']);
 
     // Supplier Account Routes
@@ -114,6 +117,7 @@ Route::middleware('role:manager')->group(function () {
         Route::get('/create', [PurchaseController::class, 'create'])->name('create');
         Route::post('/', [PurchaseController::class, 'store'])->name('store');
         Route::get('/search-products', [PurchaseController::class, 'searchProducts'])->name('search-products');
+        Route::get('/supplier-products', [PurchaseController::class, 'getSupplierProducts'])->name('supplier-products');
         Route::get('/product-by-barcode', [PurchaseController::class, 'getProductByBarcode'])->name('product-by-barcode');
         Route::get('/{purchase}', [PurchaseController::class, 'show'])->name('show');
         Route::get('/{purchase}/edit', [PurchaseController::class, 'edit'])->name('edit');

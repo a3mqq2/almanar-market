@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Product;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
 
@@ -124,6 +125,78 @@ class SupplierController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تم حذف المورد بنجاح',
+        ]);
+    }
+
+    public function linkProducts()
+    {
+        $suppliers = Supplier::where('status', true)->orderBy('name')->get(['id', 'name']);
+
+        return view('suppliers.link-products', compact('suppliers'));
+    }
+
+    public function searchProducts(Request $request)
+    {
+        $query = Product::where('status', 'active');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('barcode', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('supplier_filter')) {
+            if ($request->supplier_filter === 'none') {
+                $query->whereNull('supplier_id');
+            } else {
+                $query->where('supplier_id', $request->supplier_filter);
+            }
+        }
+
+        $products = $query->with('supplier:id,name')
+            ->orderBy('name')
+            ->paginate(50);
+
+        return response()->json([
+            'data' => $products->map(function ($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'barcode' => $product->barcode,
+                    'supplier_id' => $product->supplier_id,
+                    'supplier_name' => $product->supplier?->name,
+                ];
+            }),
+            'meta' => [
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
+                'total' => $products->total(),
+                'from' => $products->firstItem(),
+                'to' => $products->lastItem(),
+            ],
+        ]);
+    }
+
+    public function assignSupplier(Request $request)
+    {
+        $validated = $request->validate([
+            'supplier_id' => 'required|exists:suppliers,id',
+            'product_ids' => 'required|array|min:1',
+            'product_ids.*' => 'exists:products,id',
+        ]);
+
+        $products = Product::whereIn('id', $validated['product_ids'])->get();
+        foreach ($products as $product) {
+            $product->update(['supplier_id' => $validated['supplier_id']]);
+        }
+
+        $supplier = Supplier::find($validated['supplier_id']);
+
+        return response()->json([
+            'success' => true,
+            'message' => "تم ربط {$products->count()} منتج بالمورد {$supplier->name}",
         ]);
     }
 

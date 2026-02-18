@@ -618,6 +618,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('supplierBalanceValue').textContent = balance.toFixed(2);
                 document.getElementById('supplierBalanceBox').classList.add('show');
             }
+            loadSupplierProducts(value);
         },
         onItemRemove: function() {
             document.getElementById('supplierBalanceBox').classList.remove('show');
@@ -629,6 +630,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const productSearchResults = document.getElementById('productSearchResults');
     const barcodeInput = document.getElementById('barcodeInput');
     const barcodeWrapper = document.getElementById('barcodeWrapper');
+
+    async function loadSupplierProducts(supplierId) {
+        if (!supplierId) return;
+
+        try {
+            const response = await fetch(`{{ route('purchases.supplier-products') }}?supplier_id=${supplierId}`);
+            const result = await response.json();
+
+            if (result.success && result.products.length > 0) {
+                items = [];
+                itemIndex = 0;
+                document.querySelectorAll('.item-row').forEach(row => row.remove());
+
+                result.products.forEach(product => {
+                    addProductToItems(product, true);
+                });
+
+                showToast(`تم تحميل ${result.products.length} منتج مرتبط بالمورد`, 'info');
+            }
+        } catch {
+            showToast('حدث خطأ في تحميل منتجات المورد', 'danger');
+        }
+    }
 
     productSearch.addEventListener('input', function() {
         clearTimeout(searchTimeout);
@@ -731,7 +755,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    function addProductToItems(product) {
+    function addProductToItems(product, fromSupplier = false) {
         const existingItem = items.find(item => item.product_id == product.id);
         if (existingItem) {
             const row = document.querySelector(`tr[data-index="${existingItem.index}"]`);
@@ -746,6 +770,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const baseUnit = product.base_unit || product.units?.find(u => u.is_base) || product.units?.find(u => u.multiplier == 1);
         const baseCostPrice = parseFloat(baseUnit?.cost_price) || 0;
+        const initialQty = fromSupplier ? 0 : 1;
         const item = {
             index: itemIndex,
             product_id: product.id,
@@ -753,10 +778,10 @@ document.addEventListener('DOMContentLoaded', function() {
             product_unit_id: baseUnit?.id || null,
             units: product.units,
             baseCostPrice: baseCostPrice,
-            quantity: 1,
+            quantity: initialQty,
             unit_price: baseCostPrice,
             unit_multiplier: 1,
-            total_price: baseCostPrice,
+            total_price: initialQty * baseCostPrice,
             expiry_date: ''
         };
 
@@ -987,22 +1012,25 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if (items.length == 0) {
-            showToast('يرجى إضافة صنف واحد على الأقل', 'warning');
+        const itemsData = [];
+        document.querySelectorAll('.item-row').forEach(row => {
+            const qty = parseFloat(row.querySelector('.item-quantity').value) || 0;
+            if (qty > 0) {
+                itemsData.push({
+                    product_id: row.querySelector('.item-product-id').value,
+                    product_unit_id: row.querySelector('.item-unit').value,
+                    quantity: qty,
+                    unit_price: row.querySelector('.item-price').value,
+                    expiry_date: row.querySelector('.item-expiry').value || null
+                });
+            }
+        });
+
+        if (itemsData.length == 0) {
+            showToast('يرجى إضافة كمية لصنف واحد على الأقل', 'warning');
             productSearch.focus();
             return;
         }
-
-        const itemsData = [];
-        document.querySelectorAll('.item-row').forEach(row => {
-            itemsData.push({
-                product_id: row.querySelector('.item-product-id').value,
-                product_unit_id: row.querySelector('.item-unit').value,
-                quantity: row.querySelector('.item-quantity').value,
-                unit_price: row.querySelector('.item-price').value,
-                expiry_date: row.querySelector('.item-expiry').value || null
-            });
-        });
 
         const paidAmount = parseFloat(document.getElementById('paid_amount').value) || 0;
 

@@ -47,6 +47,12 @@
             </a>
         </li>
         <li class="side-nav-item">
+            <a href="{{route('suppliers.link-products')}}" class="side-nav-link">
+                <span class="menu-icon"><i class="ti ti-link"></i></span>
+                <span class="menu-text">ربط موردين بمنتجات</span>
+            </a>
+        </li>
+        <li class="side-nav-item">
             <a href="{{route('inventory-counts.index')}}" class="side-nav-link">
                 <span class="menu-icon"><i class="ti ti-clipboard-check"></i></span>
                 <span class="menu-text">جرد المخزون</span>

@@ -345,9 +345,10 @@ class ProductController extends Controller
                 'status' => $validated['status'],
             ]);
 
-            $product->productUnits()->delete();
-
+            $existingUnits = $product->productUnits()->get()->keyBy('unit_id');
+            $incomingUnitIds = [];
             $baseCostPrice = 0;
+
             foreach ($validated['units'] as $index => $unitData) {
                 $isBase = $index == 0;
 
@@ -355,15 +356,33 @@ class ProductController extends Controller
                     $baseCostPrice = $unitData['cost_price'] ?? 0;
                 }
 
-                ProductUnit::create([
-                    'product_id' => $product->id,
-                    'unit_id' => $unitData['unit_id'],
-                    'multiplier' => $unitData['multiplier'],
-                    'sell_price' => $unitData['sell_price'],
-                    'cost_price' => $isBase ? $baseCostPrice : null,
-                    'is_base_unit' => $isBase,
-                ]);
+                $incomingUnitIds[] = $unitData['unit_id'];
+
+                $existing = $existingUnits->get($unitData['unit_id']);
+                if ($existing) {
+                    $existing->update([
+                        'multiplier' => $unitData['multiplier'],
+                        'sell_price' => $unitData['sell_price'],
+                        'cost_price' => $isBase ? $baseCostPrice : null,
+                        'is_base_unit' => $isBase,
+                    ]);
+                } else {
+                    ProductUnit::create([
+                        'product_id' => $product->id,
+                        'unit_id' => $unitData['unit_id'],
+                        'multiplier' => $unitData['multiplier'],
+                        'sell_price' => $unitData['sell_price'],
+                        'cost_price' => $isBase ? $baseCostPrice : null,
+                        'is_base_unit' => $isBase,
+                    ]);
+                }
             }
+
+            $product->productUnits()
+                ->whereNotIn('unit_id', $incomingUnitIds)
+                ->whereDoesntHave('saleItems')
+                ->whereDoesntHave('purchaseItems')
+                ->delete();
 
             DB::commit();
 

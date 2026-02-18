@@ -436,6 +436,47 @@ class PurchaseController extends Controller
         return view('purchases.print', compact('purchase'));
     }
 
+    public function getSupplierProducts(Request $request)
+    {
+        $supplierId = $request->get('supplier_id');
+
+        $products = Product::with(['productUnits.unit', 'baseUnit.unit'])
+            ->where('status', true)
+            ->where('supplier_id', $supplierId)
+            ->orderBy('name')
+            ->get()
+            ->map(function ($product) {
+                $baseCost = $product->baseUnit?->cost_price ?? 0;
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'barcode' => $product->barcode,
+                    'current_stock' => $product->total_stock,
+                    'base_unit' => $product->baseUnit ? [
+                        'id' => $product->baseUnit->id,
+                        'name' => $product->baseUnit->unit?->name ?? '-',
+                        'cost_price' => $baseCost,
+                        'multiplier' => 1,
+                    ] : null,
+                    'units' => $product->productUnits->map(function ($pu) use ($baseCost) {
+                        $multiplier = $pu->multiplier ?? 1;
+                        return [
+                            'id' => $pu->id,
+                            'name' => $pu->unit?->name ?? '-',
+                            'multiplier' => $multiplier,
+                            'cost_price' => $pu->is_base_unit ? $baseCost : ($baseCost * $multiplier),
+                            'is_base' => $pu->is_base_unit,
+                        ];
+                    }),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'products' => $products,
+        ]);
+    }
+
     public function searchProducts(Request $request)
     {
         try {
