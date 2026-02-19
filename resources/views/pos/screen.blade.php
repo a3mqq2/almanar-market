@@ -242,6 +242,18 @@
         .header-btn:hover {
             transform: translateY(-2px);
         }
+        .sync-spinning i { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .sync-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .sync-status-dot.online { background: var(--pos-success); }
+        .sync-status-dot.offline { background: var(--pos-danger); }
+        .sync-status-dot.syncing { background: var(--pos-warning); animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         .header-divider {
             width: 1px;
             height: 40px;
@@ -321,6 +333,13 @@
                     <i class="ti ti-report"></i>
                     <span>التقرير</span>
                 </a>
+                @endif
+
+                @if(config('desktop.mode'))
+                <button type="button" class="btn btn-outline-secondary header-btn" id="syncBtn" title="مزامنة البيانات (F5)">
+                    <i class="ti ti-refresh"></i>
+                    <span>مزامنة <span class="sync-status-dot offline" id="syncDot"></span></span>
+                </button>
                 @endif
 
                 <div class="header-divider"></div>
@@ -2392,6 +2411,7 @@
             ' ': () => quickCashPayment(),
             'F2': () => openServicesModal(),
             'F3': () => openPaymentModal('multi'),
+            'F5': () => { if (typeof performSync === 'function') performSync(); },
             'F6': () => {
                 if (selectedCartIndex >= 0 && selectedCartIndex < cart.length) {
                     cycleItemUnit(selectedCartIndex);
@@ -2819,6 +2839,109 @@
                 });
             });
         }
+
+        @if(config('desktop.mode'))
+        const SYNC_INTERVAL = {{ config('desktop.sync_interval', 300) }} * 1000;
+        let isSyncing = false;
+        let lastSyncTime = null;
+        let syncTimer = null;
+
+        const syncBtn = document.getElementById('syncBtn');
+        const syncDot = document.getElementById('syncDot');
+
+        function setSyncState(state) {
+            if (!syncBtn || !syncDot) return;
+            syncDot.className = 'sync-status-dot ' + state;
+            if (state === 'syncing') {
+                syncBtn.classList.add('sync-spinning');
+                syncBtn.disabled = true;
+            } else {
+                syncBtn.classList.remove('sync-spinning');
+                syncBtn.disabled = false;
+            }
+        }
+
+        async function checkConnection() {
+            try {
+                const r = await fetch('{{ url("api/sync/check-connection") }}', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await r.json();
+                return data.online === true;
+            } catch {
+                return false;
+            }
+        }
+
+        async function performSync() {
+            if (isSyncing) return;
+            isSyncing = true;
+            setSyncState('syncing');
+
+            try {
+                const online = await checkConnection();
+                if (!online) {
+                    setSyncState('offline');
+                    showToast('لا يوجد اتصال بالسيرفر', 'warning');
+                    isSyncing = false;
+                    return;
+                }
+
+                const pushRes = await fetch('{{ url("api/sync/push") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const pushData = await pushRes.json();
+
+                const pullRes = await fetch('{{ url("api/sync/pull") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const pullData = await pullRes.json();
+
+                lastSyncTime = new Date();
+                setSyncState('online');
+
+                const pushed = pushData.pushed_count || 0;
+                const pulled = pullData.applied_count || pullData.pulled_count || 0;
+
+                if (pushed > 0 || pulled > 0) {
+                    showToast(`تمت المزامنة (رفع: ${pushed} | تنزيل: ${pulled})`, 'success');
+                } else {
+                    showToast('تمت المزامنة - لا توجد تغييرات', 'info');
+                }
+            } catch (err) {
+                setSyncState('offline');
+                showToast('فشلت المزامنة: ' + (err.message || 'خطأ غير معروف'), 'danger');
+            }
+
+            isSyncing = false;
+        }
+
+        window.performSync = performSync;
+
+        if (syncBtn) {
+            syncBtn.addEventListener('click', performSync);
+        }
+
+        checkConnection().then(online => {
+            setSyncState(online ? 'online' : 'offline');
+        });
+
+        syncTimer = setInterval(performSync, SYNC_INTERVAL);
+
+        @if(config('desktop.sync_on_startup', true))
+        setTimeout(performSync, 2000);
+        @endif
+        @endif
 
         document.getElementById('barcodeInput').focus();
     });

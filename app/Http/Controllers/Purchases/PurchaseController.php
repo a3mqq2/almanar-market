@@ -27,7 +27,7 @@ class PurchaseController extends Controller
 
     public function index(Request $request)
     {
-        $query = Purchase::with(['supplier', 'creator'])
+        $query = Purchase::with(['supplier', 'creator', 'items.product', 'items.productUnit.unit'])
             ->orderBy('id', 'desc');
 
         if ($request->filled('supplier_id')) {
@@ -56,21 +56,46 @@ class PurchaseController extends Controller
                 $q->where('invoice_number', 'like', "%{$search}%")
                     ->orWhereHas('supplier', function ($sq) use ($search) {
                         $sq->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('items.product', function ($pq) use ($search) {
+                        $pq->where('name', 'like', "%{$search}%");
                     });
             });
         }
 
-        $purchases = $query->paginate(20);
+        if ($request->ajax()) {
+            $purchases = $query->paginate($request->input('per_page', 20));
+
+            return response()->json([
+                'success' => true,
+                'purchases' => $purchases->through(function ($p) {
+                    return [
+                        'id' => $p->id,
+                        'purchase_date' => $p->purchase_date?->format('Y-m-d'),
+                        'supplier_name' => $p->supplier?->name ?? '-',
+                        'items' => $p->items->map(fn($i) => [
+                            'product_name' => $i->product?->name ?? '-',
+                            'quantity' => $i->quantity,
+                            'unit_name' => $i->productUnit?->unit?->name,
+                            'unit_price' => $i->unit_price,
+                        ]),
+                        'total' => $p->total,
+                        'payment_type' => $p->payment_type,
+                        'paid_amount' => $p->paid_amount,
+                        'remaining_amount' => $p->remaining_amount,
+                        'status' => $p->status,
+                        'status_arabic' => $p->status_arabic,
+                        'status_color' => $p->status_color,
+                        'creator_name' => $p->creator?->name,
+                        'show_url' => route('purchases.show', $p),
+                    ];
+                }),
+            ]);
+        }
+
         $suppliers = Supplier::where('status', true)->orderBy('name')->get();
 
-        $stats = [
-            'total' => Purchase::count(),
-            'draft' => Purchase::draft()->count(),
-            'approved' => Purchase::approved()->count(),
-            'total_amount' => Purchase::approved()->sum('total'),
-        ];
-
-        return view('purchases.index', compact('purchases', 'suppliers', 'stats'));
+        return view('purchases.index', compact('suppliers'));
     }
 
     public function create()

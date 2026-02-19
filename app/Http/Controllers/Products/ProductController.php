@@ -9,7 +9,10 @@ use App\Models\ProductBarcode;
 use App\Models\ProductUnit;
 use App\Models\StockMovement;
 use App\Models\Unit;
+use App\Models\Supplier;
+use App\Models\Cashbox;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -487,8 +490,10 @@ class ProductController extends Controller
     {
         $product->load(['productUnits.unit', 'inventoryBatches', 'stockMovements.user', 'barcodes']);
         $units = Unit::all();
+        $suppliers = Supplier::where('status', true)->orderBy('name')->get(['id', 'name', 'phone', 'current_balance']);
+        $cashboxes = Auth::user()->getAccessibleCashboxes();
 
-        return view('products.show', compact('product', 'units'));
+        return view('products.show', compact('product', 'units', 'suppliers', 'cashboxes'));
     }
 
     public function quickStore(Request $request)

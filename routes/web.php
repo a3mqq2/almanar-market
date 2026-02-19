@@ -87,6 +87,7 @@ Route::middleware('role:manager')->group(function () {
         Route::get('/batches', [InventoryController::class, 'getBatches'])->name('batches');
         Route::get('/history', [InventoryController::class, 'getHistory'])->name('history');
         Route::post('/units', [InventoryController::class, 'updateUnits'])->name('units');
+        Route::post('/quick-purchase', [InventoryController::class, 'quickPurchase'])->name('quick-purchase');
     });
 
     // Units Routes (AJAX)

@@ -9,6 +9,7 @@
 @endsection
 
 @push('styles')
+<link href="{{ asset('assets/plugins/choices/choices.min.css') }}" rel="stylesheet">
 <style>
     :root {
         --header-bg: var(--bs-tertiary-bg);
@@ -306,6 +307,9 @@
                 <!-- Action Buttons -->
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#quickPurchaseModal">
+                            <i class="ti ti-shopping-cart me-1"></i>شراء
+                        </button>
                         <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addStockModal">
                             <i class="ti ti-plus me-1"></i>إضافة مخزون
                         </button>
@@ -900,9 +904,147 @@
         </div>
     </div>
 </div>
+<!-- Quick Purchase Modal -->
+<div class="modal fade" id="quickPurchaseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title"><i class="ti ti-shopping-cart me-1"></i>شراء - {{ $product->name }}</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="quickPurchaseForm">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">المورد <span class="text-danger">*</span></label>
+                            <select class="form-select" id="purchaseSupplier" name="supplier_id" required>
+                                <option value="">اختر المورد</option>
+                                @foreach($suppliers as $supplier)
+                                    <option value="{{ $supplier->id }}" {{ $product->supplier_id == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }} {{ $supplier->phone ? '- '.$supplier->phone : '' }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="button" class="btn btn-outline-success btn-sm w-100" id="showAddSupplierBtn">
+                                <i class="ti ti-plus me-1"></i>مورد جديد
+                            </button>
+                        </div>
+
+                        <div class="col-12 d-none" id="addSupplierSection">
+                            <div class="card border-success">
+                                <div class="card-body py-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong class="small"><i class="ti ti-user-plus me-1"></i>إضافة مورد جديد</strong>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="hideAddSupplierBtn"><i class="ti ti-x"></i></button>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <input type="text" class="form-control form-control-sm" id="newSupplierName" placeholder="اسم المورد *">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="text" class="form-control form-control-sm" id="newSupplierPhone" placeholder="رقم الهاتف *">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-success btn-sm w-100" id="saveNewSupplierBtn">
+                                                <i class="ti ti-check"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">الوحدة</label>
+                            <select class="form-select" id="purchaseUnit" name="product_unit_id">
+                                @foreach($product->productUnits->sortBy(fn($pu) => !$pu->is_base_unit) as $pu)
+                                    <option value="{{ $pu->id }}" data-multiplier="{{ $pu->multiplier }}" data-cost="{{ $pu->is_base_unit ? ($pu->cost_price ?? 0) : ($pu->cost_price ?? $pu->calculated_cost ?? 0) }}" {{ $pu->is_base_unit ? 'selected' : '' }}>
+                                        {{ $pu->unit->name }}{{ $pu->is_base_unit ? ' (أساسية)' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">الكمية <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="purchaseQty" name="quantity" min="0.0001" step="0.0001" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">سعر الوحدة <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="purchaseUnitPrice" name="unit_price" min="0" step="0.01" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">تاريخ الصلاحية</label>
+                            <input type="date" class="form-control" id="purchaseExpiry" name="expiry_date">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">رقم فاتورة المورد</label>
+                            <input type="text" class="form-control" id="purchaseInvoice" name="invoice_number" placeholder="اختياري">
+                        </div>
+
+                        <div class="col-12">
+                            <hr class="my-1">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">طريقة الدفع <span class="text-danger">*</span></label>
+                            <select class="form-select" id="purchasePaymentType" name="payment_type" required>
+                                <option value="cash">نقدي</option>
+                                <option value="credit">آجل</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-none" id="cashboxGroup">
+                            <label class="form-label">الخزينة <span class="text-danger">*</span></label>
+                            <select class="form-select" id="purchaseCashbox" name="cashbox_id">
+                                @foreach($cashboxes as $cb)
+                                    <option value="{{ $cb->id }}">{{ $cb->name }} ({{ number_format($cb->current_balance, 2) }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-none" id="paidAmountGroup">
+                            <label class="form-label">المبلغ المدفوع</label>
+                            <input type="number" class="form-control" id="purchasePaidAmount" name="paid_amount" min="0" step="0.01">
+                            <small class="text-muted" id="remainingHint"></small>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">ملاحظات</label>
+                            <textarea class="form-control" id="purchaseNotes" name="notes" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="border rounded p-3 mt-3" style="background: var(--bs-tertiary-bg);">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="small text-muted">الإجمالي</div>
+                                <div class="fs-5 fw-bold" id="purchaseTotal">0.00</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="small text-muted">المدفوع</div>
+                                <div class="fs-5 fw-bold text-success" id="purchasePaidDisplay">0.00</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="small text-muted">المتبقي (آجل)</div>
+                                <div class="fs-5 fw-bold text-danger" id="purchaseRemainingDisplay">0.00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary btn-sm" id="quickPurchaseSubmit">
+                        <i class="ti ti-check me-1"></i>تأكيد الشراء
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('scripts')
+<script src="{{ asset('assets/plugins/choices/choices.min.js') }}"></script>
 <script src="{{ asset('assets/plugins/jsbarcode/JsBarcode.all.min.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -1998,6 +2140,233 @@ document.addEventListener('DOMContentLoaded', function() {
 
         btn.disabled = false;
         btn.innerHTML = '<i class="ti ti-check me-1"></i>حفظ التعديلات';
+    });
+    const supplierSelect = document.getElementById('purchaseSupplier');
+    const supplierChoices = new Choices(supplierSelect, {
+        searchEnabled: true,
+        searchPlaceholderValue: 'ابحث بالاسم...',
+        noResultsText: 'لا توجد نتائج',
+        noChoicesText: 'لا توجد خيارات',
+        itemSelectText: '',
+        shouldSort: false,
+        placeholderValue: 'اختر المورد',
+    });
+
+    const purchaseUnit = document.getElementById('purchaseUnit');
+    const purchaseQty = document.getElementById('purchaseQty');
+    const purchaseUnitPrice = document.getElementById('purchaseUnitPrice');
+    const purchasePaymentType = document.getElementById('purchasePaymentType');
+    const purchasePaidAmount = document.getElementById('purchasePaidAmount');
+    const cashboxGroup = document.getElementById('cashboxGroup');
+    const paidAmountGroup = document.getElementById('paidAmountGroup');
+
+    purchaseUnit.addEventListener('change', function() {
+        const opt = this.options[this.selectedIndex];
+        purchaseUnitPrice.value = parseFloat(opt.dataset.cost || 0).toFixed(2);
+        updatePurchaseSummary();
+    });
+
+    if (purchaseUnit.options.length > 0) {
+        const defaultOpt = purchaseUnit.options[purchaseUnit.selectedIndex];
+        if (defaultOpt) {
+            purchaseUnitPrice.value = parseFloat(defaultOpt.dataset.cost || 0).toFixed(2);
+        }
+    }
+
+    purchasePaymentType.addEventListener('change', function() {
+        if (this.value === 'cash') {
+            cashboxGroup.classList.remove('d-none');
+            paidAmountGroup.classList.remove('d-none');
+        } else {
+            cashboxGroup.classList.add('d-none');
+            paidAmountGroup.classList.add('d-none');
+            purchasePaidAmount.value = '';
+        }
+        updatePurchaseSummary();
+    });
+
+    [purchaseQty, purchaseUnitPrice, purchasePaidAmount].forEach(el => {
+        el.addEventListener('input', updatePurchaseSummary);
+    });
+
+    function updatePurchaseSummary() {
+        const qty = parseFloat(purchaseQty.value) || 0;
+        const price = parseFloat(purchaseUnitPrice.value) || 0;
+        const total = qty * price;
+        const isCash = purchasePaymentType.value === 'cash';
+        const paid = isCash ? (parseFloat(purchasePaidAmount.value) || 0) : 0;
+        const remaining = Math.max(0, total - paid);
+
+        document.getElementById('purchaseTotal').textContent = total.toFixed(2);
+        document.getElementById('purchasePaidDisplay').textContent = paid.toFixed(2);
+        document.getElementById('purchaseRemainingDisplay').textContent = remaining.toFixed(2);
+
+        const hint = document.getElementById('remainingHint');
+        if (isCash && paid > 0 && remaining > 0) {
+            hint.textContent = `سيتم تسجيل ${remaining.toFixed(2)} كدين على المورد`;
+            hint.className = 'text-warning small';
+        } else if (isCash && paid > 0 && remaining === 0) {
+            hint.textContent = 'تم دفع المبلغ بالكامل';
+            hint.className = 'text-success small';
+        } else {
+            hint.textContent = '';
+        }
+
+        if (isCash && !purchasePaidAmount.value && total > 0) {
+            purchasePaidAmount.value = total.toFixed(2);
+            document.getElementById('purchasePaidDisplay').textContent = total.toFixed(2);
+            document.getElementById('purchaseRemainingDisplay').textContent = '0.00';
+            hint.textContent = 'تم دفع المبلغ بالكامل';
+            hint.className = 'text-success small';
+        }
+    }
+
+    document.getElementById('showAddSupplierBtn').addEventListener('click', function() {
+        document.getElementById('addSupplierSection').classList.remove('d-none');
+        document.getElementById('newSupplierName').focus();
+    });
+
+    document.getElementById('hideAddSupplierBtn').addEventListener('click', function() {
+        document.getElementById('addSupplierSection').classList.add('d-none');
+    });
+
+    document.getElementById('saveNewSupplierBtn').addEventListener('click', async function() {
+        const name = document.getElementById('newSupplierName').value.trim();
+        const phone = document.getElementById('newSupplierPhone').value.trim();
+
+        if (!name) {
+            showToast('يرجى إدخال اسم المورد', 'warning');
+            return;
+        }
+
+        if (!phone) {
+            showToast('يرجى إدخال رقم الهاتف', 'warning');
+            return;
+        }
+
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        try {
+            const response = await fetch('{{ route("suppliers.store") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ name, phone, status: true, opening_balance: 0 })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                supplierChoices.setChoices([{
+                    value: String(result.supplier.id),
+                    label: name + (phone ? ' - ' + phone : ''),
+                    selected: true,
+                }], 'value', 'label', false);
+
+                document.getElementById('addSupplierSection').classList.add('d-none');
+                document.getElementById('newSupplierName').value = '';
+                document.getElementById('newSupplierPhone').value = '';
+                showToast('تم إضافة المورد بنجاح', 'success');
+            } else {
+                showToast(result.message || 'حدث خطأ', 'danger');
+            }
+        } catch (error) {
+            showToast('حدث خطأ في إضافة المورد', 'danger');
+        }
+
+        this.disabled = false;
+        this.innerHTML = '<i class="ti ti-check"></i>';
+    });
+
+    document.getElementById('quickPurchaseForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const supplierId = supplierSelect.value;
+        if (!supplierId) {
+            showToast('يرجى اختيار المورد', 'warning');
+            return;
+        }
+
+        const qty = parseFloat(purchaseQty.value) || 0;
+        if (qty <= 0) {
+            showToast('يرجى إدخال الكمية', 'warning');
+            return;
+        }
+
+        const unitPrice = parseFloat(purchaseUnitPrice.value) || 0;
+        if (unitPrice <= 0) {
+            showToast('يرجى إدخال سعر الوحدة', 'warning');
+            return;
+        }
+
+        const paymentType = purchasePaymentType.value;
+        const total = qty * unitPrice;
+        let paidAmount = paymentType === 'cash' ? (parseFloat(purchasePaidAmount.value) || 0) : 0;
+
+        const btn = document.getElementById('quickPurchaseSubmit');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري التسجيل...';
+
+        try {
+            const response = await fetch(`/products/${productId}/inventory/quick-purchase`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    supplier_id: supplierId,
+                    product_unit_id: purchaseUnit.value,
+                    quantity: qty,
+                    unit_price: unitPrice,
+                    expiry_date: document.getElementById('purchaseExpiry').value || null,
+                    invoice_number: document.getElementById('purchaseInvoice').value || null,
+                    payment_type: paymentType,
+                    paid_amount: paidAmount,
+                    cashbox_id: paymentType === 'cash' ? document.getElementById('purchaseCashbox').value : null,
+                    notes: document.getElementById('purchaseNotes').value || null,
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showToast(result.message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('quickPurchaseModal')).hide();
+                updateStockDisplays(result.new_stock);
+                loadBatches();
+                this.reset();
+                purchasePaymentType.value = 'cash';
+                cashboxGroup.classList.add('d-none');
+                paidAmountGroup.classList.add('d-none');
+                document.getElementById('purchaseTotal').textContent = '0.00';
+                document.getElementById('purchasePaidDisplay').textContent = '0.00';
+                document.getElementById('purchaseRemainingDisplay').textContent = '0.00';
+                document.getElementById('remainingHint').textContent = '';
+            } else {
+                showToast(result.message || 'حدث خطأ', 'danger');
+            }
+        } catch (error) {
+            showToast('حدث خطأ في الاتصال', 'danger');
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-check me-1"></i>تأكيد الشراء';
+    });
+
+    document.getElementById('quickPurchaseModal').addEventListener('show.bs.modal', function() {
+        purchasePaymentType.dispatchEvent(new Event('change'));
+        if (purchaseUnit.options.length > 0) {
+            const opt = purchaseUnit.options[purchaseUnit.selectedIndex];
+            if (opt) {
+                purchaseUnitPrice.value = parseFloat(opt.dataset.cost || 0).toFixed(2);
+            }
+        }
     });
 });
 </script>

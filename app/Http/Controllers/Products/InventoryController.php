@@ -6,7 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\InventoryBatch;
 use App\Models\Product;
 use App\Models\ProductUnit;
+use App\Models\Purchase;
+use App\Models\PurchaseItem;
 use App\Models\StockMovement;
+use App\Models\Supplier;
+use App\Services\FinancialTransactionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -343,6 +347,141 @@ class InventoryController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'تم تحديث الوحدات والأسعار بنجاح',
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function quickPurchase(Request $request, Product $product)
+    {
+        $rules = [
+            'supplier_id' => 'required|exists:suppliers,id',
+            'product_unit_id' => 'nullable|exists:product_units,id',
+            'quantity' => 'required|numeric|min:0.0001',
+            'unit_price' => 'required|numeric|min:0',
+            'expiry_date' => 'nullable|date',
+            'invoice_number' => 'nullable|string|max:100',
+            'payment_type' => 'required|in:cash,credit',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'cashbox_id' => 'nullable|exists:cashboxes,id',
+            'notes' => 'nullable|string|max:1000',
+        ];
+
+        if ($request->payment_type === 'cash') {
+            $paidAmount = $request->input('paid_amount', 0);
+            if ($paidAmount > 0) {
+                $rules['cashbox_id'] = 'required|exists:cashboxes,id';
+            }
+        }
+
+        $validated = $request->validate($rules);
+
+        DB::beginTransaction();
+
+        try {
+            $productUnit = $product->productUnits()
+                ->where('id', $validated['product_unit_id'] ?? null)
+                ->first() ?? $product->baseUnit;
+
+            $multiplier = $productUnit->multiplier ?? 1;
+            $baseQuantity = $validated['quantity'] * $multiplier;
+            $totalPrice = $validated['quantity'] * $validated['unit_price'];
+            $baseUnitCost = $baseQuantity > 0 ? $totalPrice / $baseQuantity : 0;
+            $paidAmount = $validated['paid_amount'] ?? 0;
+
+            if ($validated['payment_type'] === 'credit') {
+                $paidAmount = 0;
+            }
+
+            $remainingAmount = max(0, $totalPrice - $paidAmount);
+
+            $purchase = Purchase::create([
+                'supplier_id' => $validated['supplier_id'],
+                'invoice_number' => $validated['invoice_number'] ?? null,
+                'purchase_date' => now(),
+                'payment_type' => $validated['payment_type'],
+                'status' => 'draft',
+                'subtotal' => $totalPrice,
+                'total' => $totalPrice,
+                'paid_amount' => $paidAmount,
+                'remaining_amount' => $remainingAmount,
+                'discount_type' => null,
+                'discount_value' => 0,
+                'discount_amount' => 0,
+                'tax_rate' => 0,
+                'tax_amount' => 0,
+                'notes' => $validated['notes'],
+                'created_by' => Auth::id(),
+            ]);
+
+            PurchaseItem::create([
+                'purchase_id' => $purchase->id,
+                'product_id' => $product->id,
+                'product_unit_id' => $productUnit->id,
+                'quantity' => $validated['quantity'],
+                'unit_price' => $validated['unit_price'],
+                'unit_multiplier' => $multiplier,
+                'base_quantity' => $baseQuantity,
+                'total_price' => $totalPrice,
+                'base_unit_cost' => $baseUnitCost,
+                'expiry_date' => $validated['expiry_date'] ?? null,
+            ]);
+
+            $purchase->load('items.product');
+
+            $supplier = $purchase->supplier;
+            $currentStock = $product->total_stock;
+
+            $batch = InventoryBatch::create([
+                'product_id' => $product->id,
+                'batch_number' => InventoryBatch::generateBatchNumber(),
+                'quantity' => $baseQuantity,
+                'cost_price' => $baseUnitCost,
+                'expiry_date' => $validated['expiry_date'] ?? null,
+                'notes' => "فاتورة مشتريات #{$purchase->id}",
+                'type' => 'purchase',
+            ]);
+
+            $purchase->items->first()->update(['inventory_batch_id' => $batch->id]);
+
+            StockMovement::create([
+                'product_id' => $product->id,
+                'batch_id' => $batch->id,
+                'type' => 'purchase',
+                'reason' => "فاتورة مشتريات #{$purchase->id} - {$supplier->name}",
+                'quantity' => $baseQuantity,
+                'before_quantity' => $currentStock,
+                'after_quantity' => $currentStock + $baseQuantity,
+                'cost_price' => $baseUnitCost,
+                'reference' => "PUR-{$purchase->id}",
+                'user_id' => Auth::id(),
+            ]);
+
+            $this->updateAverageCost($product, $baseQuantity, $baseUnitCost);
+
+            $cashboxId = $validated['cashbox_id'] ?? null;
+            $financialService = app(FinancialTransactionService::class);
+            $financialService->createPurchaseEntries($purchase, $cashboxId);
+
+            $purchase->update([
+                'status' => 'approved',
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تسجيل عملية الشراء بنجاح',
+                'new_stock' => $currentStock + $baseQuantity,
+                'purchase_id' => $purchase->id,
             ]);
 
         } catch (\Exception $e) {
