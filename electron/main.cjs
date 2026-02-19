@@ -60,19 +60,34 @@ function silentPrint(url) {
 
     printWindow.loadURL(printUrl.toString())
 
-    printWindow.webContents.on('did-finish-load', () => {
-        setTimeout(() => {
-            printWindow.webContents.print({
-                silent: true,
-                printBackground: true,
-                margins: { marginType: 'none' }
-            }, (success, failureReason) => {
-                if (!success) {
-                    console.error('Print failed:', failureReason)
+    printWindow.webContents.on('did-finish-load', async () => {
+        await printWindow.webContents.executeJavaScript(`
+            window.print = function() {};
+            window.close = function() {};
+        `)
+
+        setTimeout(async () => {
+            try {
+                const printers = await printWindow.webContents.getPrintersAsync()
+                const defaultPrinter = printers.find(p => p.isDefault)
+
+                if (!defaultPrinter) {
+                    printWindow.close()
+                    return
                 }
+
+                printWindow.webContents.print({
+                    silent: true,
+                    printBackground: true,
+                    deviceName: defaultPrinter.name,
+                    margins: { marginType: 'none' }
+                }, (success) => {
+                    printWindow.close()
+                })
+            } catch (e) {
                 printWindow.close()
-            })
-        }, 500)
+            }
+        }, 1500)
     })
 
     printWindow.webContents.on('did-fail-load', () => {
