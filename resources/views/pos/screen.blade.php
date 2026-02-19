@@ -2411,7 +2411,7 @@
             ' ': () => quickCashPayment(),
             'F2': () => openServicesModal(),
             'F3': () => openPaymentModal('multi'),
-            'F5': () => { if (typeof performSync === 'function') performSync(); },
+            'F5': () => { if (typeof performSync === 'function') performSync(true); },
             'F6': () => {
                 if (selectedCartIndex >= 0 && selectedCartIndex < cart.length) {
                     cycleItemUnit(selectedCartIndex);
@@ -2873,7 +2873,7 @@
             }
         }
 
-        async function performSync() {
+        async function performSync(manual = false) {
             if (isSyncing) return;
             isSyncing = true;
             setSyncState('syncing');
@@ -2882,7 +2882,7 @@
                 const online = await checkConnection();
                 if (!online) {
                     setSyncState('offline');
-                    showToast('لا يوجد اتصال بالسيرفر', 'warning');
+                    if (manual) showToast('لا يوجد اتصال بالسيرفر', 'warning');
                     isSyncing = false;
                     return;
                 }
@@ -2910,17 +2910,19 @@
                 lastSyncTime = new Date();
                 setSyncState('online');
 
-                const pushed = pushData.pushed_count || 0;
-                const pulled = pullData.applied_count || pullData.pulled_count || 0;
+                if (manual) {
+                    const pushed = pushData.pushed_count || 0;
+                    const pulled = pullData.applied_count || pullData.pulled_count || 0;
 
-                if (pushed > 0 || pulled > 0) {
-                    showToast(`تمت المزامنة (رفع: ${pushed} | تنزيل: ${pulled})`, 'success');
-                } else {
-                    showToast('تمت المزامنة - لا توجد تغييرات', 'info');
+                    if (pushed > 0 || pulled > 0) {
+                        showToast(`تمت المزامنة (رفع: ${pushed} | تنزيل: ${pulled})`, 'success');
+                    } else {
+                        showToast('تمت المزامنة - لا توجد تغييرات', 'info');
+                    }
                 }
             } catch (err) {
                 setSyncState('offline');
-                showToast('فشلت المزامنة: ' + (err.message || 'خطأ غير معروف'), 'danger');
+                if (manual) showToast('فشلت المزامنة: ' + (err.message || 'خطأ غير معروف'), 'danger');
             }
 
             isSyncing = false;
@@ -2929,7 +2931,7 @@
         window.performSync = performSync;
 
         if (syncBtn) {
-            syncBtn.addEventListener('click', performSync);
+            syncBtn.addEventListener('click', () => performSync(true));
         }
 
         checkConnection().then(online => {

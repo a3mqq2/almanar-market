@@ -319,6 +319,35 @@ Route::middleware('role:manager')->prefix('expense-categories')->name('expense-c
 });
 
 // Sync Routes (Local Desktop Mode)
+Route::get('api/sync/check-connection', function () {
+    if (!config('desktop.mode')) {
+        return response()->json(['online' => false, 'reason' => 'desktop mode disabled']);
+    }
+
+    $serverUrl = config('desktop.server_url');
+    if (empty($serverUrl)) {
+        return response()->json(['online' => false, 'reason' => 'server url not configured']);
+    }
+
+    try {
+        $response = \Illuminate\Support\Facades\Http::withOptions([
+            'verify' => base_path('certs/cacert.pem'),
+        ])->timeout(5)->get($serverUrl . '/api/v1/sync/timestamp');
+
+        return response()->json([
+            'online' => $response->successful(),
+            'status' => $response->status(),
+            'url' => $serverUrl,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'online' => false,
+            'reason' => $e->getMessage(),
+            'url' => $serverUrl,
+        ]);
+    }
+});
+
 Route::prefix('api/sync')->middleware('auth')->group(function () {
     Route::post('/pull', function () {
         if (!config('desktop.mode')) {
@@ -327,7 +356,7 @@ Route::prefix('api/sync')->middleware('auth')->group(function () {
         $sync = new \App\Services\SyncService();
         return response()->json($sync->pullChanges(config('desktop.device_id')));
     });
-    
+
     Route::post('/push', function () {
         if (!config('desktop.mode')) {
             return response()->json(['success' => false, 'message' => 'Sync not enabled']);
@@ -335,7 +364,7 @@ Route::prefix('api/sync')->middleware('auth')->group(function () {
         $sync = new \App\Services\SyncService();
         return response()->json($sync->pushChanges(config('desktop.device_id')));
     });
-    
+
     Route::get('/status', function () {
         if (!config('desktop.mode')) {
             return response()->json(['success' => false, 'message' => 'Sync not enabled']);
@@ -343,36 +372,6 @@ Route::prefix('api/sync')->middleware('auth')->group(function () {
         $sync = new \App\Services\SyncService();
         return response()->json($sync->getSyncStatus(config('desktop.device_id')));
     });
-
-    Route::get('/check-connection', function () {
-        if (!config('desktop.mode')) {
-            return response()->json(['online' => false, 'reason' => 'desktop mode disabled']);
-        }
-
-        $serverUrl = config('desktop.server_url');
-        if (empty($serverUrl)) {
-            return response()->json(['online' => false, 'reason' => 'server url not configured']);
-        }
-
-        try {
-            $response = \Illuminate\Support\Facades\Http::withOptions([
-                'verify' => base_path('certs/cacert.pem'),
-            ])->timeout(5)->get($serverUrl . '/api/v1/sync/timestamp');
-
-            return response()->json([
-                'online' => $response->successful(),
-                'status' => $response->status(),
-                'url' => $serverUrl,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'online' => false,
-                'reason' => $e->getMessage(),
-                'url' => $serverUrl,
-            ]);
-        }
-    });
-
 });
 
 Route::get('/api/sync/compare', function () {
