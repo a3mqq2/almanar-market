@@ -680,6 +680,13 @@ class PurchaseController extends Controller
                 $currentStock = $product->total_stock;
                 $batch = $item->inventoryBatch;
 
+                if ($batch->quantity < $item->base_quantity) {
+                    $soldQty = $item->base_quantity - $batch->quantity;
+                    throw new \Exception(
+                        "لا يمكن إلغاء الفاتورة: تم بيع {$soldQty} من {$product->name} من هذه الدفعة"
+                    );
+                }
+
                 $batch->decrement('quantity', $item->base_quantity);
 
                 StockMovement::create([
@@ -693,10 +700,30 @@ class PurchaseController extends Controller
                     'reference' => "PUR-{$purchase->id}-CANCEL",
                     'user_id' => Auth::id(),
                 ]);
+
+                $this->recalculateProductAverageCost($product);
             }
         }
 
         $this->financialService->reversePurchaseEntries($purchase);
+    }
+
+    private function recalculateProductAverageCost(Product $product): void
+    {
+        $baseUnit = $product->baseUnit;
+        if (!$baseUnit) return;
+
+        $batches = InventoryBatch::where('product_id', $product->id)
+            ->where('quantity', '>', 0)
+            ->get();
+
+        $totalQty = $batches->sum('quantity');
+        $totalCost = $batches->sum(fn($b) => $b->quantity * $b->cost_price);
+
+        if ($totalQty > 0) {
+            $avgCost = $totalCost / $totalQty;
+            $baseUnit->update(['cost_price' => round($avgCost, 4)]);
+        }
     }
 
     private function updateProductAverageCost(Product $product, float $newQty, float $newCost): void

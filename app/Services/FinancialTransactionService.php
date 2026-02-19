@@ -158,9 +158,11 @@ class FinancialTransactionService
             $originalTransaction = SupplierTransaction::where('reference_type', Purchase::class)
                 ->where('reference_id', $purchase->id)
                 ->where('type', 'credit')
+                ->whereNotNull('cashbox_id')
+                ->oldest('id')
                 ->first();
 
-            if ($originalTransaction && $originalTransaction->cashbox_id) {
+            if ($originalTransaction) {
                 $cashbox = Cashbox::find($originalTransaction->cashbox_id);
 
                 if ($cashbox) {
