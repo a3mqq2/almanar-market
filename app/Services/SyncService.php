@@ -398,6 +398,7 @@ class SyncService
     protected function getUniqueField(string $modelClass): ?string
     {
         $map = [
+            'App\Models\Product' => 'barcode',
             'App\Models\Sale' => 'invoice_number',
             'App\Models\SalesReturn' => 'return_number',
             'App\Models\Purchase' => 'invoice_number',
