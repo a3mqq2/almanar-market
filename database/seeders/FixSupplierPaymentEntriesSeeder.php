@@ -20,7 +20,8 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                 ->whereIn('payment_type', ['cash', 'bank'])
                 ->get();
 
-            $this->command->info("فحص فواتير الكاش/البنك: {$purchases->count()} فاتورة");
+            $this->command->info("=== فحص فواتير الكاش/البنك ===");
+            $this->command->info("عدد الفواتير: {$purchases->count()}");
             $this->command->info('');
 
             foreach ($purchases as $purchase) {
@@ -30,10 +31,18 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                     ->orderBy('id', 'asc')
                     ->get();
 
-                if ($entries->isEmpty()) continue;
+                if ($entries->isEmpty()) {
+                    $this->command->warn("  فاتورة #{$purchase->id}: لا توجد قيود!");
+                    continue;
+                }
 
                 $debits = $entries->where('type', 'debit')->sortBy('id')->values();
                 $credits = $entries->where('type', 'credit')->sortBy('id')->values();
+
+                $this->command->line("  فاتورة #{$purchase->id} (total={$purchase->total}): debits={$debits->count()} credits={$credits->count()}");
+                foreach ($entries as $e) {
+                    $this->command->line("    ID:{$e->id} type:{$e->type} amount:{$e->amount} bal:{$e->balance_after} desc:{$e->description}");
+                }
 
                 if ($debits->isEmpty() && $credits->isNotEmpty()) {
                     $first = $credits->first();
@@ -62,7 +71,7 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                         'updated_at' => now(),
                     ]);
 
-                    $this->command->info("  #{$purchase->id}: credit→debit + credit جديد (حالة 1)");
+                    $this->command->info("    >>> FIX: credit→debit + credit جديد (حالة 1)");
                     $fixCount++;
 
                 } elseif ($debits->isNotEmpty() && $credits->isNotEmpty()) {
@@ -89,7 +98,7 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                             'updated_at' => now(),
                         ]);
 
-                        $this->command->info("  #{$purchase->id}: تبديل debit#{$firstDebit->id} ↔ credit#{$firstCredit->id} (حالة 2أ)");
+                        $this->command->info("    >>> FIX: تبديل debit#{$firstDebit->id} ↔ credit#{$firstCredit->id} (حالة 2أ)");
                         $fixCount++;
 
                     } elseif (abs((float) $firstDebit->amount - (float) $purchase->total) > 0.01) {
@@ -100,8 +109,10 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                             'updated_at' => now(),
                         ]);
 
-                        $this->command->info("  #{$purchase->id}: تحديث مدين {$old} → {$purchase->total} (حالة 2ب)");
+                        $this->command->info("    >>> FIX: تحديث مدين {$old} → {$purchase->total} (حالة 2ب)");
                         $fixCount++;
+                    } else {
+                        $this->command->line("    OK - لا يحتاج تصحيح");
                     }
 
                 } elseif ($debits->isNotEmpty() && $credits->isEmpty()) {
@@ -123,7 +134,7 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                             'description' => "سداد فاتورة مشتريات #{$purchase->id}",
                             'updated_at' => now(),
                         ]);
-                        $this->command->info("  #{$purchase->id}: debit أخير→credit (حالة 3أ)");
+                        $this->command->info("    >>> FIX: debit أخير→credit (حالة 3أ)");
                     } else {
                         DB::table('supplier_transactions')->insert([
                             'supplier_id' => $purchase->supplier_id,
@@ -139,29 +150,32 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                             'created_at' => $firstDebit->created_at,
                             'updated_at' => now(),
                         ]);
-                        $this->command->info("  #{$purchase->id}: إدراج credit مفقود (حالة 3ب)");
+                        $this->command->info("    >>> FIX: إدراج credit مفقود (حالة 3ب)");
                     }
                     $fixCount++;
                 }
             }
 
-            $supplierIds = $purchases->pluck('supplier_id')->unique();
-
             $this->command->info('');
-            $this->command->info("تصحيحات: {$fixCount} | موردون: {$supplierIds->count()}");
+            $this->command->info("=== تصحيحات القيود: {$fixCount} ===");
             $this->command->info('');
-            $this->command->info('إعادة احتساب الأرصدة...');
 
-            foreach ($supplierIds as $supplierId) {
+            $allSupplierIds = Supplier::pluck('id');
+            $this->command->info("=== إعادة احتساب أرصدة جميع الموردين ({$allSupplierIds->count()}) ===");
+
+            foreach ($allSupplierIds as $supplierId) {
                 $supplier = Supplier::find($supplierId);
                 if (!$supplier) continue;
 
                 $balance = (float) $supplier->opening_balance;
+                $oldBalance = (float) $supplier->current_balance;
 
                 $transactions = DB::table('supplier_transactions')
                     ->where('supplier_id', $supplierId)
                     ->orderBy('id', 'asc')
                     ->get();
+
+                if ($transactions->isEmpty()) continue;
 
                 foreach ($transactions as $t) {
                     $balance += $t->type === 'debit' ? (float) $t->amount : -(float) $t->amount;
@@ -175,13 +189,15 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                     ->where('id', $supplierId)
                     ->update(['current_balance' => round($balance, 2)]);
 
-                $this->command->info("  #{$supplierId} ({$supplier->name}): الرصيد = {$balance}");
+                if (abs($oldBalance - $balance) > 0.01) {
+                    $this->command->info("  #{$supplierId} ({$supplier->name}): {$oldBalance} → {$balance}");
+                }
             }
 
             $this->command->info('');
-            $this->command->info('إعادة احتساب أرصدة الفواتير...');
+            $this->command->info('=== إعادة احتساب أرصدة الفواتير ===');
 
-            $allPurchases = Purchase::whereIn('supplier_id', $supplierIds)
+            $allPurchases = Purchase::whereIn('supplier_id', $allSupplierIds)
                 ->where('status', 'approved')
                 ->orderBy('purchase_date', 'asc')
                 ->orderBy('id', 'asc')
@@ -201,17 +217,21 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
             }
 
             $this->command->info('');
-            $this->command->info('ربط المدفوعات بالفواتير...');
+            $this->command->info('=== ربط المدفوعات بالفواتير ===');
 
-            foreach ($supplierIds as $supplierId) {
+            $supplierIdsWithPayments = DB::table('supplier_transactions')
+                ->where('reference_type', 'supplier_payment')
+                ->where('type', 'credit')
+                ->distinct()
+                ->pluck('supplier_id');
+
+            foreach ($supplierIdsWithPayments as $supplierId) {
                 $payments = DB::table('supplier_transactions')
                     ->where('supplier_id', $supplierId)
                     ->where('reference_type', 'supplier_payment')
                     ->where('type', 'credit')
                     ->orderBy('id', 'asc')
                     ->get();
-
-                if ($payments->isEmpty()) continue;
 
                 foreach ($payments as $payment) {
                     $remaining = (float) $payment->amount;
@@ -236,8 +256,6 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                         $p->paid_amount = (float) $p->paid_amount + $payable;
                         $p->remaining_amount = max(0, (float) $p->remaining_amount - $payable);
                         $remaining -= $payable;
-
-                        $this->command->info("    سداد #{$payment->id} → فاتورة #{$p->id}: خصم {$payable}");
                     }
                 }
             }
@@ -245,11 +263,12 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
             DB::commit();
 
             $this->command->info('');
-            $this->command->info('تم تطبيق جميع التصحيحات بنجاح.');
+            $this->command->info('=== تم بنجاح ===');
 
         } catch (\Exception $e) {
             DB::rollBack();
             $this->command->error('خطأ: ' . $e->getMessage());
+            $this->command->error($e->getTraceAsString());
             throw $e;
         }
     }
