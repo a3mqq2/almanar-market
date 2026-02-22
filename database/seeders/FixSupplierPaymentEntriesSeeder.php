@@ -20,8 +20,7 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                 ->whereIn('payment_type', ['cash', 'bank'])
                 ->get();
 
-            $this->command->info("=== فحص فواتير الكاش/البنك ===");
-            $this->command->info("عدد الفواتير: {$purchases->count()}");
+            $this->command->info("=== فحص فواتير الكاش/البنك: {$purchases->count()} ===");
             $this->command->info('');
 
             foreach ($purchases as $purchase) {
@@ -32,21 +31,15 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                     ->get();
 
                 if ($entries->isEmpty()) {
-                    $this->command->warn("  فاتورة #{$purchase->id}: لا توجد قيود!");
+                    $this->command->warn("  #{$purchase->id}: لا توجد قيود!");
                     continue;
                 }
 
                 $debits = $entries->where('type', 'debit')->sortBy('id')->values();
                 $credits = $entries->where('type', 'credit')->sortBy('id')->values();
 
-                $this->command->line("  فاتورة #{$purchase->id} (total={$purchase->total}): debits={$debits->count()} credits={$credits->count()}");
-                foreach ($entries as $e) {
-                    $this->command->line("    ID:{$e->id} type:{$e->type} amount:{$e->amount} bal:{$e->balance_after} desc:{$e->description}");
-                }
-
                 if ($debits->isEmpty() && $credits->isNotEmpty()) {
                     $first = $credits->first();
-                    $paymentAmount = (float) $first->amount;
 
                     DB::table('supplier_transactions')->where('id', $first->id)->update([
                         'type' => 'debit',
@@ -59,7 +52,7 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                     DB::table('supplier_transactions')->insert([
                         'supplier_id' => $purchase->supplier_id,
                         'type' => 'credit',
-                        'amount' => $paymentAmount,
+                        'amount' => $purchase->total,
                         'balance_after' => 0,
                         'description' => "سداد فاتورة مشتريات #{$purchase->id}",
                         'reference_type' => Purchase::class,
@@ -71,15 +64,15 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                         'updated_at' => now(),
                     ]);
 
-                    $this->command->info("    >>> FIX: credit→debit + credit جديد (حالة 1)");
+                    $this->command->info("  #{$purchase->id}: credit→debit + credit جديد");
                     $fixCount++;
 
                 } elseif ($debits->isNotEmpty() && $credits->isNotEmpty()) {
                     $firstDebit = $debits->first();
                     $firstCredit = $credits->first();
+                    $changed = false;
 
                     if ((int) $firstDebit->id > (int) $firstCredit->id) {
-                        $paymentAmount = (float) $firstCredit->amount;
                         $cashboxId = $firstCredit->cashbox_id;
 
                         DB::table('supplier_transactions')->where('id', $firstCredit->id)->update([
@@ -92,27 +85,39 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
 
                         DB::table('supplier_transactions')->where('id', $firstDebit->id)->update([
                             'type' => 'credit',
-                            'amount' => $paymentAmount,
+                            'amount' => $purchase->total,
                             'description' => "سداد فاتورة مشتريات #{$purchase->id}",
                             'cashbox_id' => $cashboxId,
                             'updated_at' => now(),
                         ]);
 
-                        $this->command->info("    >>> FIX: تبديل debit#{$firstDebit->id} ↔ credit#{$firstCredit->id} (حالة 2أ)");
-                        $fixCount++;
+                        $this->command->info("  #{$purchase->id}: تبديل + تصحيح مبلغ السداد → {$purchase->total}");
+                        $changed = true;
+                    } else {
+                        if (abs((float) $firstDebit->amount - (float) $purchase->total) > 0.01) {
+                            DB::table('supplier_transactions')->where('id', $firstDebit->id)->update([
+                                'amount' => $purchase->total,
+                                'updated_at' => now(),
+                            ]);
+                            $this->command->info("  #{$purchase->id}: تصحيح مدين → {$purchase->total}");
+                            $changed = true;
+                        }
 
-                    } elseif (abs((float) $firstDebit->amount - (float) $purchase->total) > 0.01) {
-                        $old = $firstDebit->amount;
-                        DB::table('supplier_transactions')->where('id', $firstDebit->id)->update([
-                            'amount' => $purchase->total,
-                            'description' => "فاتورة مشتريات #{$purchase->id}",
-                            'updated_at' => now(),
-                        ]);
+                        if (abs((float) $firstCredit->amount - (float) $purchase->total) > 0.01) {
+                            $old = $firstCredit->amount;
+                            DB::table('supplier_transactions')->where('id', $firstCredit->id)->update([
+                                'amount' => $purchase->total,
+                                'updated_at' => now(),
+                            ]);
+                            $this->command->info("  #{$purchase->id}: تصحيح سداد {$old} → {$purchase->total}");
+                            $changed = true;
+                        }
+                    }
 
-                        $this->command->info("    >>> FIX: تحديث مدين {$old} → {$purchase->total} (حالة 2ب)");
+                    if ($changed) {
                         $fixCount++;
                     } else {
-                        $this->command->line("    OK - لا يحتاج تصحيح");
+                        $this->command->line("  #{$purchase->id}: OK");
                     }
 
                 } elseif ($debits->isNotEmpty() && $credits->isEmpty()) {
@@ -121,7 +126,6 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                     if (abs((float) $firstDebit->amount - (float) $purchase->total) > 0.01) {
                         DB::table('supplier_transactions')->where('id', $firstDebit->id)->update([
                             'amount' => $purchase->total,
-                            'description' => "فاتورة مشتريات #{$purchase->id}",
                             'updated_at' => now(),
                         ]);
                     }
@@ -134,7 +138,6 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                             'description' => "سداد فاتورة مشتريات #{$purchase->id}",
                             'updated_at' => now(),
                         ]);
-                        $this->command->info("    >>> FIX: debit أخير→credit (حالة 3أ)");
                     } else {
                         DB::table('supplier_transactions')->insert([
                             'supplier_id' => $purchase->supplier_id,
@@ -150,18 +153,18 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                             'created_at' => $firstDebit->created_at,
                             'updated_at' => now(),
                         ]);
-                        $this->command->info("    >>> FIX: إدراج credit مفقود (حالة 3ب)");
                     }
+                    $this->command->info("  #{$purchase->id}: إصلاح كامل");
                     $fixCount++;
                 }
             }
 
             $this->command->info('');
-            $this->command->info("=== تصحيحات القيود: {$fixCount} ===");
+            $this->command->info("=== تصحيحات: {$fixCount} ===");
             $this->command->info('');
 
             $allSupplierIds = Supplier::pluck('id');
-            $this->command->info("=== إعادة احتساب أرصدة جميع الموردين ({$allSupplierIds->count()}) ===");
+            $this->command->info("=== إعادة احتساب أرصدة {$allSupplierIds->count()} مورد ===");
 
             foreach ($allSupplierIds as $supplierId) {
                 $supplier = Supplier::find($supplierId);
