@@ -427,7 +427,7 @@
                     </div>
                 </div>
 
-                <div class="cart-actions" style="grid-template-columns: repeat(4, 1fr);">
+                <div class="cart-actions" id="cartActionsBar">
                     <button type="button" class="btn btn-success btn-action" id="quickCashBtn" title="دفع فوري (Space)">
                         <i class="ti ti-bolt d-block d-md-none"></i>
                         <span class="d-none d-md-inline"><i class="ti ti-bolt me-1"></i>فوري</span>
@@ -437,6 +437,11 @@
                         <i class="ti ti-credit-card d-block d-md-none"></i>
                         <span class="d-none d-md-inline"><i class="ti ti-credit-card me-1"></i>دفع</span>
                         <div class="keyboard-hint">F2</div>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-action d-none" id="creditSaleCartBtn" title="بيع آجل (F4)">
+                        <i class="ti ti-file-invoice d-block d-md-none"></i>
+                        <span class="d-none d-md-inline"><i class="ti ti-file-invoice me-1"></i>آجل</span>
+                        <div class="keyboard-hint">F4</div>
                     </button>
                     <button type="button" class="btn btn-info btn-action" id="payMultiBtn" title="دفع متعدد (F3)">
                         <i class="ti ti-wallet d-block d-md-none"></i>
@@ -553,6 +558,10 @@
                                 <div class="d-flex justify-content-between mb-2 d-none" id="changeContainer">
                                     <span>الباقي للزبون:</span>
                                     <span class="text-info fw-bold" id="modalChange">0.00</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2 d-none" id="creditAmountContainer">
+                                    <span>سيسجل آجل:</span>
+                                    <span class="text-warning fw-bold" id="modalCreditAmount">0.00</span>
                                 </div>
                             </div>
                         </div>
@@ -803,6 +812,17 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="d-none" id="creditSaleSection">
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded" style="background: var(--bs-tertiary-bg);">
+                            <span><i class="ti ti-user me-1"></i><span id="creditCustomerName"></span></span>
+                            <span class="badge bg-info">المتاح: <span id="creditAvailable"></span></span>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger w-100 py-3 mb-3" id="creditSaleModalBtn">
+                            <i class="ti ti-file-invoice fs-2 d-block mb-1"></i>
+                            بيع آجل (على الحساب)
+                        </button>
+                        <hr>
+                    </div>
                     <div class="row g-2">
                         @foreach($paymentMethods as $method)
                         <div class="col-6">
@@ -1648,6 +1668,7 @@
             document.getElementById('customerSearch').value = '';
             renderCart();
             updateTotals();
+            updateCreditButtonVisibility();
         }
 
         document.getElementById('clearCartBtn').addEventListener('click', () => {
@@ -1689,6 +1710,17 @@
                 showToast('السلة فارغة', 'warning');
                 return;
             }
+
+            const creditSection = document.getElementById('creditSaleSection');
+            if (selectedCustomer && selectedCustomer.allow_credit) {
+                const availableCredit = parseFloat(selectedCustomer.credit_limit) - parseFloat(selectedCustomer.current_balance);
+                document.getElementById('creditCustomerName').textContent = selectedCustomer.name;
+                document.getElementById('creditAvailable').textContent = availableCredit.toFixed(2);
+                creditSection.classList.remove('d-none');
+            } else {
+                creditSection.classList.add('d-none');
+            }
+
             new bootstrap.Modal(document.getElementById('servicesModal')).show();
         }
 
@@ -1834,6 +1866,14 @@
                 document.getElementById('changeContainer').classList.remove('d-none');
             } else {
                 document.getElementById('changeContainer').classList.add('d-none');
+            }
+
+            const creditContainer = document.getElementById('creditAmountContainer');
+            if (remaining > 0 && selectedCustomer && selectedCustomer.allow_credit) {
+                document.getElementById('modalCreditAmount').textContent = remaining.toFixed(2);
+                creditContainer.classList.remove('d-none');
+            } else {
+                creditContainer.classList.add('d-none');
             }
         }
 
@@ -2059,6 +2099,127 @@
                 showToast('حدث خطأ في إتمام البيع', 'danger');
             }
         }
+
+        async function creditSale() {
+            if (cart.length == 0) {
+                showToast('السلة فارغة', 'warning');
+                return;
+            }
+
+            if (!selectedCustomer) {
+                showToast('يجب اختيار زبون للبيع الآجل', 'warning');
+                return;
+            }
+
+            if (!selectedCustomer.allow_credit) {
+                showToast('هذا الزبون غير مسموح له بالبيع الآجل', 'warning');
+                return;
+            }
+
+            if (!hasOpenShift) {
+                Swal.fire({
+                    title: 'لا يوجد وردية مفتوح',
+                    text: 'يجب فتح وردية قبل إتمام عملية البيع',
+                    icon: 'warning',
+                    confirmButtonText: 'فتح وردية'
+                }).then(() => window.location.reload());
+                return;
+            }
+
+            const total = cart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+            const availableCredit = parseFloat(selectedCustomer.credit_limit) - parseFloat(selectedCustomer.current_balance);
+
+            if (total > availableCredit) {
+                Swal.fire({
+                    title: 'تجاوز الحد الائتماني',
+                    html: `<p>المبلغ المطلوب: <strong>${total.toFixed(2)}</strong></p>
+                           <p>الرصيد المتاح: <strong>${availableCredit.toFixed(2)}</strong></p>
+                           <p class="text-muted">يمكنك استخدام الدفع المتعدد (F3) لدفع جزء نقداً والباقي آجل</p>`,
+                    icon: 'error',
+                    confirmButtonText: 'حسناً'
+                });
+                return;
+            }
+
+            const result = await Swal.fire({
+                title: 'بيع آجل',
+                html: `<p>سيتم تسجيل <strong>${total.toFixed(2)}</strong> على حساب <strong>${selectedCustomer.name}</strong></p>
+                       <div class="text-muted small mt-2">الرصيد الحالي: ${parseFloat(selectedCustomer.current_balance).toFixed(2)} | المتاح: ${availableCredit.toFixed(2)}</div>`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'تأكيد البيع الآجل',
+                cancelButtonText: 'إلغاء',
+                confirmButtonColor: '#dc3545'
+            });
+
+            if (!result.isConfirmed) return;
+
+            const cashMethodId = document.querySelector('.payment-method-select')?.value;
+
+            showToast('جاري إتمام البيع...', 'info');
+
+            try {
+                const response = await fetch('{{ route("pos.complete-sale") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        customer_id: selectedCustomer.id,
+                        items: cart.map(item => ({
+                            product_id: item.product_id,
+                            product_unit_id: item.product_unit_id,
+                            barcode_label: item.barcode_label || null,
+                            quantity: item.quantity,
+                            unit_price: item.unit_price
+                        })),
+                        payments: [{
+                            payment_method_id: cashMethodId,
+                            amount: 0,
+                            cashbox_id: null,
+                            reference_number: null
+                        }],
+                        notes: 'بيع آجل'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const servicesModal = bootstrap.Modal.getInstance(document.getElementById('servicesModal'));
+                    if (servicesModal) servicesModal.hide();
+
+                    lastSaleId = data.sale.id;
+                    selectedCustomer.current_balance = parseFloat(selectedCustomer.current_balance) + total;
+                    document.getElementById('customerBalance').textContent = selectedCustomer.current_balance.toFixed(2);
+                    updateCreditButtonVisibility();
+
+                    showToast(`تم البيع الآجل: ${data.invoice_number} - ${selectedCustomer.name}`, 'success');
+                    window.open(`{{ url('sales') }}/${lastSaleId}/print-thermal?auto=1&close=1`, 'print_receipt', 'width=400,height=600,noopener');
+                    clearCart();
+                } else {
+                    if (data.type == 'no_shift') {
+                        hasOpenShift = false;
+                        currentShiftId = null;
+                        Swal.fire({
+                            title: 'لا يوجد وردية مفتوح',
+                            text: data.message,
+                            icon: 'warning',
+                            confirmButtonText: 'فتح وردية'
+                        }).then(() => window.location.reload());
+                    } else {
+                        showToast(data.message, 'danger');
+                    }
+                }
+            } catch (error) {
+                showToast('حدث خطأ في إتمام البيع', 'danger');
+            }
+        }
+
+        document.getElementById('creditSaleCartBtn').addEventListener('click', () => creditSale());
+        document.getElementById('creditSaleModalBtn').addEventListener('click', () => creditSale());
 
         document.getElementById('suspendBtn').addEventListener('click', async () => {
             if (cart.length == 0) {
@@ -2293,6 +2454,18 @@
             }
         }
 
+        function updateCreditButtonVisibility() {
+            const creditBtn = document.getElementById('creditSaleCartBtn');
+            const actionsBar = document.getElementById('cartActionsBar');
+            if (selectedCustomer && selectedCustomer.allow_credit) {
+                creditBtn.classList.remove('d-none');
+                actionsBar.style.gridTemplateColumns = 'repeat(5, 1fr)';
+            } else {
+                creditBtn.classList.add('d-none');
+                actionsBar.style.gridTemplateColumns = 'repeat(4, 1fr)';
+            }
+        }
+
         function selectCustomer(customer) {
             selectedCustomer = customer;
             document.getElementById('customerInputContainer').classList.add('d-none');
@@ -2301,6 +2474,7 @@
             document.getElementById('customerBalance').textContent = parseFloat(customer.current_balance).toFixed(2);
             bootstrap.Modal.getInstance(document.getElementById('customerSearchModal')).hide();
             resetCustomerModal();
+            updateCreditButtonVisibility();
         }
 
         function resetCustomerModal() {
@@ -2382,6 +2556,7 @@
             document.getElementById('customerInputContainer').classList.remove('d-none');
             document.getElementById('customerInfoContainer').classList.add('d-none');
             document.getElementById('customerSearch').value = '';
+            updateCreditButtonVisibility();
         });
 
         document.getElementById('themeToggle').addEventListener('click', () => {
@@ -2411,6 +2586,7 @@
             ' ': () => quickCashPayment(),
             'F2': () => openServicesModal(),
             'F3': () => openPaymentModal('multi'),
+            'F4': () => creditSale(),
             'F5': () => { if (typeof performSync === 'function') performSync(true); },
             'F6': () => {
                 if (selectedCartIndex >= 0 && selectedCartIndex < cart.length) {
