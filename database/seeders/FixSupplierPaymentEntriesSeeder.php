@@ -39,7 +39,36 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                     ->where('type', 'credit')
                     ->first();
 
-                if ($existingDebit && abs((float) $existingDebit->amount - (float) $purchase->total) > 0.01) {
+                if (!$existingDebit && $existingCredit) {
+                    DB::table('supplier_transactions')
+                        ->where('id', $existingCredit->id)
+                        ->update([
+                            'type' => 'debit',
+                            'amount' => $purchase->total,
+                            'description' => "فاتورة مشتريات #{$purchase->id}",
+                            'cashbox_id' => null,
+                        ]);
+
+                    DB::table('supplier_transactions')->insert([
+                        'supplier_id' => $existingCredit->supplier_id,
+                        'type' => 'credit',
+                        'amount' => $existingCredit->amount,
+                        'balance_after' => 0,
+                        'description' => $existingCredit->description,
+                        'reference_type' => $existingCredit->reference_type,
+                        'reference_id' => $existingCredit->reference_id,
+                        'cashbox_id' => $existingCredit->cashbox_id,
+                        'transaction_date' => $existingCredit->transaction_date,
+                        'created_by' => $existingCredit->created_by,
+                        'created_at' => $existingCredit->created_at,
+                        'updated_at' => now(),
+                    ]);
+
+                    $this->command->info("  فاتورة #{$purchase->id}: تحويل القيد #{$existingCredit->id} إلى مدين + إدراج دائن جديد");
+                    $affectedSupplierIds->push($purchase->supplier_id);
+                    $fixCount++;
+
+                } elseif ($existingDebit && $existingCredit && abs((float) $existingDebit->amount - (float) $purchase->total) > 0.01) {
                     $oldAmount = $existingDebit->amount;
                     DB::table('supplier_transactions')
                         ->where('id', $existingDebit->id)
@@ -49,26 +78,6 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                         ]);
 
                     $this->command->info("  فاتورة #{$purchase->id}: تحديث قيد المدين #{$existingDebit->id} من {$oldAmount} إلى {$purchase->total}");
-                    $affectedSupplierIds->push($purchase->supplier_id);
-                    $fixCount++;
-
-                } elseif (!$existingDebit && $existingCredit) {
-                    DB::table('supplier_transactions')->insert([
-                        'supplier_id' => $purchase->supplier_id,
-                        'type' => 'debit',
-                        'amount' => $purchase->total,
-                        'balance_after' => 0,
-                        'description' => "فاتورة مشتريات #{$purchase->id}",
-                        'reference_type' => Purchase::class,
-                        'reference_id' => $purchase->id,
-                        'cashbox_id' => null,
-                        'transaction_date' => $existingCredit->transaction_date,
-                        'created_by' => $existingCredit->created_by,
-                        'created_at' => $existingCredit->created_at,
-                        'updated_at' => now(),
-                    ]);
-
-                    $this->command->info("  فاتورة #{$purchase->id}: إضافة قيد مدين مفقود بمبلغ {$purchase->total}");
                     $affectedSupplierIds->push($purchase->supplier_id);
                     $fixCount++;
                 }
@@ -84,7 +93,7 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
             $this->command->info('');
             $this->command->info("تم تصحيح {$fixCount} قيد لـ {$affectedSupplierIds->count()} مورد.");
             $this->command->info('');
-            $this->command->info('إعادة احتساب الأرصدة...');
+            $this->command->info('إعادة احتساب الأرصدة لجميع الموردين المتأثرين...');
 
             foreach ($affectedSupplierIds as $supplierId) {
                 $supplier = Supplier::find($supplierId);
@@ -94,9 +103,6 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
 
                 $transactions = DB::table('supplier_transactions')
                     ->where('supplier_id', $supplierId)
-                    ->orderBy('transaction_date', 'asc')
-                    ->orderByRaw("CASE WHEN type = 'debit' THEN 0 ELSE 1 END ASC")
-                    ->orderBy('created_at', 'asc')
                     ->orderBy('id', 'asc')
                     ->get();
 
@@ -116,7 +122,7 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                     ->where('id', $supplierId)
                     ->update(['current_balance' => round($balance, 2)]);
 
-                $this->command->info("  المورد #{$supplierId} ({$supplier->name}): الرصيد الجديد = {$balance}");
+                $this->command->info("  المورد #{$supplierId} ({$supplier->name}): الرصيد = {$balance}");
             }
 
             $this->command->info('');
@@ -156,7 +162,6 @@ class FixSupplierPaymentEntriesSeeder extends Seeder
                     ->where('supplier_id', $supplierId)
                     ->where('reference_type', 'supplier_payment')
                     ->where('type', 'credit')
-                    ->orderBy('transaction_date', 'asc')
                     ->orderBy('id', 'asc')
                     ->get();
 

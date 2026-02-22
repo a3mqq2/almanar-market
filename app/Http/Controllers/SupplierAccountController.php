@@ -236,10 +236,7 @@ class SupplierAccountController extends Controller
             $query->whereDate('transaction_date', '<=', $dateTo);
         }
 
-        $transactions = $query->orderBy('transaction_date', 'asc')
-            ->orderByRaw("CASE WHEN type = 'debit' THEN 0 ELSE 1 END ASC")
-            ->orderBy('id', 'asc')
-            ->get();
+        $transactions = $query->orderBy('id', 'asc')->get();
 
         $totalDebit = $transactions->where('type', 'debit')->sum('amount');
         $totalCredit = $transactions->where('type', 'credit')->sum('amount');
