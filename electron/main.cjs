@@ -1,7 +1,25 @@
 const { app, BrowserWindow, globalShortcut } = require('electron')
 const path = require('path')
+const fs = require('fs')
+
+const BASE_URL = 'http://localhost/almanar-market/public'
+const PRINTER_NAME = 'XP-80C (copy 1)'
+const LOG_FILE = path.join(app.getPath('userData'), 'print.log')
 
 let mainWindow
+
+function log(level, message, data) {
+    const timestamp = new Date().toISOString()
+    const entry = `[${timestamp}] [${level}] ${message}${data ? ' | ' + JSON.stringify(data) : ''}\n`
+    try {
+        fs.appendFileSync(LOG_FILE, entry)
+    } catch (e) {}
+    if (level === 'ERROR') {
+        console.error(entry.trim())
+    } else {
+        console.log(entry.trim())
+    }
+}
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -20,11 +38,16 @@ function createWindow() {
     mainWindow.maximize()
     mainWindow.show()
 
-    mainWindow.loadURL('http://localhost/almanar-market/public')
+    mainWindow.loadURL(BASE_URL)
 
     mainWindow.setMenu(null)
 
-    mainWindow.webContents.setWindowOpenHandler(() => {
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.includes('/print-thermal') || url.includes('/print?') || url.endsWith('/print')) {
+            log('INFO', 'Print request intercepted', { url })
+            silentPrint(url)
+            return { action: 'deny' }
+        }
         return { action: 'allow' }
     })
 
@@ -39,8 +62,78 @@ function createWindow() {
     })
 }
 
+function silentPrint(url) {
+    const printUrl = new URL(url)
+    printUrl.searchParams.delete('auto')
+    printUrl.searchParams.delete('close')
+
+    const cleanUrl = printUrl.toString()
+    log('INFO', 'Starting silent print', { url: cleanUrl, printer: PRINTER_NAME })
+
+    const printWindow = new BrowserWindow({
+        show: false,
+        width: 300,
+        height: 800,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+        }
+    })
+
+    printWindow.loadURL(cleanUrl)
+
+    printWindow.webContents.on('did-finish-load', async () => {
+        log('INFO', 'Page loaded successfully', { url: cleanUrl })
+
+        try {
+            await printWindow.webContents.executeJavaScript(`
+                window.print = function() {};
+                window.close = function() {};
+            `)
+        } catch (e) {
+            log('ERROR', 'Failed to override window.print', { error: e.message })
+        }
+
+        const printers = printWindow.webContents.getPrintersAsync
+            ? await printWindow.webContents.getPrintersAsync()
+            : printWindow.webContents.getPrinters()
+
+        const printerNames = printers.map(p => p.name)
+        const targetPrinter = printers.find(p => p.name === PRINTER_NAME)
+
+        if (!targetPrinter) {
+            log('ERROR', 'Printer not found', { target: PRINTER_NAME, available: printerNames })
+            printWindow.close()
+            return
+        }
+
+        log('INFO', 'Printer found, sending print job', { printer: PRINTER_NAME })
+
+        setTimeout(() => {
+            printWindow.webContents.print({
+                silent: true,
+                printBackground: true,
+                deviceName: PRINTER_NAME,
+                margins: { marginType: 'none' }
+            }, (success, failureReason) => {
+                if (success) {
+                    log('INFO', 'Print job completed successfully', { url: cleanUrl })
+                } else {
+                    log('ERROR', 'Print job failed', { url: cleanUrl, reason: failureReason })
+                }
+                printWindow.close()
+            })
+        }, 1000)
+    })
+
+    printWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+        log('ERROR', 'Page failed to load', { url: cleanUrl, errorCode, errorDescription })
+        printWindow.close()
+    })
+}
 
 app.whenReady().then(() => {
+    log('INFO', 'App started', { logFile: LOG_FILE })
     createWindow()
 
     globalShortcut.register('CommandOrControl+Shift+I', () => {})
