@@ -292,6 +292,33 @@
         @media (min-width: 993px) {
             .numpad-container { display: none !important; }
         }
+        .sale-loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sale-loading-box {
+            background: var(--pos-card);
+            border-radius: 12px;
+            padding: 2rem 3rem;
+            text-align: center;
+            min-width: 220px;
+        }
+        .sale-loading-box .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            color: var(--pos-primary);
+        }
+        .sale-loading-box p {
+            margin: 1rem 0 0;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--pos-text);
+        }
     </style>
 </head>
 <body dir="rtl">
@@ -1355,6 +1382,28 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
+        let saleLoadingOverlay = null;
+
+        function showSaleLoading() {
+            hideSaleLoading();
+            saleLoadingOverlay = document.createElement('div');
+            saleLoadingOverlay.className = 'sale-loading-overlay';
+            saleLoadingOverlay.innerHTML = `
+                <div class="sale-loading-box">
+                    <div class="spinner-border" role="status"></div>
+                    <p>جاري إتمام البيع...</p>
+                </div>
+            `;
+            document.body.appendChild(saleLoadingOverlay);
+        }
+
+        function hideSaleLoading() {
+            if (saleLoadingOverlay) {
+                saleLoadingOverlay.remove();
+                saleLoadingOverlay = null;
+            }
+        }
+
         function performLogout() {
             const form = document.createElement('form');
             form.method = 'POST';
@@ -1752,7 +1801,7 @@
             const total = cart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
             const defaultCashboxId = document.querySelector('.cashbox-select')?.value;
 
-            showToast('جاري إتمام البيع...', 'info');
+            showSaleLoading();
 
             try {
                 const response = await fetch('{{ route("pos.complete-sale") }}', {
@@ -1782,6 +1831,7 @@
                 });
 
                 const result = await response.json();
+                hideSaleLoading();
 
                 if (result.success) {
                     lastSaleId = result.sale.id;
@@ -1804,6 +1854,7 @@
                     }
                 }
             } catch (error) {
+                hideSaleLoading();
                 showToast('حدث خطأ في إتمام البيع', 'danger');
             }
         }
@@ -1947,7 +1998,7 @@
 
             const btn = this;
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري المعالجة...';
+            showSaleLoading();
 
             try {
                 const response = await fetch('{{ route("pos.complete-sale") }}', {
@@ -1972,6 +2023,7 @@
                 });
 
                 const result = await response.json();
+                hideSaleLoading();
 
                 if (result.success) {
                     bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
@@ -1996,11 +2048,11 @@
                     }
                 }
             } catch (error) {
+                hideSaleLoading();
                 showToast('حدث خطأ في إتمام البيع', 'danger');
             }
 
             btn.disabled = false;
-            btn.innerHTML = '<i class="ti ti-check me-1"></i>تأكيد الدفع';
         });
 
         document.getElementById('printReceiptBtn').addEventListener('click', () => {
@@ -2037,8 +2089,7 @@
                 return;
             }
 
-            // Show loading toast
-            showToast('جاري إتمام البيع...', 'info');
+            showSaleLoading();
 
             try {
                 const response = await fetch('{{ route("pos.complete-sale") }}', {
@@ -2068,18 +2119,13 @@
                 });
 
                 const result = await response.json();
+                hideSaleLoading();
 
                 if (result.success) {
                     lastSaleId = result.sale.id;
                     console.log('Sale completed with shift_id:', result.shift_id);
-
-                    // Show success notification
                     showToast(`تم البيع: ${result.invoice_number}`, 'success');
-
-                    // Auto-print receipt
                     window.open(`{{ url('sales') }}/${lastSaleId}/print-thermal?auto=1&close=1`, 'print_receipt', 'width=400,height=600,noopener');
-
-                    // Clear cart and reset
                     clearCart();
                 } else {
                     if (result.type == 'no_shift') {
@@ -2096,6 +2142,7 @@
                     }
                 }
             } catch (error) {
+                hideSaleLoading();
                 showToast('حدث خطأ في إتمام البيع', 'danger');
             }
         }
@@ -2156,7 +2203,7 @@
 
             const cashMethodId = document.querySelector('.payment-method-select')?.value;
 
-            showToast('جاري إتمام البيع...', 'info');
+            showSaleLoading();
 
             try {
                 const response = await fetch('{{ route("pos.complete-sale") }}', {
@@ -2186,6 +2233,7 @@
                 });
 
                 const data = await response.json();
+                hideSaleLoading();
 
                 if (data.success) {
                     const servicesModal = bootstrap.Modal.getInstance(document.getElementById('servicesModal'));
@@ -2214,6 +2262,7 @@
                     }
                 }
             } catch (error) {
+                hideSaleLoading();
                 showToast('حدث خطأ في إتمام البيع', 'danger');
             }
         }
