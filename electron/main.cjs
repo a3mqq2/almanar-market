@@ -4,7 +4,7 @@ const fs = require('fs')
 
 const BASE_URL = 'http://localhost/almanar-market/public'
 const PRINTER_NAME = 'XP-80C (copy 1)'
-const PAPER_WIDTH = 80000
+const PAPER_WIDTH = 72000
 const LOG_FILE = path.join(app.getPath('userData'), 'print.log')
 
 let mainWindow
@@ -73,7 +73,7 @@ function silentPrint(url) {
 
     const printWindow = new BrowserWindow({
         show: false,
-        width: 300,
+        width: 272,
         height: 800,
         webPreferences: {
             nodeIntegration: false,

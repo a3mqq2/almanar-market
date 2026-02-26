@@ -18,22 +18,22 @@
         }
 
         body {
-            width: 80mm;
-            max-width: 80mm;
+            width: 72mm;
+            max-width: 72mm;
             margin: 0 auto;
-            padding: 2mm 2mm 1mm;
-            font-size: 11px;
-            line-height: 1.25;
+            padding: 1mm 0;
+            font-size: 9px;
+            line-height: 1.2;
             color: #000;
             background: #fff;
             direction: rtl;
         }
 
         body.width-58mm {
-            width: 58mm;
-            max-width: 58mm;
-            font-size: 9px;
-            padding: 1.5mm;
+            width: 50mm;
+            max-width: 50mm;
+            font-size: 8px;
+            padding: 1mm 0;
         }
 
         .receipt {
@@ -61,26 +61,26 @@
         }
 
         .store-logo img {
-            height: 40px;
+            height: 32px;
             filter: grayscale(1) contrast(3) brightness(0);
         }
 
         body.width-58mm .store-logo img {
-            height: 30px;
+            height: 24px;
         }
 
         .store-name {
-            font-size: 16px;
+            font-size: 13px;
             font-weight: bold;
             letter-spacing: 0.5px;
         }
 
         body.width-58mm .store-name {
-            font-size: 13px;
+            font-size: 11px;
         }
 
         .store-info {
-            font-size: 9px;
+            font-size: 8px;
             margin-top: 0.5mm;
             color: #333;
         }
@@ -100,14 +100,14 @@
         }
 
         .invoice-number-box {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
             padding: 1mm 0;
             letter-spacing: 1px;
         }
 
         body.width-58mm .invoice-number-box {
-            font-size: 11px;
+            font-size: 9px;
         }
 
         .invoice-meta {
@@ -122,11 +122,11 @@
 
         .invoice-meta-table {
             width: 100%;
-            font-size: 10px;
+            font-size: 8px;
         }
 
         body.width-58mm .invoice-meta-table {
-            font-size: 8px;
+            font-size: 7px;
         }
 
         .invoice-meta-table td {
@@ -150,7 +150,7 @@
         }
 
         .items-table th {
-            font-size: 9px;
+            font-size: 8px;
             font-weight: bold;
             padding: 0.8mm 0;
             border-bottom: 1.5px solid #000;
@@ -171,14 +171,14 @@
         }
 
         .items-table td {
-            font-size: 10px;
+            font-size: 8px;
             padding: 0.8mm 0.5mm;
             vertical-align: top;
             border-bottom: 1px dotted #ccc;
         }
 
         body.width-58mm .items-table td {
-            font-size: 8px;
+            font-size: 7px;
             padding: 0.5mm 0.3mm;
         }
 
@@ -200,7 +200,7 @@
         .items-table .item-qty {
             text-align: center;
             white-space: nowrap;
-            font-size: 9px;
+            font-size: 7px;
             color: #444;
         }
 
@@ -221,11 +221,11 @@
 
         .summary-table td {
             padding: 0.3mm 0;
-            font-size: 10px;
+            font-size: 9px;
         }
 
         body.width-58mm .summary-table td {
-            font-size: 9px;
+            font-size: 8px;
         }
 
         .summary-table .label {
@@ -238,7 +238,7 @@
         }
 
         .summary-table .total-row td {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: bold;
             padding: 1mm 0;
             border-top: 1.5px solid #000;
@@ -246,7 +246,7 @@
         }
 
         body.width-58mm .summary-table .total-row td {
-            font-size: 11px;
+            font-size: 9px;
         }
 
         .payment-info {
@@ -256,7 +256,7 @@
         .payment-row {
             display: flex;
             justify-content: space-between;
-            font-size: 10px;
+            font-size: 8px;
             padding: 0.3mm 0;
         }
 
@@ -265,7 +265,7 @@
         }
 
         .customer-box {
-            font-size: 10px;
+            font-size: 8px;
             margin: 1mm 0;
             padding: 1mm;
             border: 1px dashed #999;
@@ -280,7 +280,7 @@
             padding: 1mm;
             border: 1.5px solid #000;
             margin: 1mm 0;
-            font-size: 11px;
+            font-size: 9px;
             background: #000;
             color: #fff;
         }
@@ -294,7 +294,7 @@
         }
 
         .footer-message {
-            font-size: 11px;
+            font-size: 9px;
         }
 
         body.width-58mm .footer-message {
@@ -330,13 +330,13 @@
 
         @media print {
             body {
-                width: 80mm;
-                max-width: 80mm;
+                width: 72mm;
+                max-width: 72mm;
             }
 
             body.width-58mm {
-                width: 58mm;
-                max-width: 58mm;
+                width: 50mm;
+                max-width: 50mm;
             }
 
             .no-print {
