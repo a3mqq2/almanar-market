@@ -1,9 +1,10 @@
-const { app, BrowserWindow, globalShortcut } = require('electron')
+const { app, BrowserWindow, globalShortcut, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
 
 const BASE_URL = 'http://localhost/almanar-market/public'
 const PRINTER_NAME = 'XP-80C (copy 1)'
+const PAPER_WIDTH = 80000
 const LOG_FILE = path.join(app.getPath('userData'), 'print.log')
 
 let mainWindow
@@ -107,14 +108,34 @@ function silentPrint(url) {
             return
         }
 
-        log('INFO', 'Printer found, sending print job', { printer: PRINTER_NAME })
+        log('INFO', 'Printer found, awaiting confirmation', { printer: PRINTER_NAME })
+
+        const { response } = await dialog.showMessageBox(mainWindow, {
+            type: 'question',
+            buttons: ['طباعة', 'إلغاء'],
+            defaultId: 0,
+            cancelId: 1,
+            title: 'تأكيد الطباعة',
+            message: 'هل تريد طباعة الفاتورة؟',
+            detail: `الطابعة: ${PRINTER_NAME}`
+        })
+
+        if (response === 1) {
+            log('INFO', 'Print cancelled by user', { url: cleanUrl })
+            printWindow.close()
+            return
+        }
+
+        log('INFO', 'Print confirmed, sending print job', { printer: PRINTER_NAME })
 
         setTimeout(() => {
             printWindow.webContents.print({
                 silent: true,
                 printBackground: true,
                 deviceName: PRINTER_NAME,
-                margins: { marginType: 'none' }
+                pageSize: { width: PAPER_WIDTH, height: 500000 },
+                margins: { marginType: 'none' },
+                scaleFactor: 100
             }, (success, failureReason) => {
                 if (success) {
                     log('INFO', 'Print job completed successfully', { url: cleanUrl })
