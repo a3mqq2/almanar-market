@@ -4,7 +4,8 @@ const fs = require('fs')
 
 const BASE_URL = 'http://localhost/almanar-market/public'
 const PRINTER_NAME = 'XP-80C (copy 1)'
-const PAPER_WIDTH = 72000
+const PRINTABLE_WIDTH_MICRONS = 72000
+const PRINTABLE_WIDTH_PX = 272
 const LOG_FILE = path.join(app.getPath('userData'), 'print.log')
 
 let mainWindow
@@ -38,9 +39,7 @@ function createWindow() {
 
     mainWindow.maximize()
     mainWindow.show()
-
     mainWindow.loadURL(BASE_URL)
-
     mainWindow.setMenu(null)
 
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -73,11 +72,14 @@ function silentPrint(url) {
 
     const printWindow = new BrowserWindow({
         show: false,
-        width: 272,
-        height: 800,
+        width: PRINTABLE_WIDTH_PX,
+        height: 900,
+        useContentSize: true,
+        resizable: false,
         webPreferences: {
             nodeIntegration: false,
-            contextIsolation: true
+            contextIsolation: true,
+            zoomFactor: 1.0
         }
     })
 
@@ -133,9 +135,20 @@ function silentPrint(url) {
                 silent: true,
                 printBackground: true,
                 deviceName: PRINTER_NAME,
-                pageSize: { width: PAPER_WIDTH, height: 500000 },
-                margins: { marginType: 'none' },
-                scaleFactor: 100
+                pageSize: {
+                    width: PRINTABLE_WIDTH_MICRONS,
+                    height: 500000
+                },
+                margins: {
+                    marginType: 'custom',
+                    top: 0,
+                    bottom: 0,
+                    left: 0,
+                    right: 0
+                },
+                scaleFactor: 100,
+                landscape: false,
+                pagesPerSheet: 1
             }, (success, failureReason) => {
                 if (success) {
                     log('INFO', 'Print job completed successfully', { url: cleanUrl })

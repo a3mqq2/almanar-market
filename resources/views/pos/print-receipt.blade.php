@@ -2,10 +2,11 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=272px, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>فاتورة {{ $sale->invoice_number }}</title>
     <style>
         @page {
+            size: 72mm auto;
             margin: 0;
             padding: 0;
         }
@@ -15,29 +16,36 @@
             padding: 0;
             box-sizing: border-box;
             font-family: 'Tahoma', 'Arial', sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        html {
+            width: 72mm;
+            max-width: 72mm;
+            overflow-x: hidden;
         }
 
         body {
             width: 72mm;
             max-width: 72mm;
-            margin: 0 auto;
-            padding: 1mm 0;
+            min-width: 72mm;
+            margin: 0;
+            padding: 2mm 3mm 1mm;
             font-size: 9px;
             line-height: 1.2;
             color: #000;
             background: #fff;
             direction: rtl;
-        }
-
-        body.width-58mm {
-            width: 50mm;
-            max-width: 50mm;
-            font-size: 8px;
-            padding: 1mm 0;
+            overflow-x: hidden;
+            -webkit-text-size-adjust: none;
+            text-size-adjust: none;
         }
 
         .receipt {
             width: 100%;
+            max-width: 100%;
+            overflow: hidden;
         }
 
         .center { text-align: center; }
@@ -53,6 +61,7 @@
         .store-header-text {
             text-align: right;
             flex: 1;
+            min-width: 0;
         }
 
         .store-logo {
@@ -65,28 +74,16 @@
             filter: grayscale(1) contrast(3) brightness(0);
         }
 
-        body.width-58mm .store-logo img {
-            height: 24px;
-        }
-
         .store-name {
             font-size: 13px;
             font-weight: bold;
             letter-spacing: 0.5px;
         }
 
-        body.width-58mm .store-name {
-            font-size: 11px;
-        }
-
         .store-info {
             font-size: 8px;
             margin-top: 0.5mm;
             color: #333;
-        }
-
-        body.width-58mm .store-info {
-            font-size: 8px;
         }
 
         .divider {
@@ -106,27 +103,9 @@
             letter-spacing: 1px;
         }
 
-        body.width-58mm .invoice-number-box {
-            font-size: 9px;
-        }
-
-        .invoice-meta {
-            font-size: 10px;
-            color: #333;
-            padding: 0.5mm 0;
-        }
-
-        body.width-58mm .invoice-meta {
-            font-size: 8px;
-        }
-
         .invoice-meta-table {
             width: 100%;
             font-size: 8px;
-        }
-
-        body.width-58mm .invoice-meta-table {
-            font-size: 7px;
         }
 
         .invoice-meta-table td {
@@ -136,6 +115,7 @@
         .invoice-meta-table .meta-label {
             text-align: right;
             color: #555;
+            white-space: nowrap;
         }
 
         .invoice-meta-table .meta-value {
@@ -147,23 +127,18 @@
             width: 100%;
             border-collapse: collapse;
             margin: 1mm 0;
+            table-layout: fixed;
         }
 
         .items-table th {
             font-size: 8px;
             font-weight: bold;
-            padding: 0.8mm 0;
+            padding: 0.8mm 1mm;
             border-bottom: 1.5px solid #000;
             border-top: 1.5px solid #000;
             text-align: right;
             background: #000;
             color: #fff;
-            padding-right: 1mm;
-            padding-left: 1mm;
-        }
-
-        body.width-58mm .items-table th {
-            font-size: 8px;
         }
 
         .items-table th:last-child {
@@ -175,26 +150,21 @@
             padding: 0.8mm 0.5mm;
             vertical-align: top;
             border-bottom: 1px dotted #ccc;
-        }
-
-        body.width-58mm .items-table td {
-            font-size: 7px;
-            padding: 0.5mm 0.3mm;
+            overflow: hidden;
         }
 
         .items-table tr:last-child td {
             border-bottom: none;
         }
 
+        .items-table .col-name { width: 45%; }
+        .items-table .col-qty { width: 30%; }
+        .items-table .col-total { width: 25%; }
+
         .items-table .item-name {
-            max-width: 35mm;
             word-wrap: break-word;
             overflow-wrap: break-word;
             font-weight: 600;
-        }
-
-        body.width-58mm .items-table .item-name {
-            max-width: 25mm;
         }
 
         .items-table .item-qty {
@@ -202,10 +172,6 @@
             white-space: nowrap;
             font-size: 7px;
             color: #444;
-        }
-
-        body.width-58mm .items-table .item-qty {
-            font-size: 7px;
         }
 
         .items-table .item-total {
@@ -222,10 +188,6 @@
         .summary-table td {
             padding: 0.3mm 0;
             font-size: 9px;
-        }
-
-        body.width-58mm .summary-table td {
-            font-size: 8px;
         }
 
         .summary-table .label {
@@ -245,10 +207,6 @@
             border-bottom: 1.5px solid #000;
         }
 
-        body.width-58mm .summary-table .total-row td {
-            font-size: 9px;
-        }
-
         .payment-info {
             margin: 1mm 0;
         }
@@ -260,19 +218,11 @@
             padding: 0.3mm 0;
         }
 
-        body.width-58mm .payment-row {
-            font-size: 8px;
-        }
-
         .customer-box {
             font-size: 8px;
             margin: 1mm 0;
             padding: 1mm;
             border: 1px dashed #999;
-        }
-
-        body.width-58mm .customer-box {
-            font-size: 8px;
         }
 
         .credit-warning {
@@ -285,19 +235,11 @@
             color: #fff;
         }
 
-        body.width-58mm .credit-warning {
-            font-size: 9px;
-        }
-
         .footer {
             margin-top: 1.5mm;
         }
 
         .footer-message {
-            font-size: 9px;
-        }
-
-        body.width-58mm .footer-message {
             font-size: 9px;
         }
 
@@ -329,23 +271,14 @@
         }
 
         @media print {
-            body {
+            html, body {
                 width: 72mm;
                 max-width: 72mm;
-            }
-
-            body.width-58mm {
-                width: 50mm;
-                max-width: 50mm;
+                min-width: 72mm;
             }
 
             .no-print {
                 display: none !important;
-            }
-
-            @page {
-                size: auto;
-                margin: 0;
             }
         }
 
@@ -374,21 +307,15 @@
             color: white;
         }
 
-        .print-controls .btn-width {
-            background: #007bff;
-            color: white;
-        }
-
         .print-controls .btn-close {
             background: #dc3545;
             color: white;
         }
     </style>
 </head>
-<body class="width-80mm">
+<body>
     <div class="print-controls no-print">
-        <button class="btn-print" onclick="printReceipt()">طباعة</button>
-        <button class="btn-width" onclick="toggleWidth()">تبديل 58mm/80mm</button>
+        <button class="btn-print" onclick="window.print()">طباعة</button>
         <button class="btn-close" onclick="window.close()">إغلاق</button>
     </div>
 
@@ -433,9 +360,9 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th>البيان</th>
-                    <th>الكمية</th>
-                    <th>القيمة</th>
+                    <th class="col-name">البيان</th>
+                    <th class="col-qty">الكمية</th>
+                    <th class="col-total">القيمة</th>
                 </tr>
             </thead>
             <tbody>
@@ -531,21 +458,7 @@
             margin: 0
         });
 
-        function printReceipt() {
-            window.print();
-        }
-
-        function toggleWidth() {
-            document.body.classList.toggle('width-58mm');
-            document.body.classList.toggle('width-80mm');
-        }
-
         const urlParams = new URLSearchParams(window.location.search);
-
-        if (urlParams.get('width') == '58') {
-            document.body.classList.remove('width-80mm');
-            document.body.classList.add('width-58mm');
-        }
 
         if (window.opener) {
             window.opener = null;
