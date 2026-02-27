@@ -31,7 +31,7 @@
             max-width: 72mm;
             min-width: 72mm;
             margin: 0;
-            padding: 2mm 1mm 1mm;
+            padding: 2mm 1mm 1mm 4mm;
             font-size: 9px;
             line-height: 1.2;
             color: #000;
