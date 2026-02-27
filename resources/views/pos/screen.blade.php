@@ -376,17 +376,7 @@
                     <span>السمة</span>
                 </button>
 
-                <button type="button" class="btn btn-outline-{{ $hasOpenShift ? 'success' : 'danger' }} header-btn" id="shiftStatusBtn" onclick="showShiftInfo()" title="معلومات الوردية">
-                    <i class="ti ti-clock-{{ $hasOpenShift ? 'check' : 'off' }}"></i>
-                    <span>الوردية</span>
-                </button>
-
-                <button type="button" class="btn btn-danger header-btn" id="endShiftBtn" title="إنهاء الجلسة وإغلاق الوردية">
-                    <i class="ti ti-power"></i>
-                    <span>إنهاء</span>
-                </button>
-
-                <button type="button" class="btn btn-outline-danger header-btn" id="logoutBtn" title="تسجيل الخروج">
+                <button type="button" class="btn btn-danger header-btn" id="logoutBtn" title="تسجيل الخروج">
                     <i class="ti ti-logout"></i>
                     <span>خروج</span>
                 </button>
@@ -966,41 +956,36 @@
         @endif
 
         document.getElementById('logoutBtn').addEventListener('click', function() {
-            Swal.fire({
-                title: 'تسجيل الخروج',
-                text: 'هل تريد تسجيل الخروج؟',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#dc3545',
-                confirmButtonText: 'نعم، خروج',
-                cancelButtonText: 'إلغاء'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    performLogout();
-                }
-            });
-        });
-
-        document.getElementById('endShiftBtn').addEventListener('click', function() {
-            if (!hasOpenShift || !currentShiftId) {
-                showToast('لا يوجد وردية مفتوحة', 'warning');
-                return;
+            if (hasOpenShift && currentShiftId) {
+                Swal.fire({
+                    title: 'تسجيل الخروج',
+                    text: 'سيتم إغلاق الوردية وتسجيل خروجك',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    confirmButtonText: 'خروج',
+                    cancelButtonText: 'إلغاء'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        loadShiftSummary();
+                        closeShiftModal.show();
+                    }
+                });
+            } else {
+                Swal.fire({
+                    title: 'تسجيل الخروج',
+                    text: 'هل تريد تسجيل الخروج؟',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    confirmButtonText: 'خروج',
+                    cancelButtonText: 'إلغاء'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        performLogout();
+                    }
+                });
             }
-
-            Swal.fire({
-                title: 'إنهاء الجلسة',
-                html: '<p>هل تريد إغلاق الوردية وإنهاء الجلسة؟</p><small class="text-muted">سيتم تسجيل خروجك تلقائياً بعد إغلاق الوردية</small>',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc3545',
-                confirmButtonText: 'نعم، إنهاء الجلسة',
-                cancelButtonText: 'إلغاء'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    loadShiftSummary();
-                    closeShiftModal.show();
-                }
-            });
         });
 
         async function loadShiftSummary() {
@@ -1531,7 +1516,12 @@
             }
 
             if (existingIndex >= 0) {
-                cart[existingIndex].quantity += 1;
+                const existing = cart[existingIndex];
+                if (existing.stock > 0 && existing.quantity + 1 > existing.stock) {
+                    showToast('تم الوصول للحد الأقصى من المخزون', 'warning');
+                    return;
+                }
+                existing.quantity += 1;
             } else {
                 cart.push({
                     product_id: product.id,
