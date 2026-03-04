@@ -675,6 +675,9 @@ class SyncController extends Controller
 
     public function pull(Request $request): JsonResponse
     {
+
+        ini_set('memory_limit', '1024M');
+
         $request->validate([
             'device_id' => 'required|string|size:36',
             'since' => 'nullable|date',
