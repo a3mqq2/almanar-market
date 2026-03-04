@@ -375,7 +375,7 @@
 </div>
 
 <div class="modal fade" id="depositModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title text-success"><i class="ti ti-arrow-down-left me-1"></i>إيداع في الخزينة</h6>
@@ -412,7 +412,7 @@
 </div>
 
 <div class="modal fade" id="withdrawModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title text-danger"><i class="ti ti-arrow-up-right me-1"></i>سحب من الخزينة</h6>
@@ -449,7 +449,7 @@
 </div>
 
 <div class="modal fade" id="transferModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title text-info"><i class="ti ti-arrows-exchange me-1"></i>تحويل لخزينة أخرى</h6>
@@ -495,7 +495,7 @@
 </div>
 
 <div class="modal fade" id="editCashboxModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-edit me-1"></i>تعديل الخزينة</h6>

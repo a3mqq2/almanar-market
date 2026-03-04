@@ -414,7 +414,7 @@
 
 <!-- Cancel Modal -->
 <div id="cancelModal" class="modal fade" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-alert-circle text-danger me-1"></i>إلغاء الفاتورة</h6>

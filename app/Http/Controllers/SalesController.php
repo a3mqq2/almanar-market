@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Sale;
+use App\Models\SalePayment;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class SalesController extends Controller
@@ -20,7 +22,10 @@ class SalesController extends Controller
             'today_cash' => Sale::completed()->today()->sum('paid_amount'),
         ];
 
-        return view('sales.index', compact('stats'));
+        $cashierIds = Sale::whereNotNull('cashier_id')->distinct()->pluck('cashier_id');
+        $cashiers = User::whereIn('id', $cashierIds)->orderBy('name')->get(['id', 'name']);
+
+        return view('sales.index', compact('stats', 'cashiers'));
     }
 
     protected function getSalesData(Request $request)
@@ -43,8 +48,23 @@ class SalesController extends Controller
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('payment_status')) {
-            $query->where('payment_status', $request->payment_status);
+        if ($request->filled('cashier_id')) {
+            $query->where('cashier_id', $request->cashier_id);
+        }
+
+        if ($request->filled('payment_method')) {
+            $method = $request->payment_method;
+            if ($method === 'credit') {
+                $query->where('payment_status', 'credit');
+            } elseif ($method === 'cash') {
+                $query->whereHas('payments', function ($q) {
+                    $q->whereHas('paymentMethod', fn($q) => $q->where('code', 'cash'));
+                });
+            } elseif ($method === 'bank') {
+                $query->whereHas('payments', function ($q) {
+                    $q->whereHas('paymentMethod', fn($q) => $q->where('code', '!=', 'cash'));
+                });
+            }
         }
 
         if ($request->filled('date_from')) {
@@ -69,8 +89,16 @@ class SalesController extends Controller
             $query->latest();
         }
 
-        $perPage = $request->get('per_page', 20);
-        $sales = $query->paginate($perPage);
+        $sales = $query->get();
+        $saleIds = $sales->pluck('id');
+
+        $cashTotal = SalePayment::whereIn('sale_id', $saleIds)
+            ->whereHas('paymentMethod', fn($q) => $q->where('code', 'cash'))
+            ->sum('amount');
+
+        $bankTotal = SalePayment::whereIn('sale_id', $saleIds)
+            ->whereHas('paymentMethod', fn($q) => $q->where('code', '!=', 'cash'))
+            ->sum('amount');
 
         $data = $sales->map(function ($sale) {
             return [
@@ -95,19 +123,13 @@ class SalesController extends Controller
 
         return response()->json([
             'data' => $data,
-            'meta' => [
-                'current_page' => $sales->currentPage(),
-                'last_page' => $sales->lastPage(),
-                'per_page' => $sales->perPage(),
-                'total' => $sales->total(),
-                'from' => $sales->firstItem(),
-                'to' => $sales->lastItem(),
-            ],
             'summary' => [
-                'total_sales' => $query->count(),
-                'total_amount' => Sale::whereIn('id', $sales->pluck('id'))->sum('total'),
-                'total_paid' => Sale::whereIn('id', $sales->pluck('id'))->sum('paid_amount'),
-                'total_credit' => Sale::whereIn('id', $sales->pluck('id'))->sum('credit_amount'),
+                'total_sales' => $sales->count(),
+                'total_amount' => $sales->sum('total'),
+                'total_paid' => $sales->sum('paid_amount'),
+                'total_credit' => $sales->sum('credit_amount'),
+                'total_cash' => $cashTotal,
+                'total_bank' => $bankTotal,
             ],
         ]);
     }
@@ -139,6 +161,84 @@ class SalesController extends Controller
         ]);
 
         return view('sales.print', compact('sale'));
+    }
+
+    public function printList(Request $request)
+    {
+        $query = Sale::with(['customer', 'cashier'])
+            ->whereIn('status', ['completed', 'cancelled']);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('invoice_number', 'like', "%{$search}%")
+                  ->orWhereHas('customer', function ($q) use ($search) {
+                      $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('cashier_id')) {
+            $query->where('cashier_id', $request->cashier_id);
+        }
+
+        if ($request->filled('payment_method')) {
+            $method = $request->payment_method;
+            if ($method === 'credit') {
+                $query->where('payment_status', 'credit');
+            } elseif ($method === 'cash') {
+                $query->whereHas('payments', function ($q) {
+                    $q->whereHas('paymentMethod', fn($q) => $q->where('code', 'cash'));
+                });
+            } elseif ($method === 'bank') {
+                $query->whereHas('payments', function ($q) {
+                    $q->whereHas('paymentMethod', fn($q) => $q->where('code', '!=', 'cash'));
+                });
+            }
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('sale_date', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('sale_date', '<=', $request->date_to);
+        }
+
+        $query->latest();
+        $sales = $query->get();
+        $saleIds = $sales->pluck('id');
+
+        $cashTotal = SalePayment::whereIn('sale_id', $saleIds)
+            ->whereHas('paymentMethod', fn($q) => $q->where('code', 'cash'))
+            ->sum('amount');
+
+        $bankTotal = SalePayment::whereIn('sale_id', $saleIds)
+            ->whereHas('paymentMethod', fn($q) => $q->where('code', '!=', 'cash'))
+            ->sum('amount');
+
+        $summary = [
+            'total_sales' => $sales->count(),
+            'total_amount' => $sales->sum('total'),
+            'total_credit' => $sales->sum('credit_amount'),
+            'total_cash' => $cashTotal,
+            'total_bank' => $bankTotal,
+        ];
+
+        $filters = [
+            'date_from' => $request->date_from,
+            'date_to' => $request->date_to,
+            'cashier' => $request->filled('cashier_id') ? User::find($request->cashier_id)?->name : null,
+            'payment_method' => $request->payment_method,
+            'status' => $request->status,
+        ];
+
+        return view('sales.print-list', compact('sales', 'summary', 'filters'));
     }
 
     public function printThermal(Sale $sale)

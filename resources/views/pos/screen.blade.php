@@ -513,7 +513,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <div class="modal fade" id="paymentModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="ti ti-cash me-2"></i>إتمام الدفع</h5>
@@ -596,7 +596,7 @@
 
 
     <div class="modal fade" id="suspendedModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h6 class="modal-title"><i class="ti ti-clock-pause me-1"></i>الفواتير المعلقة</h6>
@@ -612,7 +612,7 @@
     </div>
 
     <div class="modal fade" id="receiptModal" tabindex="-1">
-        <div class="modal-dialog modal-sm">
+        <div class="modal-dialog modal-sm modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h6 class="modal-title"><i class="ti ti-receipt me-1"></i>تم البيع بنجاح</h6>
@@ -638,7 +638,7 @@
     </div>
 
     <div class="modal fade" id="customerSearchModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h6 class="modal-title"><i class="ti ti-user-search me-1"></i>بحث عن زبون</h6>
@@ -696,7 +696,7 @@
     </div>
 
     <div class="modal fade" id="returnModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header bg-warning text-dark">
                     <h6 class="modal-title"><i class="ti ti-receipt-refund me-1"></i>استرجاع فاتورة</h6>
@@ -822,7 +822,7 @@
     </div>
 
     <div class="modal fade" id="servicesModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h6 class="modal-title"><i class="ti ti-credit-card me-1"></i>طرق الدفع</h6>
@@ -856,7 +856,7 @@
     </div>
 
     <div class="modal fade" id="closeShiftModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header bg-secondary text-white">
                     <h6 class="modal-title"><i class="ti ti-clock-pause me-1"></i>إغلاق الوردية</h6>
@@ -904,7 +904,7 @@
     </div>
 
     <div class="modal fade" id="shiftInfoModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h6 class="modal-title"><i class="ti ti-info-circle me-1"></i>معلومات الوردية</h6>

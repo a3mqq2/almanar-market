@@ -194,6 +194,7 @@ Route::prefix('sales')->name('sales.')->group(function () {
 // Sales Routes (Manager Only)
 Route::middleware('role:manager')->prefix('sales')->name('sales.')->group(function () {
     Route::get('/', [SalesController::class, 'index'])->name('index');
+    Route::get('/print-list', [SalesController::class, 'printList'])->name('print-list');
     Route::get('/{sale}', [SalesController::class, 'show'])->name('show');
     Route::get('/{sale}/print', [SalesController::class, 'print'])->name('print');
 });

@@ -118,6 +118,9 @@
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h5 class="card-title mb-0">سجل المبيعات</h5>
         <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="printListBtn" style="display: none;">
+                <i class="ti ti-printer me-1"></i>طباعة
+            </button>
             <button type="button" class="btn btn-outline-secondary btn-sm" id="refreshBtn">
                 <i class="ti ti-refresh"></i>
             </button>
@@ -136,30 +139,36 @@
                     </div>
                 </div>
                 <div class="col-md-2">
+                    <select class="form-select form-select-sm" id="cashierFilter">
+                        <option value="">كل الكاشيرات</option>
+                        @foreach($cashiers as $cashier)
+                            <option value="{{ $cashier->id }}">{{ $cashier->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select form-select-sm" id="paymentMethodFilter">
+                        <option value="">طريقة الدفع</option>
+                        <option value="cash">نقداً</option>
+                        <option value="bank">خدمات مصرفية</option>
+                        <option value="credit">آجل</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
                     <select class="form-select form-select-sm" id="statusFilter">
                         <option value="">كل الحالات</option>
                         <option value="completed">مكتملة</option>
                         <option value="cancelled">ملغاة</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <select class="form-select form-select-sm" id="paymentStatusFilter">
-                        <option value="">حالة الدفع</option>
-                        <option value="paid">مدفوعة</option>
-                        <option value="partial">جزئي</option>
-                        <option value="credit">آجل</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <input type="date" class="form-control form-control-sm" id="dateFromFilter" placeholder="من تاريخ">
-                </div>
-                <div class="col-md-2">
-                    <input type="date" class="form-control form-control-sm" id="dateToFilter" placeholder="إلى تاريخ">
-                </div>
-                <div class="col-md-1">
-                    <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="clearFilters">
-                        <i class="ti ti-x"></i>
-                    </button>
+                <div class="col-md-3">
+                    <div class="input-group input-group-sm">
+                        <input type="date" class="form-control" id="dateFromFilter">
+                        <input type="date" class="form-control" id="dateToFilter">
+                        <button type="button" class="btn btn-outline-secondary" id="clearFilters">
+                            <i class="ti ti-x"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -185,11 +194,31 @@
             </table>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2" id="paginationContainer">
-            <div class="text-muted small" id="paginationInfo"></div>
-            <nav>
-                <ul class="pagination pagination-sm mb-0" id="paginationLinks"></ul>
-            </nav>
+        <div class="row g-3 mt-3" id="summarySection" style="display: none;">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-value" id="summaryTotal">0</div>
+                    <div class="stats-label">إجمالي المبيعات</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-value text-success" id="summaryCash">0</div>
+                    <div class="stats-label">نقداً</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-value text-primary" id="summaryBank">0</div>
+                    <div class="stats-label">خدمات مصرفية</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-value text-danger" id="summaryCredit">0</div>
+                    <div class="stats-label">آجل</div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -198,7 +227,6 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let currentPage = 1;
     let currentSort = 'created_at';
     let currentDirection = 'desc';
     let searchTimeout = null;
@@ -239,24 +267,51 @@ document.addEventListener('DOMContentLoaded', function() {
         tbody.innerHTML = html;
     }
 
-    function loadSales(page = 1) {
+    function showEmptyPrompt() {
+        document.getElementById('salesTableBody').innerHTML = `
+            <tr>
+                <td colspan="11">
+                    <div class="empty-state">
+                        <i class="ti ti-filter-search d-block mb-2"></i>
+                        <p class="text-muted mb-0">حدد تاريخ البداية والنهاية لعرض المبيعات</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        document.getElementById('summarySection').style.display = 'none';
+    }
+
+    function hasActiveFilters() {
+        return document.getElementById('dateFromFilter').value
+            && document.getElementById('dateToFilter').value;
+    }
+
+    function loadSales() {
+        const printBtn = document.getElementById('printListBtn');
+        if (!hasActiveFilters()) {
+            showEmptyPrompt();
+            printBtn.style.display = 'none';
+            return;
+        }
+
+        printBtn.style.display = '';
         showSkeleton();
-        currentPage = page;
 
         const params = new URLSearchParams();
-        params.append('page', page);
         params.append('sort', currentSort);
         params.append('direction', currentDirection);
 
         const search = document.getElementById('searchInput').value;
+        const cashierId = document.getElementById('cashierFilter').value;
         const status = document.getElementById('statusFilter').value;
-        const paymentStatus = document.getElementById('paymentStatusFilter').value;
+        const paymentMethod = document.getElementById('paymentMethodFilter').value;
         const dateFrom = document.getElementById('dateFromFilter').value;
         const dateTo = document.getElementById('dateToFilter').value;
 
         if (search) params.append('search', search);
+        if (cashierId) params.append('cashier_id', cashierId);
         if (status) params.append('status', status);
-        if (paymentStatus) params.append('payment_status', paymentStatus);
+        if (paymentMethod) params.append('payment_method', paymentMethod);
         if (dateFrom) params.append('date_from', dateFrom);
         if (dateTo) params.append('date_to', dateTo);
 
@@ -265,7 +320,8 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(result => {
-            renderSales(result.data, result.meta);
+            renderSales(result.data);
+            renderSummary(result.summary);
         })
         .catch(error => {
             console.error('Error:', error);
@@ -273,7 +329,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function renderSales(sales, meta) {
+    function renderSales(sales) {
         const tbody = document.getElementById('salesTableBody');
 
         if (sales.length == 0) {
@@ -287,17 +343,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                 </tr>
             `;
-            document.getElementById('paginationInfo').textContent = '';
-            document.getElementById('paginationLinks').innerHTML = '';
+            document.getElementById('summarySection').style.display = 'none';
             return;
         }
 
         let html = '';
         sales.forEach((sale, index) => {
-            const rowNum = meta.from + index;
             html += `
                 <tr class="clickable-row" data-href="${window.__baseUrl}/sales/${sale.id}" tabindex="0">
-                    <td>${rowNum}</td>
+                    <td>${index + 1}</td>
                     <td class="fw-medium">${sale.invoice_number}</td>
                     <td>${sale.sale_date}</td>
                     <td>${sale.customer_name}</td>
@@ -333,83 +387,58 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
-
-        renderPagination(meta);
     }
 
-    function renderPagination(meta) {
-        document.getElementById('paginationInfo').textContent =
-            `عرض ${meta.from || 0} إلى ${meta.to || 0} من ${meta.total} فاتورة`;
-
-        const paginationLinks = document.getElementById('paginationLinks');
-        let html = '';
-
-        if (meta.last_page > 1) {
-            html += `
-                <li class="page-item ${meta.current_page == 1 ? 'disabled' : ''}">
-                    <a class="page-link" href="#" onclick="loadSales(${meta.current_page - 1}); return false;">
-                        <i class="ti ti-chevron-right"></i>
-                    </a>
-                </li>
-            `;
-
-            let startPage = Math.max(1, meta.current_page - 2);
-            let endPage = Math.min(meta.last_page, meta.current_page + 2);
-
-            if (startPage > 1) {
-                html += `<li class="page-item"><a class="page-link" href="#" onclick="loadSales(1); return false;">1</a></li>`;
-                if (startPage > 2) {
-                    html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
-                }
-            }
-
-            for (let i = startPage; i <= endPage; i++) {
-                html += `
-                    <li class="page-item ${i == meta.current_page ? 'active' : ''}">
-                        <a class="page-link" href="#" onclick="loadSales(${i}); return false;">${i}</a>
-                    </li>
-                `;
-            }
-
-            if (endPage < meta.last_page) {
-                if (endPage < meta.last_page - 1) {
-                    html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
-                }
-                html += `<li class="page-item"><a class="page-link" href="#" onclick="loadSales(${meta.last_page}); return false;">${meta.last_page}</a></li>`;
-            }
-
-            html += `
-                <li class="page-item ${meta.current_page == meta.last_page ? 'disabled' : ''}">
-                    <a class="page-link" href="#" onclick="loadSales(${meta.current_page + 1}); return false;">
-                        <i class="ti ti-chevron-left"></i>
-                    </a>
-                </li>
-            `;
-        }
-
-        paginationLinks.innerHTML = html;
+    function renderSummary(summary) {
+        const section = document.getElementById('summarySection');
+        section.style.display = '';
+        document.getElementById('summaryTotal').textContent = parseFloat(summary.total_amount).toFixed(2);
+        document.getElementById('summaryCash').textContent = parseFloat(summary.total_cash).toFixed(2);
+        document.getElementById('summaryBank').textContent = parseFloat(summary.total_bank).toFixed(2);
+        document.getElementById('summaryCredit').textContent = parseFloat(summary.total_credit).toFixed(2);
     }
 
     document.getElementById('searchInput').addEventListener('input', function() {
         clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => loadSales(1), 400);
+        searchTimeout = setTimeout(() => loadSales(), 400);
     });
 
-    document.getElementById('statusFilter').addEventListener('change', () => loadSales(1));
-    document.getElementById('paymentStatusFilter').addEventListener('change', () => loadSales(1));
-    document.getElementById('dateFromFilter').addEventListener('change', () => loadSales(1));
-    document.getElementById('dateToFilter').addEventListener('change', () => loadSales(1));
+    document.getElementById('cashierFilter').addEventListener('change', () => loadSales());
+    document.getElementById('statusFilter').addEventListener('change', () => loadSales());
+    document.getElementById('paymentMethodFilter').addEventListener('change', () => loadSales());
+    document.getElementById('dateFromFilter').addEventListener('change', () => loadSales());
+    document.getElementById('dateToFilter').addEventListener('change', () => loadSales());
 
     document.getElementById('clearFilters').addEventListener('click', function() {
         document.getElementById('searchInput').value = '';
+        document.getElementById('cashierFilter').value = '';
         document.getElementById('statusFilter').value = '';
-        document.getElementById('paymentStatusFilter').value = '';
+        document.getElementById('paymentMethodFilter').value = '';
         document.getElementById('dateFromFilter').value = '';
         document.getElementById('dateToFilter').value = '';
-        loadSales(1);
+        loadSales();
     });
 
-    document.getElementById('refreshBtn').addEventListener('click', () => loadSales(currentPage));
+    document.getElementById('refreshBtn').addEventListener('click', () => loadSales());
+
+    document.getElementById('printListBtn').addEventListener('click', function() {
+        const params = new URLSearchParams();
+        const search = document.getElementById('searchInput').value;
+        const cashierId = document.getElementById('cashierFilter').value;
+        const status = document.getElementById('statusFilter').value;
+        const paymentMethod = document.getElementById('paymentMethodFilter').value;
+        const dateFrom = document.getElementById('dateFromFilter').value;
+        const dateTo = document.getElementById('dateToFilter').value;
+
+        if (search) params.append('search', search);
+        if (cashierId) params.append('cashier_id', cashierId);
+        if (status) params.append('status', status);
+        if (paymentMethod) params.append('payment_method', paymentMethod);
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+
+        window.open(`{{ route('sales.print-list') }}?${params}`, '_blank');
+    });
 
     document.querySelectorAll('th.sortable').forEach(th => {
         th.addEventListener('click', function() {
@@ -430,12 +459,11 @@ document.addEventListener('DOMContentLoaded', function() {
             icon.classList.add('active');
             icon.className = `ti ti-arrow-${currentDirection == 'asc' ? 'up' : 'down'} sort-icon active`;
 
-            loadSales(1);
+            loadSales();
         });
     });
 
-    window.loadSales = loadSales;
-    loadSales(1);
+    showEmptyPrompt();
 });
 </script>
 @endpush

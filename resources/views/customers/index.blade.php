@@ -191,7 +191,7 @@
 </div>
 
 <div class="modal fade" id="customerModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title" id="modalTitle"><i class="ti ti-plus me-1"></i>إضافة زبون</h6>

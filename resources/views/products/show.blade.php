@@ -564,7 +564,7 @@
 
 <!-- Add Stock Modal -->
 <div class="modal fade" id="addStockModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-plus me-1"></i>إضافة مخزون</h6>
@@ -611,7 +611,7 @@
 
 <!-- Remove Stock Modal -->
 <div class="modal fade" id="removeStockModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-minus me-1"></i>خصم مخزون</h6>
@@ -663,7 +663,7 @@
 
 <!-- Adjust Stock Modal -->
 <div class="modal fade" id="adjustStockModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-adjustments me-1"></i>تعديل يدوي</h6>
@@ -705,7 +705,7 @@
 
 <!-- Create Unit Modal -->
 <div class="modal fade" id="createUnitModal" tabindex="-1">
-    <div class="modal-dialog modal-sm">
+    <div class="modal-dialog modal-sm modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-tag me-1"></i>إضافة وحدة جديدة</h6>
@@ -734,7 +734,7 @@
 </div>
 
 <div class="modal fade" id="editProductModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-edit me-1"></i>تعديل الصنف</h6>
@@ -777,7 +777,7 @@
 
 @if($product->barcode)
 <div class="modal fade" id="barcodeLabelModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-printer me-1"></i>طباعة باركود</h6>
@@ -825,7 +825,7 @@
 
 <!-- Add Barcode Modal -->
 <div class="modal fade" id="addBarcodeModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-barcode me-1"></i>إضافة باركود جديد</h6>
@@ -862,7 +862,7 @@
 
 <!-- Edit Barcode Modal -->
 <div class="modal fade" id="editBarcodeModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-edit me-1"></i>تعديل الباركود</h6>
@@ -906,7 +906,7 @@
 </div>
 <!-- Quick Purchase Modal -->
 <div class="modal fade" id="quickPurchaseModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-shopping-cart me-1"></i>شراء - {{ $product->name }}</h6>
