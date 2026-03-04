@@ -343,14 +343,11 @@ class FinancialTransactionService
         ?int $referenceId = null,
         $transactionDate = null
     ): CustomerTransaction {
-        $currentBalance = $customer->current_balance;
-        $newBalance = $currentBalance + $amount;
-
         $transaction = CustomerTransaction::create([
             'customer_id' => $customer->id,
             'type' => 'debit',
             'amount' => $amount,
-            'balance_after' => $newBalance,
+            'balance_after' => 0,
             'description' => $description,
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
@@ -358,9 +355,9 @@ class FinancialTransactionService
             'created_by' => Auth::id(),
         ]);
 
-        $customer->update(['current_balance' => $newBalance]);
+        $this->recalculateCustomerBalances($customer);
 
-        return $transaction;
+        return $transaction->fresh();
     }
 
     public function createCustomerCredit(
@@ -372,14 +369,11 @@ class FinancialTransactionService
         ?int $cashboxId = null,
         $transactionDate = null
     ): CustomerTransaction {
-        $currentBalance = $customer->current_balance;
-        $newBalance = $currentBalance - $amount;
-
         $transaction = CustomerTransaction::create([
             'customer_id' => $customer->id,
             'type' => 'credit',
             'amount' => $amount,
-            'balance_after' => $newBalance,
+            'balance_after' => 0,
             'description' => $description,
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
@@ -388,9 +382,33 @@ class FinancialTransactionService
             'created_by' => Auth::id(),
         ]);
 
-        $customer->update(['current_balance' => $newBalance]);
+        $this->recalculateCustomerBalances($customer);
 
-        return $transaction;
+        return $transaction->fresh();
+    }
+
+    public function recalculateCustomerBalances(Customer $customer): void
+    {
+        $transactions = $customer->transactions()
+            ->orderBy('transaction_date', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $balance = (float) $customer->opening_balance;
+
+        foreach ($transactions as $transaction) {
+            $balance = $transaction->type === 'debit'
+                ? $balance + (float) $transaction->amount
+                : $balance - (float) $transaction->amount;
+
+            if (abs($balance - (float) $transaction->balance_after) > 0.001) {
+                DB::table('customer_transactions')
+                    ->where('id', $transaction->id)
+                    ->update(['balance_after' => round($balance, 2)]);
+            }
+        }
+
+        $customer->update(['current_balance' => round($balance, 2)]);
     }
 
     public function createCustomerPayment(

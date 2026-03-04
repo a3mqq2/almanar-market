@@ -222,28 +222,48 @@ class CustomerAccountController extends Controller
         $dateFrom = $request->get('date_from');
         $dateTo = $request->get('date_to');
 
-        $query = $customer->transactions();
+        $allTransactions = $customer->transactions()
+            ->orderBy('transaction_date', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $runningBalance = (float) $customer->opening_balance;
+        foreach ($allTransactions as $t) {
+            $runningBalance = $t->type === 'debit'
+                ? $runningBalance + (float) $t->amount
+                : $runningBalance - (float) $t->amount;
+            $t->computed_balance = $runningBalance;
+        }
 
         if ($dateFrom) {
-            $openingBalance = $customer->transactions()
-                ->where('transaction_date', '<', $dateFrom)
-                ->orderBy('id', 'desc')
-                ->value('balance_after') ?? $customer->opening_balance;
+            $beforeDateTransactions = $allTransactions->filter(
+                fn ($t) => $t->transaction_date->format('Y-m-d') < $dateFrom
+            );
+            $openingBalance = $beforeDateTransactions->isNotEmpty()
+                ? $beforeDateTransactions->last()->computed_balance
+                : (float) $customer->opening_balance;
 
-            $query->whereDate('transaction_date', '>=', $dateFrom);
+            $transactions = $allTransactions->filter(
+                fn ($t) => $t->transaction_date->format('Y-m-d') >= $dateFrom
+            );
         } else {
-            $openingBalance = $customer->opening_balance;
+            $openingBalance = (float) $customer->opening_balance;
+            $transactions = $allTransactions;
         }
 
         if ($dateTo) {
-            $query->whereDate('transaction_date', '<=', $dateTo);
+            $transactions = $transactions->filter(
+                fn ($t) => $t->transaction_date->format('Y-m-d') <= $dateTo
+            );
         }
 
-        $transactions = $query->orderBy('transaction_date', 'asc')->orderBy('id', 'asc')->get();
+        $transactions = $transactions->values();
 
         $totalDebit = $transactions->where('type', 'debit')->sum('amount');
         $totalCredit = $transactions->where('type', 'credit')->sum('amount');
-        $closingBalance = $transactions->last()?->balance_after ?? $openingBalance;
+        $closingBalance = $transactions->isNotEmpty()
+            ? $transactions->last()->computed_balance
+            : $openingBalance;
 
         return view('customers.print', compact(
             'customer',
