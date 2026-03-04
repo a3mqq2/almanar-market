@@ -102,6 +102,37 @@
         font-size: 2rem;
         margin-bottom: 0.5rem;
     }
+    @media (max-width: 767.98px) {
+        .supplier-header > .d-flex {
+            flex-wrap: wrap;
+            gap: 0.5rem !important;
+        }
+        .supplier-header .flex-grow-1 {
+            width: 100%;
+            margin-bottom: 0.25rem;
+        }
+        .supplier-header .stat-item {
+            width: calc(50% - 0.25rem);
+            text-align: center !important;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 0.5rem !important;
+            border-inline-start: none !important;
+        }
+        .supplier-header .action-btns {
+            width: 100%;
+            justify-content: center;
+            border: none !important;
+            padding: 0 !important;
+        }
+        .nav-tabs .nav-link {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+        }
+        .quick-action-btn i {
+            font-size: 1.5rem;
+        }
+    }
 </style>
 @endpush
 
@@ -120,19 +151,19 @@
                 </span>
             </div>
         </div>
-        <div class="text-end">
+        <div class="stat-item text-end">
             <div class="info-label">الرصيد الحالي</div>
             <div class="fs-4 fw-bold {{ $supplier->current_balance > 0 ? 'text-danger' : ($supplier->current_balance < 0 ? 'text-success' : '') }}" id="currentBalance">{{ number_format($supplier->current_balance, 2) }}</div>
         </div>
-        <div class="border-start ps-3 text-end">
+        <div class="stat-item border-start ps-3 text-end">
             <div class="info-label">إجمالي المدين</div>
             <div class="fs-5 text-danger" id="totalDebit">{{ number_format($stats['total_debit'], 2) }}</div>
         </div>
-        <div class="border-start ps-3 text-end">
+        <div class="stat-item border-start ps-3 text-end">
             <div class="info-label">إجمالي السداد</div>
             <div class="fs-5 text-success" id="totalCredit">{{ number_format($stats['total_credit'], 2) }}</div>
         </div>
-        <div class="border-start ps-3 d-flex gap-2 align-items-center">
+        <div class="action-btns border-start ps-3 d-flex gap-2 align-items-center">
             <button type="button" class="btn btn-outline-warning btn-sm" id="editSupplierBtn" title="تعديل">
                 <i class="ti ti-edit me-1"></i>تعديل
             </button>
@@ -307,7 +338,7 @@
 
             <div class="tab-pane fade" id="ledger">
                 <div class="row mb-3 g-2 align-items-end">
-                    <div class="col-auto">
+                    <div class="col-6 col-md-auto">
                         <label class="form-label small mb-1">النوع</label>
                         <select class="form-select form-select-sm" id="filterType" style="min-width: 120px;">
                             <option value="">كل الأنواع</option>
@@ -315,31 +346,27 @@
                             <option value="credit">دائن</option>
                         </select>
                     </div>
-                    <div class="col-auto">
+                    <div class="col-6 col-md-auto">
                         <label class="form-label small mb-1">من تاريخ</label>
                         <input type="date" class="form-control form-control-sm" id="filterDateFrom">
                     </div>
-                    <div class="col-auto">
+                    <div class="col-6 col-md-auto">
                         <label class="form-label small mb-1">إلى تاريخ</label>
                         <input type="date" class="form-control form-control-sm" id="filterDateTo">
                     </div>
-                    <div class="col-auto">
-                        <button type="button" class="btn btn-primary btn-sm" id="filterLedgerBtn">
+                    <div class="col-6 col-md-auto d-flex gap-1">
+                        <button type="button" class="btn btn-primary btn-sm flex-fill" id="filterLedgerBtn">
                             <i class="ti ti-filter me-1"></i>تصفية
                         </button>
-                    </div>
-                    <div class="col-auto">
                         <button type="button" class="btn btn-outline-secondary btn-sm" id="clearLedgerFilters">
-                            <i class="ti ti-x me-1"></i>مسح
+                            <i class="ti ti-x"></i>
                         </button>
-                    </div>
-                    <div class="col-auto">
                         <button type="button" class="btn btn-outline-success btn-sm" id="refreshLedger">
-                            <i class="ti ti-refresh me-1"></i>تحديث
+                            <i class="ti ti-refresh"></i>
                         </button>
                     </div>
-                    <div class="col-auto ms-auto">
-                        <a href="{{ route('suppliers.account.print', $supplier) }}" target="_blank" class="btn btn-outline-dark btn-sm" id="printStatementBtn" title="طباعة كشف الحساب">
+                    <div class="col-12 col-md-auto ms-md-auto">
+                        <a href="{{ route('suppliers.account.print', $supplier) }}" target="_blank" class="btn btn-outline-dark btn-sm w-100" id="printStatementBtn" title="طباعة كشف الحساب">
                             <i class="ti ti-printer me-1"></i>طباعة الكشف
                         </a>
                     </div>
