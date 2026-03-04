@@ -284,7 +284,7 @@
 @endif
 
 <div class="modal fade" id="cancelModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="ti ti-alert-circle text-danger me-2"></i>إلغاء الجرد</h5>

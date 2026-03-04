@@ -378,7 +378,7 @@
 </div>
 
 <div class="modal fade" id="addUnitModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">إضافة وحدة جديدة</h5>

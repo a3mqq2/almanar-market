@@ -48,28 +48,6 @@
                 font-family: 'IBM Plex Sans Arabic', sans-serif !important;
             }
             @media (max-width: 575.98px) {
-                .modal-dialog {
-                    margin: 0;
-                    max-width: 100%;
-                    min-height: 100vh;
-                }
-                .modal-content {
-                    border: 0;
-                    border-radius: 0;
-                    min-height: 100vh;
-                }
-                .modal-header {
-                    position: sticky;
-                    top: 0;
-                    z-index: 1;
-                    background: var(--bs-modal-bg);
-                }
-                .modal-footer {
-                    position: sticky;
-                    bottom: 0;
-                    z-index: 1;
-                    background: var(--bs-modal-bg);
-                }
                 .card-body {
                     padding: 0.75rem;
                 }
@@ -93,12 +71,6 @@
                 }
                 h5.card-title {
                     font-size: 1rem;
-                }
-            }
-            @media (max-width: 767.98px) {
-                .modal-dialog:not(.modal-sm) {
-                    max-width: 95vw;
-                    margin: 1rem auto;
                 }
                 .table-responsive {
                     -webkit-overflow-scrolling: touch;

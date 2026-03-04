@@ -228,7 +228,7 @@
 </div>
 
 <div class="modal fade" id="passwordModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="ti ti-key me-1"></i>تغيير كلمة المرور</h5>

@@ -255,7 +255,7 @@
 </div>
 
 <div class="modal fade" id="createProductModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-plus me-1"></i>إضافة صنف جديد</h6>
@@ -295,7 +295,7 @@
 </div>
 
 <div class="modal fade" id="quickStockModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-package me-1"></i>إدارة سريعة للمخزون</h6>
@@ -366,7 +366,7 @@
 </div>
 
 <div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog modal-sm modal-dialog-scrollable">
+    <div class="modal-dialog modal-sm modal-fullscreen-sm-down modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title text-danger"><i class="ti ti-alert-triangle me-1"></i>تأكيد الحذف</h6>

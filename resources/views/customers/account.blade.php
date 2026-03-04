@@ -428,7 +428,7 @@
 </div>
 
 <div class="modal fade" id="debitModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title text-danger"><i class="ti ti-plus me-1"></i>إضافة دين</h6>
@@ -465,7 +465,7 @@
 </div>
 
 <div class="modal fade" id="creditModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title text-success"><i class="ti ti-minus me-1"></i>تسجيل سداد</h6>
@@ -514,7 +514,7 @@
 </div>
 
 <div class="modal fade" id="editCustomerModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title"><i class="ti ti-edit me-1"></i>تعديل الزبون</h6>
