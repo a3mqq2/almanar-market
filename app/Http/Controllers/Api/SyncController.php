@@ -675,16 +675,17 @@ class SyncController extends Controller
 
     public function pull(Request $request): JsonResponse
     {
-
-        ini_set('memory_limit', '1024M');
-
         $request->validate([
             'device_id' => 'required|string|size:36',
             'since' => 'nullable|date',
+            'limit' => 'nullable|integer|min:1|max:5000',
+            'offset_model' => 'nullable|string',
+            'offset_id' => 'nullable|integer',
         ]);
 
         $deviceId = $request->input('device_id');
         $since = $request->input('since') ? Carbon::parse($request->input('since')) : null;
+        $limit = $request->input('limit', 500);
 
         $syncableModels = [
             \App\Models\User::class,
@@ -718,13 +719,29 @@ class SyncController extends Controller
         ];
 
         $changes = [];
+        $total = 0;
+        $hasMore = false;
+        $lastModel = null;
+        $lastId = null;
+
+        $offsetModel = $request->input('offset_model');
+        $offsetId = $request->input('offset_id', 0);
+        $pastOffset = $offsetModel === null;
 
         foreach ($syncableModels as $modelClass) {
+            if (!$pastOffset) {
+                if ($modelClass === $offsetModel) {
+                    $pastOffset = true;
+                } else {
+                    continue;
+                }
+            }
+
             try {
                 $tableName = (new $modelClass)->getTable();
                 $hasDeviceId = Schema::hasColumn($tableName, 'device_id');
 
-                $query = $modelClass::query();
+                $query = $modelClass::query()->orderBy('id');
 
                 if ($since) {
                     $query->where('updated_at', '>', $since);
@@ -737,9 +754,18 @@ class SyncController extends Controller
                     });
                 }
 
-                $records = $query->get();
+                if ($modelClass === $offsetModel && $offsetId > 0) {
+                    $query->where('id', '>', $offsetId);
+                }
+
+                $records = $query->limit($limit - $total + 1)->get();
 
                 foreach ($records as $record) {
+                    if ($total >= $limit) {
+                        $hasMore = true;
+                        break 2;
+                    }
+
                     $changes[] = [
                         'id' => $record->id,
                         'type' => $modelClass,
@@ -747,6 +773,9 @@ class SyncController extends Controller
                         'payload' => $record->makeVisible($record->getHidden())->toArray(),
                         'timestamp' => $record->updated_at?->toIso8601String() ?? now()->toIso8601String(),
                     ];
+                    $lastModel = $modelClass;
+                    $lastId = $record->id;
+                    $total++;
                 }
             } catch (\Exception $e) {
                 continue;
@@ -756,6 +785,9 @@ class SyncController extends Controller
         return response()->json([
             'success' => true,
             'changes' => $changes,
+            'has_more' => $hasMore,
+            'next_offset_model' => $hasMore ? $lastModel : null,
+            'next_offset_id' => $hasMore ? $lastId : null,
             'timestamp' => now()->toIso8601String(),
         ]);
     }

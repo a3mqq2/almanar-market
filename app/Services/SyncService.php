@@ -209,28 +209,46 @@ class SyncService
         }
 
         try {
-            $params = ['device_id' => $deviceId];
-            if ($since) {
-                $params['since'] = $since->toIso8601String();
-            }
+            $totalPulled = 0;
+            $totalApplied = 0;
+            $offsetModel = null;
+            $offsetId = 0;
 
-            $response = $this->http()
-                ->withToken($device->api_token)
-                ->get(config('desktop.server_url') . '/api/v1/sync/pull', $params);
+            do {
+                $params = ['device_id' => $deviceId, 'limit' => 500];
+                if ($since) {
+                    $params['since'] = $since->toIso8601String();
+                }
+                if ($offsetModel) {
+                    $params['offset_model'] = $offsetModel;
+                    $params['offset_id'] = $offsetId;
+                }
 
-            if ($response->successful()) {
+                $response = $this->http()
+                    ->withToken($device->api_token)
+                    ->get(config('desktop.server_url') . '/api/v1/sync/pull', $params);
+
+                if (!$response->successful()) {
+                    return ['success' => false, 'message' => $response->body()];
+                }
+
                 $result = $response->json();
-                $applied = $this->applyPulledChanges($result['changes'] ?? []);
-                $device->updateLastSync();
+                $changes = $result['changes'] ?? [];
+                $totalPulled += count($changes);
+                $totalApplied += $this->applyPulledChanges($changes);
 
-                return [
-                    'success' => true,
-                    'pulled' => count($result['changes'] ?? []),
-                    'applied' => $applied,
-                ];
-            }
+                $hasMore = $result['has_more'] ?? false;
+                $offsetModel = $result['next_offset_model'] ?? null;
+                $offsetId = $result['next_offset_id'] ?? 0;
+            } while ($hasMore);
 
-            return ['success' => false, 'message' => $response->body()];
+            $device->updateLastSync();
+
+            return [
+                'success' => true,
+                'pulled' => $totalPulled,
+                'applied' => $totalApplied,
+            ];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
