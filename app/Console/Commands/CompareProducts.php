@@ -15,13 +15,17 @@ class CompareProducts extends Command
     protected $signature = 'sync:compare-products
         {--device= : Device ID to use for API auth}
         {--push : Push missing products to production}
-        {--dry-run : Show what would be pushed without pushing}';
+        {--pull : Pull missing products from production}
+        {--dry-run : Show what would be synced without syncing}';
 
     protected $description = 'Compare local products with production server and find missing ones';
 
     protected string $serverUrl;
     protected string $apiToken;
     protected string $deviceId;
+    protected array $remoteUnits = [];
+    protected array $remoteBarcodes = [];
+    protected array $remoteBatches = [];
 
     public function handle(): int
     {
@@ -39,48 +43,62 @@ class CompareProducts extends Command
         $this->info("Device: {$device->device_name} ({$this->deviceId})");
         $this->newLine();
 
-        $this->info('Fetching products from production...');
-        $remoteProducts = $this->fetchRemoteProducts();
+        $this->info('Fetching data from production...');
+        $remoteProducts = $this->fetchRemoteData();
 
         if ($remoteProducts === null) {
             return 1;
         }
 
-        $this->info("Remote products found: " . count($remoteProducts));
+        $this->info("Remote products: " . count($remoteProducts));
+        $this->info("Remote units: " . count($this->remoteUnits));
+        $this->info("Remote barcodes: " . count($this->remoteBarcodes));
+        $this->info("Remote batches: " . count($this->remoteBatches));
 
         $localProducts = Product::with(['productUnits', 'barcodes', 'inventoryBatches'])->get();
         $this->info("Local products: " . $localProducts->count());
         $this->newLine();
 
         $remoteIds = collect($remoteProducts)->pluck('id')->toArray();
-        $remoteBarcodes = collect($remoteProducts)->pluck('barcode')->filter()->toArray();
+        $remoteBarcodesArr = collect($remoteProducts)->pluck('barcode')->filter()->toArray();
         $remoteNames = collect($remoteProducts)->pluck('name')->filter()->toArray();
 
-        $missingById = $localProducts->filter(fn($p) => !in_array($p->id, $remoteIds));
+        $missingFromRemote = $localProducts->filter(fn($p) => !in_array($p->id, $remoteIds))
+            ->filter(function ($p) use ($remoteBarcodesArr) {
+                return !($p->barcode && in_array($p->barcode, $remoteBarcodesArr));
+            })
+            ->filter(function ($p) use ($remoteNames) {
+                return !in_array($p->name, $remoteNames);
+            });
 
-        $missingByBarcode = $missingById->filter(function ($p) use ($remoteBarcodes) {
-            if ($p->barcode && in_array($p->barcode, $remoteBarcodes)) {
-                return false;
-            }
+        $localIds = $localProducts->pluck('id')->toArray();
+        $localBarcodesArr = $localProducts->pluck('barcode')->filter()->toArray();
+        $localNames = $localProducts->pluck('name')->filter()->toArray();
+
+        $missingFromLocal = collect($remoteProducts)->filter(function ($rp) use ($localIds, $localBarcodesArr, $localNames) {
+            if (in_array($rp['id'], $localIds)) return false;
+            if (!empty($rp['barcode']) && in_array($rp['barcode'], $localBarcodesArr)) return false;
+            if (!empty($rp['name']) && in_array($rp['name'], $localNames)) return false;
             return true;
         });
 
-        $missingByName = $missingByBarcode->filter(function ($p) use ($remoteNames) {
-            return !in_array($p->name, $remoteNames);
-        });
+        $this->showResults($missingFromRemote, $missingFromLocal);
 
-        $existRemoteNotLocal = collect($remoteProducts)->filter(function ($rp) use ($localProducts) {
-            return !$localProducts->contains('id', $rp['id']);
-        });
-
-        $this->showResults($missingByName, $missingById, $existRemoteNotLocal, $localProducts, $remoteProducts);
-
-        if ($this->option('push') && $missingByName->isNotEmpty()) {
-            return $this->pushMissingProducts($missingByName);
+        if ($this->option('push') && $missingFromRemote->isNotEmpty()) {
+            return $this->pushMissingProducts($missingFromRemote);
         }
 
-        if ($this->option('dry-run') && $missingByName->isNotEmpty()) {
-            $this->showPushPreview($missingByName);
+        if ($this->option('pull') && $missingFromLocal->isNotEmpty()) {
+            return $this->pullMissingProducts($missingFromLocal);
+        }
+
+        if ($this->option('dry-run')) {
+            if ($missingFromRemote->isNotEmpty()) {
+                $this->showPushPreview($missingFromRemote);
+            }
+            if ($missingFromLocal->isNotEmpty()) {
+                $this->showPullPreview($missingFromLocal);
+            }
         }
 
         return 0;
@@ -117,12 +135,23 @@ class CompareProducts extends Command
         return $device;
     }
 
-    protected function fetchRemoteProducts(): ?array
+    protected function fetchRemoteData(): ?array
     {
         $products = [];
+        $this->remoteUnits = [];
+        $this->remoteBarcodes = [];
+        $this->remoteBatches = [];
+
         $offsetModel = null;
         $offsetId = 0;
         $page = 0;
+
+        $targetTypes = [
+            'App\\Models\\Product' => 'products',
+            'App\\Models\\ProductUnit' => 'units',
+            'App\\Models\\ProductBarcode' => 'barcodes',
+            'App\\Models\\InventoryBatch' => 'batches',
+        ];
 
         do {
             $page++;
@@ -153,9 +182,25 @@ class CompareProducts extends Command
                     return null;
                 }
 
+                $passedTargetModels = false;
+
                 foreach ($data['changes'] ?? [] as $change) {
-                    if ($change['type'] === Product::class || $change['type'] === 'App\\Models\\Product') {
-                        $products[] = $change['payload'];
+                    $type = $change['type'] ?? '';
+
+                    if (isset($targetTypes[$type])) {
+                        $passedTargetModels = true;
+                        $bucket = $targetTypes[$type];
+                        if ($bucket === 'products') {
+                            $products[] = $change['payload'];
+                        } elseif ($bucket === 'units') {
+                            $this->remoteUnits[] = $change['payload'];
+                        } elseif ($bucket === 'barcodes') {
+                            $this->remoteBarcodes[] = $change['payload'];
+                        } elseif ($bucket === 'batches') {
+                            $this->remoteBatches[] = $change['payload'];
+                        }
+                    } elseif ($passedTargetModels) {
+                        break;
                     }
                 }
 
@@ -163,21 +208,12 @@ class CompareProducts extends Command
                 $offsetModel = $data['next_offset_model'] ?? null;
                 $offsetId = $data['next_offset_id'] ?? 0;
 
-                $this->output->write("\r  Page {$page}: fetched " . count($products) . " products so far...");
+                $this->output->write("\r  Page {$page}: products=" . count($products)
+                    . " units=" . count($this->remoteUnits)
+                    . " barcodes=" . count($this->remoteBarcodes)
+                    . " batches=" . count($this->remoteBatches) . "   ");
 
-                $passedProducts = false;
-                foreach ($data['changes'] ?? [] as $change) {
-                    $type = $change['type'] ?? '';
-                    if (str_contains($type, 'Product')) {
-                        $passedProducts = true;
-                    }
-                    if ($passedProducts && !str_contains($type, 'Product') && !str_contains($type, 'Barcode') && !str_contains($type, 'Unit')) {
-                        $hasMore = false;
-                        break;
-                    }
-                }
-
-                if ($offsetModel && !str_contains($offsetModel, 'Product') && !str_contains($offsetModel, 'Barcode') && !str_contains($offsetModel, 'Unit')) {
+                if ($offsetModel && !isset($targetTypes[$offsetModel])) {
                     $hasMore = false;
                 }
 
@@ -192,15 +228,15 @@ class CompareProducts extends Command
         return $products;
     }
 
-    protected function showResults($missingByName, $missingById, $existRemoteNotLocal, $localProducts, $remoteProducts): void
+    protected function showResults($missingFromRemote, $missingFromLocal): void
     {
         $this->info('=== Comparison Results ===');
         $this->newLine();
 
-        $this->info("Missing from production (not matched by ID, barcode, or name): {$missingByName->count()}");
+        $this->info("Missing from production (local only): {$missingFromRemote->count()}");
 
-        if ($missingByName->isNotEmpty()) {
-            $rows = $missingByName->map(function ($p) {
+        if ($missingFromRemote->isNotEmpty()) {
+            $rows = $missingFromRemote->map(function ($p) {
                 return [
                     $p->id,
                     $p->name,
@@ -219,35 +255,143 @@ class CompareProducts extends Command
         }
 
         $this->newLine();
-        $this->info("Exist on production but not locally: {$existRemoteNotLocal->count()}");
+        $this->info("Missing locally (production only): {$missingFromLocal->count()}");
 
-        if ($existRemoteNotLocal->isNotEmpty()) {
-            $rows = $existRemoteNotLocal->take(20)->map(function ($rp) {
+        if ($missingFromLocal->isNotEmpty()) {
+            $remoteUnitsByProduct = collect($this->remoteUnits)->groupBy('product_id');
+            $remoteBarcodesByProduct = collect($this->remoteBarcodes)->groupBy('product_id');
+            $remoteBatchesByProduct = collect($this->remoteBatches)->groupBy('product_id');
+
+            $rows = $missingFromLocal->map(function ($rp) use ($remoteUnitsByProduct, $remoteBarcodesByProduct, $remoteBatchesByProduct) {
+                $pid = $rp['id'];
                 return [
-                    $rp['id'],
+                    $pid,
                     $rp['name'] ?? '-',
                     $rp['barcode'] ?? '-',
+                    $remoteUnitsByProduct->get($pid, collect())->count(),
+                    $remoteBarcodesByProduct->get($pid, collect())->count(),
+                    $remoteBatchesByProduct->get($pid, collect())->count(),
+                    substr($rp['created_at'] ?? '-', 0, 10),
                 ];
             })->toArray();
 
-            $this->table(['ID', 'Name', 'Barcode'], $rows);
-
-            if ($existRemoteNotLocal->count() > 20) {
-                $this->warn("  ... and " . ($existRemoteNotLocal->count() - 20) . " more");
-            }
+            $this->table(
+                ['ID', 'Name', 'Barcode', 'Units', 'Barcodes', 'Batches', 'Created'],
+                $rows
+            );
         }
     }
 
     protected function showPushPreview($missingProducts): void
     {
         $this->newLine();
-        $this->warn('=== DRY RUN - Would push these products ===');
+        $this->warn('=== DRY RUN - Would PUSH these products ===');
 
         foreach ($missingProducts as $product) {
             $this->line("  [{$product->id}] {$product->name}");
-            $this->line("    Units: " . $product->productUnits->pluck('unit_id')->implode(', '));
+            $this->line("    Units: " . $product->productUnits->count());
             $this->line("    Barcodes: " . $product->barcodes->pluck('barcode')->implode(', '));
             $this->line("    Batches: " . $product->inventoryBatches->count());
+        }
+    }
+
+    protected function showPullPreview($missingProducts): void
+    {
+        $this->newLine();
+        $this->warn('=== DRY RUN - Would PULL these products ===');
+
+        $remoteUnitsByProduct = collect($this->remoteUnits)->groupBy('product_id');
+        $remoteBarcodesByProduct = collect($this->remoteBarcodes)->groupBy('product_id');
+        $remoteBatchesByProduct = collect($this->remoteBatches)->groupBy('product_id');
+
+        foreach ($missingProducts as $rp) {
+            $pid = $rp['id'];
+            $units = $remoteUnitsByProduct->get($pid, collect());
+            $barcodes = $remoteBarcodesByProduct->get($pid, collect());
+            $batches = $remoteBatchesByProduct->get($pid, collect());
+
+            $this->line("  [{$pid}] {$rp['name']}");
+            $this->line("    Units: {$units->count()}" . ($units->isNotEmpty() ? " (" . $units->pluck('unit_id')->implode(', ') . ")" : ""));
+            $this->line("    Barcodes: {$barcodes->count()}" . ($barcodes->isNotEmpty() ? " (" . $barcodes->pluck('barcode')->implode(', ') . ")" : ""));
+            $this->line("    Batches: {$batches->count()}");
+        }
+    }
+
+    protected function pullMissingProducts($missingProducts): int
+    {
+        $count = $missingProducts->count();
+
+        if (!$this->confirm("Pull {$count} products with relationships from production to local?")) {
+            return 0;
+        }
+
+        $remoteUnitsByProduct = collect($this->remoteUnits)->groupBy('product_id');
+        $remoteBarcodesByProduct = collect($this->remoteBarcodes)->groupBy('product_id');
+        $remoteBatchesByProduct = collect($this->remoteBatches)->groupBy('product_id');
+
+        $syncFields = ['synced_at', 'sync_version', 'local_uuid', 'device_id'];
+
+        $created = 0;
+        $errors = 0;
+
+        DB::beginTransaction();
+
+        try {
+            foreach ($missingProducts as $rp) {
+                $pid = $rp['id'];
+
+                $productData = collect($rp)->except(array_merge(
+                    $syncFields,
+                    ['product_units', 'active_barcodes', 'base_unit', 'inventory_batches', 'barcodes']
+                ))->toArray();
+
+                $product = Product::updateOrCreate(
+                    ['id' => $pid],
+                    $productData
+                );
+
+                $units = $remoteUnitsByProduct->get($pid, collect());
+                foreach ($units as $unitData) {
+                    $unitData = collect($unitData)->except($syncFields)->toArray();
+                    ProductUnit::updateOrCreate(
+                        ['id' => $unitData['id']],
+                        $unitData
+                    );
+                }
+
+                $barcodes = $remoteBarcodesByProduct->get($pid, collect());
+                foreach ($barcodes as $barcodeData) {
+                    $barcodeData = collect($barcodeData)->except($syncFields)->toArray();
+                    ProductBarcode::updateOrCreate(
+                        ['id' => $barcodeData['id']],
+                        $barcodeData
+                    );
+                }
+
+                $batches = $remoteBatchesByProduct->get($pid, collect());
+                foreach ($batches as $batchData) {
+                    $batchData = collect($batchData)->except($syncFields)->toArray();
+                    InventoryBatch::updateOrCreate(
+                        ['id' => $batchData['id']],
+                        $batchData
+                    );
+                }
+
+                $created++;
+                $this->output->write("\r  Pulled: {$created}/{$count}");
+            }
+
+            DB::commit();
+            $this->newLine();
+            $this->info("Successfully pulled {$created} products with all relationships.");
+
+            return 0;
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->newLine();
+            $this->error("Pull failed: " . $e->getMessage());
+            return 1;
         }
     }
 
