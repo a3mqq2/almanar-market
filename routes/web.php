@@ -354,8 +354,10 @@ Route::prefix('api/sync')->middleware('auth')->group(function () {
         if (!config('desktop.mode')) {
             return response()->json(['success' => false, 'message' => 'Sync not enabled']);
         }
+        set_time_limit(600);
         $sync = new \App\Services\SyncService();
-        return response()->json($sync->pullChanges(config('desktop.device_id')));
+        $device = \App\Models\DeviceRegistration::where('device_id', config('desktop.device_id'))->first();
+        return response()->json($sync->pullChanges(config('desktop.device_id'), $device?->last_sync_at));
     });
 
     Route::post('/push', function () {
