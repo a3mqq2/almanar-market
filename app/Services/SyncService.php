@@ -260,6 +260,8 @@ class SyncService
 
         if (DB::connection()->getDriverName() === 'sqlite') {
             DB::statement('PRAGMA foreign_keys = OFF');
+        } else {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0');
         }
 
         foreach ($this->syncOrder as $modelClass) {
@@ -348,6 +350,8 @@ class SyncService
         } finally {
             if (DB::connection()->getDriverName() === 'sqlite') {
                 DB::statement('PRAGMA foreign_keys = ON');
+            } else {
+                DB::statement('SET FOREIGN_KEY_CHECKS=1');
             }
 
             foreach ($this->syncOrder as $modelClass) {
