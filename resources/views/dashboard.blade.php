@@ -404,6 +404,10 @@
 </div>
 @endsection
 
+@push('page-scripts')
+<script src="{{ asset('assets/js/pages/dashboard-ecommerce.js') }}"></script>
+@endpush
+
 @push('scripts')
 <script src="{{ asset('assets/plugins/apexcharts/apexcharts.min.js') }}"></script>
 <script>

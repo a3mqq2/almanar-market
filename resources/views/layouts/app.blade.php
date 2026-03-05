@@ -921,8 +921,7 @@
         <!-- Custom table -->
         <script src="{{ asset('assets/js/pages/custom-table.js') }}"></script>
 
-        <!-- Dashboard js -->
-        <script src="{{ asset('assets/js/pages/dashboard-ecommerce.js') }}"></script>
+        @stack('page-scripts')
 
         @stack('scripts')
 
