@@ -51,16 +51,22 @@ class SyncService
 
     protected array $foreignKeyMap = [
         'App\Models\SaleItem' => ['sale_id' => 'App\Models\Sale', 'product_id' => 'App\Models\Product', 'product_unit_id' => 'App\Models\ProductUnit', 'inventory_batch_id' => 'App\Models\InventoryBatch'],
-        'App\Models\SalePayment' => ['sale_id' => 'App\Models\Sale'],
-        'App\Models\SaleReturnItem' => ['sales_return_id' => 'App\Models\SalesReturn'],
+        'App\Models\SalePayment' => ['sale_id' => 'App\Models\Sale', 'payment_method_id' => 'App\Models\PaymentMethod', 'cashbox_id' => 'App\Models\Cashbox'],
+        'App\Models\SaleReturnItem' => ['sales_return_id' => 'App\Models\SalesReturn', 'product_id' => 'App\Models\Product', 'inventory_batch_id' => 'App\Models\InventoryBatch'],
         'App\Models\PurchaseItem' => ['purchase_id' => 'App\Models\Purchase', 'product_id' => 'App\Models\Product', 'product_unit_id' => 'App\Models\ProductUnit', 'inventory_batch_id' => 'App\Models\InventoryBatch'],
-        'App\Models\ShiftCashbox' => ['shift_id' => 'App\Models\Shift'],
-        'App\Models\CashboxTransaction' => ['shift_id' => 'App\Models\Shift'],
+        'App\Models\ShiftCashbox' => ['shift_id' => 'App\Models\Shift', 'cashbox_id' => 'App\Models\Cashbox'],
+        'App\Models\CashboxTransaction' => ['cashbox_id' => 'App\Models\Cashbox', 'shift_id' => 'App\Models\Shift', 'payment_method_id' => 'App\Models\PaymentMethod'],
+        'App\Models\CustomerTransaction' => ['customer_id' => 'App\Models\Customer', 'cashbox_id' => 'App\Models\Cashbox'],
+        'App\Models\SupplierTransaction' => ['supplier_id' => 'App\Models\Supplier', 'cashbox_id' => 'App\Models\Cashbox'],
         'App\Models\InventoryBatch' => ['product_id' => 'App\Models\Product'],
-        'App\Models\StockMovement' => ['sale_id' => 'App\Models\Sale', 'purchase_id' => 'App\Models\Purchase', 'batch_id' => 'App\Models\InventoryBatch', 'product_id' => 'App\Models\Product'],
-        'App\Models\InventoryCountItem' => ['inventory_count_id' => 'App\Models\InventoryCount'],
-        'App\Models\CustomerTransaction' => ['customer_id' => 'App\Models\Customer'],
-        'App\Models\SupplierTransaction' => ['supplier_id' => 'App\Models\Supplier'],
+        'App\Models\StockMovement' => ['batch_id' => 'App\Models\InventoryBatch', 'product_id' => 'App\Models\Product'],
+        'App\Models\InventoryCountItem' => ['inventory_count_id' => 'App\Models\InventoryCount', 'product_id' => 'App\Models\Product'],
+        'App\Models\Expense' => ['category_id' => 'App\Models\ExpenseCategory', 'cashbox_id' => 'App\Models\Cashbox'],
+        'App\Models\Sale' => ['customer_id' => 'App\Models\Customer', 'shift_id' => 'App\Models\Shift'],
+        'App\Models\SalesReturn' => ['sale_id' => 'App\Models\Sale', 'customer_id' => 'App\Models\Customer'],
+        'App\Models\Purchase' => ['supplier_id' => 'App\Models\Supplier'],
+        'App\Models\ProductUnit' => ['product_id' => 'App\Models\Product', 'unit_id' => 'App\Models\Unit'],
+        'App\Models\ProductBarcode' => ['product_id' => 'App\Models\Product'],
     ];
 
     public function getPendingChanges(string $deviceId): array
@@ -182,19 +188,25 @@ class SyncService
 
                 if (isset($conflict['server_data']) && $log) {
                     $modelClass = $log->syncable_type;
-                    $model = $modelClass::find($conflict['server_id'] ?? $log->syncable_id);
-                    if ($model) {
-                        if (method_exists($modelClass, 'disableSyncLogging')) {
-                            $modelClass::disableSyncLogging();
+                    DB::beginTransaction();
+                    try {
+                        $model = $modelClass::lockForUpdate()->find($conflict['server_id'] ?? $log->syncable_id);
+                        if ($model) {
+                            if (method_exists($modelClass, 'disableSyncLogging')) {
+                                $modelClass::disableSyncLogging();
+                            }
+                            $serverData = $conflict['server_data'];
+                            unset($serverData['id'], $serverData['device_id'], $serverData['local_uuid'], $serverData['synced_at'], $serverData['sync_version']);
+                            $model->fill($serverData);
+                            $model->synced_at = now();
+                            $model->save();
+                            if (method_exists($modelClass, 'enableSyncLogging')) {
+                                $modelClass::enableSyncLogging();
+                            }
                         }
-                        $serverData = $conflict['server_data'];
-                        unset($serverData['id'], $serverData['device_id'], $serverData['local_uuid'], $serverData['synced_at'], $serverData['sync_version']);
-                        $model->fill($serverData);
-                        $model->synced_at = now();
-                        $model->save();
-                        if (method_exists($modelClass, 'enableSyncLogging')) {
-                            $modelClass::enableSyncLogging();
-                        }
+                        DB::commit();
+                    } catch (\Exception $e) {
+                        DB::rollBack();
                     }
                 }
             }
@@ -210,7 +222,7 @@ class SyncService
         }
     }
 
-    public function pullChanges(string $deviceId, Carbon $since = null): array
+    public function pullChanges(string $deviceId, ?Carbon $since = null): array
     {
         $device = DeviceRegistration::where('device_id', $deviceId)->first();
 
@@ -600,7 +612,7 @@ class SyncService
                     ->exists();
 
                 if (!$hasCreditReversal) {
-                    $customer = \App\Models\Customer::find($sale->customer_id);
+                    $customer = \App\Models\Customer::lockForUpdate()->find($sale->customer_id);
                     if ($customer) {
                         \App\Models\CustomerTransaction::create([
                             'customer_id' => $customer->id,
@@ -794,7 +806,7 @@ class SyncService
 
         if (!$alreadyProcessed) {
             foreach ($count->items as $item) {
-                $variance = ($item->counted_quantity ?? 0) - ($item->system_quantity ?? 0);
+                $variance = ($item->counted_qty ?? 0) - ($item->system_qty ?? 0);
                 if ($variance == 0) continue;
 
                 $product = \App\Models\Product::find($item->product_id);

@@ -197,8 +197,8 @@ class FinancialTransactionService
         ?int $referenceId = null,
         $transactionDate = null
     ): SupplierTransaction {
-        $currentBalance = $supplier->current_balance;
-        $newBalance = $currentBalance + $amount;
+        $supplier = Supplier::lockForUpdate()->findOrFail($supplier->id);
+        $newBalance = $supplier->current_balance + $amount;
 
         $transaction = SupplierTransaction::create([
             'supplier_id' => $supplier->id,
@@ -227,8 +227,8 @@ class FinancialTransactionService
         ?int $cashboxId = null,
         $transactionDate = null
     ): SupplierTransaction {
-        $currentBalance = $supplier->current_balance;
-        $newBalance = $currentBalance - $amount;
+        $supplier = Supplier::lockForUpdate()->findOrFail($supplier->id);
+        $newBalance = $supplier->current_balance - $amount;
 
         $transaction = SupplierTransaction::create([
             'supplier_id' => $supplier->id,
@@ -393,6 +393,7 @@ class FinancialTransactionService
 
     public function recalculateCustomerBalances(Customer $customer): void
     {
+        $customer = Customer::lockForUpdate()->findOrFail($customer->id);
         $transactions = $customer->transactions()
             ->orderBy('transaction_date', 'asc')
             ->orderBy('id', 'asc')
