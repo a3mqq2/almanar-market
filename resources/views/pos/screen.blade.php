@@ -412,6 +412,7 @@
                     <div class="customer-info d-none" id="customerInfoContainer">
                         <span id="customerName"></span>
                         <span class="badge bg-info" id="customerBalance"></span>
+                        <span class="badge bg-secondary d-none" id="customerCreditLimit"></span>
                         <button type="button" class="btn btn-sm btn-outline-danger" id="clearCustomer">
                             <i class="ti ti-x"></i>
                         </button>
@@ -2232,6 +2233,11 @@
                     lastSaleId = data.sale.id;
                     selectedCustomer.current_balance = parseFloat(selectedCustomer.current_balance) + total;
                     document.getElementById('customerBalance').textContent = selectedCustomer.current_balance.toFixed(2);
+                    const creditEl2 = document.getElementById('customerCreditLimit');
+                    if (parseFloat(selectedCustomer.credit_limit) > 0) {
+                        creditEl2.textContent = 'حد: ' + parseFloat(selectedCustomer.credit_limit).toFixed(2);
+                        creditEl2.classList.remove('d-none');
+                    }
                     updateCreditButtonVisibility();
 
                     showToast(`تم البيع الآجل: ${data.invoice_number} - ${selectedCustomer.name}`, 'success');
@@ -2375,6 +2381,13 @@
                         document.getElementById('customerInfoContainer').classList.remove('d-none');
                         document.getElementById('customerName').textContent = selectedCustomer.name;
                         document.getElementById('customerBalance').textContent = parseFloat(selectedCustomer.current_balance).toFixed(2);
+                        const creditEl3 = document.getElementById('customerCreditLimit');
+                        if (parseFloat(selectedCustomer.credit_limit) > 0) {
+                            creditEl3.textContent = 'حد: ' + parseFloat(selectedCustomer.credit_limit).toFixed(2);
+                            creditEl3.classList.remove('d-none');
+                        } else {
+                            creditEl3.classList.add('d-none');
+                        }
                     }
 
                     renderCart();
@@ -2511,6 +2524,13 @@
             document.getElementById('customerInfoContainer').classList.remove('d-none');
             document.getElementById('customerName').textContent = customer.name;
             document.getElementById('customerBalance').textContent = parseFloat(customer.current_balance).toFixed(2);
+            const creditLimitEl = document.getElementById('customerCreditLimit');
+            if (parseFloat(customer.credit_limit) > 0) {
+                creditLimitEl.textContent = 'حد: ' + parseFloat(customer.credit_limit).toFixed(2);
+                creditLimitEl.classList.remove('d-none');
+            } else {
+                creditLimitEl.classList.add('d-none');
+            }
             bootstrap.Modal.getInstance(document.getElementById('customerSearchModal')).hide();
             resetCustomerModal();
             updateCreditButtonVisibility();
@@ -2595,6 +2615,7 @@
             document.getElementById('customerInputContainer').classList.remove('d-none');
             document.getElementById('customerInfoContainer').classList.add('d-none');
             document.getElementById('customerSearch').value = '';
+            document.getElementById('customerCreditLimit').classList.add('d-none');
             updateCreditButtonVisibility();
         });
 

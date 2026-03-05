@@ -109,13 +109,8 @@ class FixDuplicateBatches extends Command
                         ->where('inventory_batch_id', $dupBatch->id)
                         ->update(['inventory_batch_id' => $keepBatch->id]);
 
-                    $extraQty += (float)$dupBatch->quantity;
                     $dupBatch->delete();
                     $deleted++;
-                }
-
-                if ($extraQty > 0) {
-                    $keepBatch->decrement('quantity', $extraQty);
                 }
 
                 $merged++;
