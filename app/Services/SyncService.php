@@ -227,7 +227,7 @@ class SyncService
             do {
                 $params = ['device_id' => $deviceId, 'limit' => 500];
                 if ($since) {
-                    $params['since'] = $since->toIso8601String();
+                    $params['since'] = $since->copy()->subMinutes(5)->toIso8601String();
                 }
                 if ($offsetModel) {
                     $params['offset_model'] = $offsetModel;

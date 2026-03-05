@@ -760,10 +760,12 @@ class SyncController extends Controller
                     $query->where('updated_at', '>', $since);
                 }
 
-                if ($hasDeviceId) {
+                if ($hasDeviceId && Schema::hasColumn($tableName, 'synced_at')) {
                     $query->where(function ($q) use ($deviceId) {
                         $q->whereNull('device_id')
-                            ->orWhere('device_id', '!=', $deviceId);
+                            ->orWhere('device_id', '!=', $deviceId)
+                            ->orWhereColumn('updated_at', '>', 'synced_at')
+                            ->orWhereNull('synced_at');
                     });
                 }
 
