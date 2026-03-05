@@ -342,29 +342,44 @@ class CompareProducts extends Command
             $localBatches = $localProduct->inventoryBatches;
             $remoteBatches = $remoteBatchesByProduct->get($localProduct->id, collect());
 
-            $localBatchIds = $localBatches->pluck('id')->toArray();
-            $localBatchNumbers = $localBatches->pluck('batch_number')->filter()->toArray();
-            $remoteBatchIds = $remoteBatches->pluck('id')->toArray();
-            $remoteBatchNumbers = $remoteBatches->pluck('batch_number')->filter()->toArray();
+            $matchedRemoteIds = [];
+            $matchedLocalIds = [];
 
-            $missingLocally = $remoteBatches->filter(function ($b) use ($localBatchIds, $localBatchNumbers) {
-                if (in_array($b['id'], $localBatchIds)) return false;
-                if (!empty($b['batch_number']) && in_array($b['batch_number'], $localBatchNumbers)) return false;
-                return true;
-            });
+            foreach ($localBatches as $lb) {
+                $rb = $remoteBatches->first(function ($b) use ($lb, $matchedRemoteIds) {
+                    if (in_array($b['id'], $matchedRemoteIds)) return false;
+                    return $b['id'] == $lb->id;
+                });
 
-            $missingRemotely = $localBatches->filter(function ($b) use ($remoteBatchIds, $remoteBatchNumbers) {
-                if (in_array($b->id, $remoteBatchIds)) return false;
-                if ($b->batch_number && in_array($b->batch_number, $remoteBatchNumbers)) return false;
-                return true;
-            });
+                if (!$rb && $lb->batch_number) {
+                    $rb = $remoteBatches->first(function ($b) use ($lb, $matchedRemoteIds) {
+                        if (in_array($b['id'], $matchedRemoteIds)) return false;
+                        return ($b['batch_number'] ?? '') === $lb->batch_number;
+                    });
+                }
+
+                if ($rb) {
+                    $matchedRemoteIds[] = $rb['id'];
+                    $matchedLocalIds[] = $lb->id;
+                }
+            }
+
+            $missingLocally = $remoteBatches->filter(fn($b) => !in_array($b['id'], $matchedRemoteIds));
+            $missingRemotely = $localBatches->filter(fn($b) => !in_array($b->id, $matchedLocalIds));
 
             $qtyDiffs = collect();
             foreach ($localBatches as $lb) {
-                $rb = $remoteBatches->firstWhere('id', $lb->id);
+                if (!in_array($lb->id, $matchedLocalIds)) continue;
+
+                $rb = $remoteBatches->first(function ($b) use ($lb) {
+                    return $b['id'] == $lb->id;
+                });
                 if (!$rb && $lb->batch_number) {
-                    $rb = $remoteBatches->firstWhere('batch_number', $lb->batch_number);
+                    $rb = $remoteBatches->first(function ($b) use ($lb) {
+                        return ($b['batch_number'] ?? '') === $lb->batch_number;
+                    });
                 }
+
                 if ($rb && abs((float)$lb->quantity - (float)$rb['quantity']) > 0.001) {
                     $qtyDiffs->push([
                         'batch_id' => $lb->id,

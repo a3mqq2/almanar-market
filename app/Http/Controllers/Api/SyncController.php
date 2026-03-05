@@ -238,6 +238,7 @@ class SyncController extends Controller
             'App\Models\ProductBarcode' => ['product_id', 'barcode'],
             'App\Models\ShiftCashbox' => ['shift_id', 'cashbox_id'],
             'App\Models\InventoryCountItem' => ['inventory_count_id', 'product_id'],
+            'App\Models\InventoryBatch' => ['product_id', 'batch_number'],
         ];
 
         return $map[$modelClass] ?? null;

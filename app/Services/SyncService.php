@@ -450,6 +450,27 @@ class SyncService
             }
         }
 
+        if ($modelClass === 'App\Models\InventoryBatch' && isset($payload['product_id'], $payload['batch_number'])) {
+            $existing = $modelClass::where('product_id', $payload['product_id'])
+                ->where('batch_number', $payload['batch_number'])
+                ->first();
+            if ($existing) {
+                return $existing;
+            }
+        }
+
+        if ($modelClass === 'App\Models\StockMovement' && isset($payload['reference'])) {
+            $query = $modelClass::where('reference', $payload['reference'])
+                ->where('product_id', $payload['product_id'] ?? 0);
+            if (isset($payload['batch_id'])) {
+                $query->where('batch_id', $payload['batch_id']);
+            }
+            $existing = $query->first();
+            if ($existing) {
+                return $existing;
+            }
+        }
+
         if ($modelClass === 'App\Models\ProductBarcode' && isset($payload['barcode'])) {
             $existingBarcodes = $modelClass::where('barcode', $payload['barcode'])
                 ->orderBy('id')
