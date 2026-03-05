@@ -2525,11 +2525,13 @@
             document.getElementById('customerName').textContent = customer.name;
             document.getElementById('customerBalance').textContent = parseFloat(customer.current_balance).toFixed(2);
             const creditLimitEl = document.getElementById('customerCreditLimit');
-            if (parseFloat(customer.credit_limit) > 0) {
-                creditLimitEl.textContent = 'حد: ' + parseFloat(customer.credit_limit).toFixed(2);
+            const creditLimit = parseFloat(customer.credit_limit || 0);
+            if (creditLimit > 0) {
+                creditLimitEl.textContent = 'حد: ' + creditLimit.toFixed(2);
                 creditLimitEl.classList.remove('d-none');
             } else {
-                creditLimitEl.classList.add('d-none');
+                creditLimitEl.textContent = 'بدون حد';
+                creditLimitEl.classList.remove('d-none');
             }
             bootstrap.Modal.getInstance(document.getElementById('customerSearchModal')).hide();
             resetCustomerModal();
