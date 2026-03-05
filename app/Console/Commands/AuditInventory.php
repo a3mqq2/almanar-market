@@ -33,7 +33,7 @@ class AuditInventory extends Command
         $this->newLine();
 
         $this->auditNegativeBatches($productId);
-        $this->auditBatchVsMovements($products);
+        $this->auditProductTotals($products);
         $this->auditMovementChain($products);
         $this->auditOrphanedMovements();
 
@@ -63,7 +63,7 @@ class AuditInventory extends Command
         $negativeBatches = $query->with('product')->get();
 
         if ($negativeBatches->isEmpty()) {
-            $this->line('   OK - No negative batches');
+            $this->line('   OK');
             return;
         }
 
@@ -75,152 +75,106 @@ class AuditInventory extends Command
                 'product_id' => $batch->product_id,
                 'product_name' => $batch->product?->name ?? '??',
                 'batch_id' => $batch->id,
-                'current_qty' => $batch->quantity,
+                'current_qty' => (float)$batch->quantity,
                 'expected_qty' => 0,
-                'diff' => abs($batch->quantity),
+                'diff' => abs((float)$batch->quantity),
                 'detail' => "Batch #{$batch->id} has negative quantity: {$batch->quantity}",
             ];
         }
     }
 
-    protected function auditBatchVsMovements($products): void
+    protected function auditProductTotals($products): void
     {
-        $this->info('2. Checking batch quantities vs stock movements...');
+        $this->info('2. Checking product totals (batch sum vs movement sum)...');
 
         $discrepancies = 0;
 
         foreach ($products as $product) {
-            $batches = InventoryBatch::where('product_id', $product->id)->get();
+            $totalBatchQty = (float)InventoryBatch::where('product_id', $product->id)->sum('quantity');
+            $totalMovementQty = (float)StockMovement::where('product_id', $product->id)->sum('quantity');
 
-            foreach ($batches as $batch) {
-                $movements = StockMovement::where('batch_id', $batch->id)
-                    ->orderBy('id')
-                    ->get();
-
-                if ($movements->isEmpty()) {
-                    if (abs($batch->quantity) > 0.001) {
-                        $discrepancies++;
-                        $this->issues[] = [
-                            'type' => 'batch_no_movements',
-                            'product_id' => $product->id,
-                            'product_name' => $product->name,
-                            'batch_id' => $batch->id,
-                            'current_qty' => $batch->quantity,
-                            'expected_qty' => 0,
-                            'diff' => $batch->quantity,
-                            'detail' => "Batch #{$batch->id} has qty={$batch->quantity} but no movements",
-                        ];
-                    }
-                    continue;
-                }
-
-                $calculatedQty = $movements->sum('quantity');
-
-                if (abs($calculatedQty - (float)$batch->quantity) > 0.001) {
-                    $discrepancies++;
-                    $this->issues[] = [
-                        'type' => 'batch_movement_mismatch',
-                        'product_id' => $product->id,
-                        'product_name' => $product->name,
-                        'batch_id' => $batch->id,
-                        'current_qty' => (float)$batch->quantity,
-                        'expected_qty' => $calculatedQty,
-                        'diff' => round((float)$batch->quantity - $calculatedQty, 4),
-                        'detail' => "Batch #{$batch->id}: qty={$batch->quantity}, movements sum={$calculatedQty}",
-                    ];
-                }
-            }
-
-            $totalBatchQty = $batches->sum('quantity');
-            $totalMovementQty = StockMovement::where('product_id', $product->id)
-                ->sum('quantity');
-
-            if (abs((float)$totalBatchQty - (float)$totalMovementQty) > 0.001) {
+            if (abs($totalBatchQty - $totalMovementQty) > 0.001) {
                 $discrepancies++;
                 $this->issues[] = [
                     'type' => 'product_total_mismatch',
                     'product_id' => $product->id,
                     'product_name' => $product->name,
                     'batch_id' => null,
-                    'current_qty' => (float)$totalBatchQty,
-                    'expected_qty' => (float)$totalMovementQty,
-                    'diff' => round((float)$totalBatchQty - (float)$totalMovementQty, 4),
-                    'detail' => "Product total: batches={$totalBatchQty}, movements={$totalMovementQty}",
+                    'current_qty' => $totalBatchQty,
+                    'expected_qty' => $totalMovementQty,
+                    'diff' => round($totalBatchQty - $totalMovementQty, 4),
+                    'detail' => "Batches sum={$totalBatchQty}, Movements sum={$totalMovementQty}",
                 ];
             }
         }
 
         if ($discrepancies === 0) {
-            $this->line('   OK - All batches match movements');
+            $this->line('   OK');
         } else {
-            $this->warn("   FOUND {$discrepancies} discrepancies");
+            $this->warn("   FOUND {$discrepancies} product total mismatches");
         }
     }
 
     protected function auditMovementChain($products): void
     {
-        $this->info('3. Checking movement chain integrity (before/after)...');
+        $this->info('3. Checking movement chain (before/after at product level)...');
 
         $broken = 0;
 
         foreach ($products as $product) {
-            $batches = InventoryBatch::where('product_id', $product->id)->get();
+            $movements = StockMovement::where('product_id', $product->id)
+                ->orderBy('id')
+                ->get();
 
-            foreach ($batches as $batch) {
-                $movements = StockMovement::where('batch_id', $batch->id)
-                    ->orderBy('id')
-                    ->get();
+            if ($movements->count() < 2) continue;
 
-                if ($movements->count() < 2) continue;
+            $prev = null;
+            foreach ($movements as $movement) {
+                if ($prev !== null) {
+                    $expectedBefore = (float)$prev->after_quantity;
+                    $actualBefore = (float)$movement->before_quantity;
 
-                $prev = null;
-                foreach ($movements as $movement) {
-                    if ($prev !== null) {
-                        $expectedBefore = (float)$prev->after_quantity;
-                        $actualBefore = (float)$movement->before_quantity;
-
-                        if (abs($expectedBefore - $actualBefore) > 0.001) {
-                            $broken++;
-                            $this->issues[] = [
-                                'type' => 'broken_chain',
-                                'product_id' => $product->id,
-                                'product_name' => $product->name,
-                                'batch_id' => $batch->id,
-                                'current_qty' => $actualBefore,
-                                'expected_qty' => $expectedBefore,
-                                'diff' => round($actualBefore - $expectedBefore, 4),
-                                'detail' => "Movement #{$movement->id}: before_qty={$actualBefore}, expected={$expectedBefore} (after movement #{$prev->id})",
-                            ];
-                        }
-                    }
-                    $prev = $movement;
-                }
-
-                if ($prev) {
-                    $expectedFinal = (float)$prev->after_quantity;
-                    $actualFinal = (float)$batch->quantity;
-
-                    if (abs($expectedFinal - $actualFinal) > 0.001) {
+                    if (abs($expectedBefore - $actualBefore) > 0.001) {
                         $broken++;
                         $this->issues[] = [
-                            'type' => 'final_mismatch',
+                            'type' => 'broken_chain',
                             'product_id' => $product->id,
                             'product_name' => $product->name,
-                            'batch_id' => $batch->id,
-                            'current_qty' => $actualFinal,
-                            'expected_qty' => $expectedFinal,
-                            'diff' => round($actualFinal - $expectedFinal, 4),
-                            'detail' => "Batch #{$batch->id}: final qty={$actualFinal}, last movement after_qty={$expectedFinal}",
+                            'batch_id' => $movement->batch_id,
+                            'current_qty' => $actualBefore,
+                            'expected_qty' => $expectedBefore,
+                            'diff' => round($actualBefore - $expectedBefore, 4),
+                            'detail' => "Movement #{$movement->id} ({$movement->type}): before={$actualBefore}, expected={$expectedBefore} (prev #{$prev->id})",
                         ];
                     }
+                }
+                $prev = $movement;
+            }
+
+            if ($prev) {
+                $totalBatchQty = (float)InventoryBatch::where('product_id', $product->id)->sum('quantity');
+                $lastAfter = (float)$prev->after_quantity;
+
+                if (abs($lastAfter - $totalBatchQty) > 0.001) {
+                    $broken++;
+                    $this->issues[] = [
+                        'type' => 'final_mismatch',
+                        'product_id' => $product->id,
+                        'product_name' => $product->name,
+                        'batch_id' => null,
+                        'current_qty' => $totalBatchQty,
+                        'expected_qty' => $lastAfter,
+                        'diff' => round($totalBatchQty - $lastAfter, 4),
+                        'detail' => "Last movement after_qty={$lastAfter}, actual batch total={$totalBatchQty}",
+                    ];
                 }
             }
         }
 
         if ($broken === 0) {
-            $this->line('   OK - All movement chains are consistent');
+            $this->line('   OK');
         } else {
-            $this->warn("   FOUND {$broken} broken chain links");
+            $this->warn("   FOUND {$broken} chain issues");
         }
     }
 
@@ -231,7 +185,7 @@ class AuditInventory extends Command
         $orphaned = StockMovement::whereNull('batch_id')->count();
 
         if ($orphaned === 0) {
-            $this->line('   OK - No orphaned movements');
+            $this->line('   OK');
         } else {
             $this->warn("   FOUND {$orphaned} orphaned movements (batch_id = NULL)");
 
@@ -250,7 +204,7 @@ class AuditInventory extends Command
                     'current_qty' => 0,
                     'expected_qty' => (float)$row->total_qty,
                     'diff' => (float)$row->total_qty,
-                    'detail' => "{$row->cnt} orphaned movements, total qty={$row->total_qty}",
+                    'detail' => "{$row->cnt} movements without batch, total qty={$row->total_qty}",
                 ];
             }
         }
@@ -259,7 +213,7 @@ class AuditInventory extends Command
     protected function showSummary(): void
     {
         if (empty($this->issues)) {
-            $this->info('=== AUDIT PASSED - No issues found ===');
+            $this->info('=== AUDIT PASSED ===');
             return;
         }
 
@@ -271,9 +225,7 @@ class AuditInventory extends Command
         foreach ($grouped as $type => $items) {
             $label = match ($type) {
                 'negative_batch' => 'Negative Batches',
-                'batch_no_movements' => 'Batches Without Movements',
-                'batch_movement_mismatch' => 'Batch vs Movement Mismatch',
-                'product_total_mismatch' => 'Product Total Mismatch',
+                'product_total_mismatch' => 'Product Total Mismatch (batches vs movements)',
                 'broken_chain' => 'Broken Movement Chain',
                 'final_mismatch' => 'Final Quantity Mismatch',
                 'orphaned_movements' => 'Orphaned Movements',
@@ -286,7 +238,6 @@ class AuditInventory extends Command
         $this->newLine();
 
         $rows = collect($this->issues)
-            ->unique(fn($i) => $i['product_id'] . '-' . $i['batch_id'] . '-' . $i['type'])
             ->sortByDesc(fn($i) => abs($i['diff']))
             ->take(50)
             ->map(fn($i) => [
@@ -294,9 +245,9 @@ class AuditInventory extends Command
                 mb_substr($i['product_name'], 0, 35),
                 $i['batch_id'] ?? '-',
                 $i['type'],
-                number_format($i['current_qty'], 4),
-                number_format($i['expected_qty'], 4),
-                ($i['diff'] >= 0 ? '+' : '') . number_format($i['diff'], 4),
+                number_format($i['current_qty'], 2),
+                number_format($i['expected_qty'], 2),
+                ($i['diff'] >= 0 ? '+' : '') . number_format($i['diff'], 2),
             ])
             ->toArray();
 
@@ -306,7 +257,7 @@ class AuditInventory extends Command
         );
 
         if (count($this->issues) > 50) {
-            $this->warn("... showing top 50 of " . count($this->issues) . " issues (sorted by diff)");
+            $this->warn("... showing top 50 of " . count($this->issues) . " issues");
         }
     }
 
@@ -329,29 +280,19 @@ class AuditInventory extends Command
         }
 
         fclose($fp);
-        $this->info("Report exported to: {$path}");
+        $this->info("Exported: {$path}");
     }
 
     protected function fixDiscrepancies(): int
     {
-        $fixable = collect($this->issues)->whereIn('type', [
-            'batch_movement_mismatch',
-            'final_mismatch',
-        ]);
+        $fixable = collect($this->issues)->where('type', 'product_total_mismatch');
 
         if ($fixable->isEmpty()) {
-            $this->warn('No auto-fixable issues found. Manual review needed for other issue types.');
+            $this->warn('No auto-fixable product total mismatches found.');
             return 1;
         }
 
-        $batchFixes = $fixable->where('type', 'batch_movement_mismatch')
-            ->unique('batch_id');
-        $finalFixes = $fixable->where('type', 'final_mismatch')
-            ->unique('batch_id');
-
-        $totalFixes = $batchFixes->merge($finalFixes)->unique('batch_id');
-
-        if (!$this->confirm("Fix {$totalFixes->count()} batch quantity discrepancies by creating adjustment movements?")) {
+        if (!$this->confirm("Fix {$fixable->count()} product total discrepancies by creating adjustment movements?")) {
             return 0;
         }
 
@@ -360,34 +301,46 @@ class AuditInventory extends Command
         try {
             $fixed = 0;
 
-            foreach ($totalFixes as $issue) {
-                $batch = InventoryBatch::find($issue['batch_id']);
-                if (!$batch) continue;
+            foreach ($fixable as $issue) {
+                $product = Product::find($issue['product_id']);
+                if (!$product) continue;
 
-                $movementSum = StockMovement::where('batch_id', $batch->id)->sum('quantity');
-                $currentQty = (float)$batch->quantity;
-                $diff = round($currentQty - (float)$movementSum, 4);
+                $batchQty = (float)InventoryBatch::where('product_id', $product->id)->sum('quantity');
+                $movementQty = (float)StockMovement::where('product_id', $product->id)->sum('quantity');
+                $diff = round($batchQty - $movementQty, 4);
 
                 if (abs($diff) < 0.001) continue;
 
+                $batch = InventoryBatch::where('product_id', $product->id)
+                    ->where('quantity', '>', 0)
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+                if (!$batch) {
+                    $batch = InventoryBatch::where('product_id', $product->id)
+                        ->orderBy('id', 'desc')
+                        ->first();
+                }
+
+                if (!$batch) continue;
+
                 StockMovement::create([
-                    'product_id' => $batch->product_id,
+                    'product_id' => $product->id,
                     'batch_id' => $batch->id,
                     'type' => 'adjustment',
                     'quantity' => $diff,
-                    'before_quantity' => $movementSum,
-                    'after_quantity' => $currentQty,
+                    'before_quantity' => $movementQty,
+                    'after_quantity' => $batchQty,
                     'cost_price' => $batch->cost_price,
                     'reference' => 'AUDIT-' . now()->format('Ymd'),
                     'reason' => 'تسوية تدقيق المخزون',
-                    'notes' => "Audit fix: movement sum={$movementSum}, batch qty={$currentQty}",
                 ]);
 
                 $fixed++;
             }
 
             DB::commit();
-            $this->info("Fixed {$fixed} batch discrepancies with adjustment movements.");
+            $this->info("Fixed {$fixed} product total discrepancies.");
 
             return 0;
 
