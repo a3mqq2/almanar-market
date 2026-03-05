@@ -19,7 +19,7 @@ class FixDuplicateBatches extends Command
     {
         $productId = $this->option('product');
 
-        $query = InventoryBatch::select('product_id', 'batch_number', DB::raw('COUNT(*) as cnt'), DB::raw('GROUP_CONCAT(id ORDER BY id) as batch_ids'))
+        $query = InventoryBatch::select('product_id', 'batch_number', DB::raw('COUNT(*) as cnt'))
             ->groupBy('product_id', 'batch_number')
             ->having('cnt', '>', 1);
 
@@ -39,8 +39,11 @@ class FixDuplicateBatches extends Command
 
         $rows = [];
         foreach ($duplicates as $dup) {
-            $ids = explode(',', $dup->batch_ids);
-            $batches = InventoryBatch::whereIn('id', $ids)->with('product')->orderBy('id')->get();
+            $batches = InventoryBatch::where('product_id', $dup->product_id)
+                ->where('batch_number', $dup->batch_number)
+                ->with('product')
+                ->orderBy('id')
+                ->get();
 
             $productName = $batches->first()?->product?->name ?? '??';
             $totalQty = $batches->sum('quantity');
@@ -81,8 +84,10 @@ class FixDuplicateBatches extends Command
             $deleted = 0;
 
             foreach ($duplicates as $dup) {
-                $ids = explode(',', $dup->batch_ids);
-                $batches = InventoryBatch::whereIn('id', $ids)->orderBy('id')->get();
+                $batches = InventoryBatch::where('product_id', $dup->product_id)
+                    ->where('batch_number', $dup->batch_number)
+                    ->orderBy('id')
+                    ->get();
 
                 $keepBatch = $batches->first();
                 $duplicateBatches = $batches->slice(1);
