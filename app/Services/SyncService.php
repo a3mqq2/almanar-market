@@ -50,13 +50,14 @@ class SyncService
     ];
 
     protected array $foreignKeyMap = [
-        'App\Models\SaleItem' => ['sale_id' => 'App\Models\Sale'],
+        'App\Models\SaleItem' => ['sale_id' => 'App\Models\Sale', 'product_id' => 'App\Models\Product', 'product_unit_id' => 'App\Models\ProductUnit', 'inventory_batch_id' => 'App\Models\InventoryBatch'],
         'App\Models\SalePayment' => ['sale_id' => 'App\Models\Sale'],
         'App\Models\SaleReturnItem' => ['sales_return_id' => 'App\Models\SalesReturn'],
-        'App\Models\PurchaseItem' => ['purchase_id' => 'App\Models\Purchase'],
+        'App\Models\PurchaseItem' => ['purchase_id' => 'App\Models\Purchase', 'product_id' => 'App\Models\Product', 'product_unit_id' => 'App\Models\ProductUnit', 'inventory_batch_id' => 'App\Models\InventoryBatch'],
         'App\Models\ShiftCashbox' => ['shift_id' => 'App\Models\Shift'],
         'App\Models\CashboxTransaction' => ['shift_id' => 'App\Models\Shift'],
-        'App\Models\StockMovement' => ['sale_id' => 'App\Models\Sale', 'purchase_id' => 'App\Models\Purchase'],
+        'App\Models\InventoryBatch' => ['product_id' => 'App\Models\Product'],
+        'App\Models\StockMovement' => ['sale_id' => 'App\Models\Sale', 'purchase_id' => 'App\Models\Purchase', 'batch_id' => 'App\Models\InventoryBatch', 'product_id' => 'App\Models\Product'],
         'App\Models\InventoryCountItem' => ['inventory_count_id' => 'App\Models\InventoryCount'],
         'App\Models\CustomerTransaction' => ['customer_id' => 'App\Models\Customer'],
         'App\Models\SupplierTransaction' => ['supplier_id' => 'App\Models\Supplier'],
@@ -597,7 +598,7 @@ class SyncService
 
         if (!$alreadyProcessed && $purchase->status === 'approved') {
             foreach ($purchase->items as $item) {
-                $batch = \App\Models\InventoryBatch::where('purchase_item_id', $item->id)->first();
+                $batch = $item->inventory_batch_id ? \App\Models\InventoryBatch::find($item->inventory_batch_id) : null;
                 if ($batch && $batch->quantity > 0) {
                     $product = \App\Models\Product::find($item->product_id);
                     $currentStock = $product->total_stock ?? 0;
