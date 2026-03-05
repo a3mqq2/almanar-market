@@ -199,6 +199,17 @@ class SyncController extends Controller
                     return ['status' => 'synced', 'server_id' => $model->id];
                 }
 
+                $serverUpdatedAt = $model->updated_at;
+                $clientUpdatedAt = isset($payload['updated_at']) ? Carbon::parse($payload['updated_at']) : null;
+
+                if ($serverUpdatedAt && $clientUpdatedAt && $serverUpdatedAt->gt($clientUpdatedAt) && !$model->device_id) {
+                    return [
+                        'status' => 'conflict',
+                        'server_id' => $model->id,
+                        'server_data' => $model->toArray(),
+                    ];
+                }
+
                 $model->fill($payload);
                 $model->local_uuid = $payload['local_uuid'] ?? null;
                 $model->synced_at = now();

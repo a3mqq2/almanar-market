@@ -178,15 +178,24 @@ class SyncService
                 $log = SyncLog::find($conflict['log_id']);
                 if ($log) {
                     $log->markAsConflict();
+                }
 
-                    SyncConflict::create([
-                        'device_id' => $log->device_id,
-                        'syncable_type' => $log->syncable_type,
-                        'syncable_id' => $log->syncable_id,
-                        'local_data' => $log->payload,
-                        'server_data' => $conflict['server_data'],
-                        'resolution' => 'pending',
-                    ]);
+                if (isset($conflict['server_data']) && $log) {
+                    $modelClass = $log->syncable_type;
+                    $model = $modelClass::find($conflict['server_id'] ?? $log->syncable_id);
+                    if ($model) {
+                        if (method_exists($modelClass, 'disableSyncLogging')) {
+                            $modelClass::disableSyncLogging();
+                        }
+                        $serverData = $conflict['server_data'];
+                        unset($serverData['id'], $serverData['device_id'], $serverData['local_uuid'], $serverData['synced_at'], $serverData['sync_version']);
+                        $model->fill($serverData);
+                        $model->synced_at = now();
+                        $model->save();
+                        if (method_exists($modelClass, 'enableSyncLogging')) {
+                            $modelClass::enableSyncLogging();
+                        }
+                    }
                 }
             }
         }
@@ -241,9 +250,14 @@ class SyncService
                 $hasMore = $result['has_more'] ?? false;
                 $offsetModel = $result['next_offset_model'] ?? null;
                 $offsetId = $result['next_offset_id'] ?? 0;
+                $serverTimestamp = $result['timestamp'] ?? null;
             } while ($hasMore);
 
-            $device->updateLastSync();
+            if ($serverTimestamp) {
+                $device->update(['last_sync_at' => Carbon::parse($serverTimestamp)]);
+            } else {
+                $device->updateLastSync();
+            }
 
             return [
                 'success' => true,

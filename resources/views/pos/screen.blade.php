@@ -2526,13 +2526,8 @@
             document.getElementById('customerBalance').textContent = parseFloat(customer.current_balance).toFixed(2);
             const creditLimitEl = document.getElementById('customerCreditLimit');
             const creditLimit = parseFloat(customer.credit_limit || 0);
-            if (creditLimit > 0) {
-                creditLimitEl.textContent = 'حد: ' + creditLimit.toFixed(2);
-                creditLimitEl.classList.remove('d-none');
-            } else {
-                creditLimitEl.textContent = 'بدون حد';
-                creditLimitEl.classList.remove('d-none');
-            }
+            creditLimitEl.textContent = creditLimit > 0 ? 'حد: ' + creditLimit.toFixed(2) : 'بدون حد';
+            creditLimitEl.classList.remove('d-none');
             bootstrap.Modal.getInstance(document.getElementById('customerSearchModal')).hide();
             resetCustomerModal();
             updateCreditButtonVisibility();

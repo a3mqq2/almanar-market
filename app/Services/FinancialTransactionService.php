@@ -212,7 +212,8 @@ class FinancialTransactionService
             'created_by' => Auth::id(),
         ]);
 
-        $supplier->update(['current_balance' => $newBalance]);
+        $supplier->current_balance = $newBalance;
+        $supplier->saveQuietly();
 
         return $transaction;
     }
@@ -242,7 +243,8 @@ class FinancialTransactionService
             'created_by' => Auth::id(),
         ]);
 
-        $supplier->update(['current_balance' => $newBalance]);
+        $supplier->current_balance = $newBalance;
+        $supplier->saveQuietly();
 
         return $transaction;
     }
@@ -274,7 +276,8 @@ class FinancialTransactionService
             'created_by' => Auth::id(),
         ]);
 
-        $cashbox->update(['current_balance' => $newBalance]);
+        $cashbox->current_balance = $newBalance;
+        $cashbox->saveQuietly();
 
         return $transaction;
     }
@@ -306,7 +309,8 @@ class FinancialTransactionService
             'created_by' => Auth::id(),
         ]);
 
-        $cashbox->update(['current_balance' => $newBalance]);
+        $cashbox->current_balance = $newBalance;
+        $cashbox->saveQuietly();
 
         return $transaction;
     }
@@ -408,7 +412,8 @@ class FinancialTransactionService
             }
         }
 
-        $customer->update(['current_balance' => round($balance, 2)]);
+        $customer->current_balance = round($balance, 2);
+        $customer->saveQuietly();
     }
 
     public function createCustomerPayment(
