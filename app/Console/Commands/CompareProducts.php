@@ -16,6 +16,8 @@ class CompareProducts extends Command
         {--device= : Device ID to use for API auth}
         {--push : Push missing products to production}
         {--pull : Pull missing products from production}
+        {--sync-batches : Sync missing/different batches for existing products}
+        {--product= : Compare specific product ID only}
         {--dry-run : Show what would be synced without syncing}';
 
     protected $description = 'Compare local products with production server and find missing ones';
@@ -84,12 +86,18 @@ class CompareProducts extends Command
 
         $this->showResults($missingFromRemote, $missingFromLocal);
 
+        $batchDiffs = $this->compareBatches($localProducts, $remoteProducts);
+
         if ($this->option('push') && $missingFromRemote->isNotEmpty()) {
             return $this->pushMissingProducts($missingFromRemote);
         }
 
         if ($this->option('pull') && $missingFromLocal->isNotEmpty()) {
             return $this->pullMissingProducts($missingFromLocal);
+        }
+
+        if ($this->option('sync-batches') && !empty($batchDiffs)) {
+            return $this->syncBatchDiffs($batchDiffs);
         }
 
         if ($this->option('dry-run')) {
@@ -314,6 +322,149 @@ class CompareProducts extends Command
             $this->line("    Units: {$units->count()}" . ($units->isNotEmpty() ? " (" . $units->pluck('unit_id')->implode(', ') . ")" : ""));
             $this->line("    Barcodes: {$barcodes->count()}" . ($barcodes->isNotEmpty() ? " (" . $barcodes->pluck('barcode')->implode(', ') . ")" : ""));
             $this->line("    Batches: {$batches->count()}");
+        }
+    }
+
+    protected function compareBatches($localProducts, array $remoteProducts): array
+    {
+        $this->newLine();
+        $this->info('=== Batch Comparison (existing products) ===');
+
+        $productFilter = $this->option('product');
+        $remoteBatchesByProduct = collect($this->remoteBatches)->groupBy('product_id');
+        $remoteProductIds = collect($remoteProducts)->pluck('id')->toArray();
+        $diffs = [];
+
+        foreach ($localProducts as $localProduct) {
+            if ($productFilter && $localProduct->id != $productFilter) continue;
+            if (!in_array($localProduct->id, $remoteProductIds)) continue;
+
+            $localBatches = $localProduct->inventoryBatches;
+            $remoteBatches = $remoteBatchesByProduct->get($localProduct->id, collect());
+
+            $localBatchIds = $localBatches->pluck('id')->toArray();
+            $remoteBatchIds = $remoteBatches->pluck('id')->toArray();
+
+            $missingLocally = $remoteBatches->filter(fn($b) => !in_array($b['id'], $localBatchIds));
+
+            $missingRemotely = $localBatches->filter(fn($b) => !in_array($b->id, $remoteBatchIds));
+
+            $qtyDiffs = collect();
+            foreach ($localBatches as $lb) {
+                $rb = $remoteBatches->firstWhere('id', $lb->id);
+                if ($rb && abs((float)$lb->quantity - (float)$rb['quantity']) > 0.001) {
+                    $qtyDiffs->push([
+                        'batch_id' => $lb->id,
+                        'batch_number' => $lb->batch_number,
+                        'local_qty' => (float)$lb->quantity,
+                        'remote_qty' => (float)$rb['quantity'],
+                        'remote_data' => $rb,
+                    ]);
+                }
+            }
+
+            if ($missingLocally->isEmpty() && $missingRemotely->isEmpty() && $qtyDiffs->isEmpty()) {
+                continue;
+            }
+
+            $diffs[$localProduct->id] = [
+                'product' => $localProduct,
+                'missing_locally' => $missingLocally,
+                'missing_remotely' => $missingRemotely,
+                'qty_diffs' => $qtyDiffs,
+            ];
+        }
+
+        if (empty($diffs)) {
+            $this->line('   All batches match.');
+            return $diffs;
+        }
+
+        $this->warn("   Found " . count($diffs) . " products with batch differences");
+        $this->newLine();
+
+        $rows = [];
+        foreach ($diffs as $pid => $diff) {
+            $name = mb_substr($diff['product']->name, 0, 30);
+
+            foreach ($diff['missing_locally'] as $b) {
+                $rows[] = [$pid, $name, $b['id'], $b['batch_number'] ?? '-', '-', number_format((float)$b['quantity'], 2), 'باتش ناقص محلياً'];
+            }
+
+            foreach ($diff['missing_remotely'] as $b) {
+                $rows[] = [$pid, $name, $b->id, $b->batch_number ?? '-', number_format((float)$b->quantity, 2), '-', 'باتش ناقص من السيرفر'];
+            }
+
+            foreach ($diff['qty_diffs'] as $d) {
+                $rows[] = [$pid, $name, $d['batch_id'], $d['batch_number'] ?? '-', number_format($d['local_qty'], 2), number_format($d['remote_qty'], 2), 'فرق كمية'];
+            }
+        }
+
+        $this->table(
+            ['Product', 'Name', 'Batch ID', 'Batch #', 'Local Qty', 'Remote Qty', 'Issue'],
+            $rows
+        );
+
+        if (!$this->option('sync-batches')) {
+            $this->newLine();
+            $this->line('Use --sync-batches to pull missing batches and fix quantity differences from server.');
+        }
+
+        return $diffs;
+    }
+
+    protected function syncBatchDiffs(array $diffs): int
+    {
+        $totalOps = 0;
+        foreach ($diffs as $diff) {
+            $totalOps += $diff['missing_locally']->count() + $diff['qty_diffs']->count();
+        }
+
+        if ($totalOps === 0) {
+            $this->info('Nothing to sync.');
+            return 0;
+        }
+
+        if (!$this->confirm("Sync {$totalOps} batch changes from server to local?")) {
+            return 0;
+        }
+
+        $syncFields = ['synced_at', 'sync_version', 'local_uuid', 'device_id'];
+
+        DB::beginTransaction();
+
+        try {
+            $created = 0;
+            $updated = 0;
+
+            foreach ($diffs as $diff) {
+                foreach ($diff['missing_locally'] as $batchData) {
+                    $batchData = collect($batchData)->except($syncFields)->toArray();
+                    InventoryBatch::updateOrCreate(
+                        ['id' => $batchData['id']],
+                        $batchData
+                    );
+                    $created++;
+                }
+
+                foreach ($diff['qty_diffs'] as $d) {
+                    $batch = InventoryBatch::find($d['batch_id']);
+                    if ($batch) {
+                        $batch->update(['quantity' => $d['remote_qty']]);
+                        $updated++;
+                    }
+                }
+            }
+
+            DB::commit();
+            $this->info("Created {$created} missing batches, updated {$updated} batch quantities.");
+
+            return 0;
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->error("Sync failed: " . $e->getMessage());
+            return 1;
         }
     }
 
