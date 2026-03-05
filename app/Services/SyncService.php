@@ -371,6 +371,8 @@ class SyncService
             }
 
             $this->recalcAffectedCashboxBalances($changes);
+            $this->recalcAffectedCustomerBalances($changes);
+            $this->recalcAffectedSupplierBalances($changes);
 
             DB::commit();
         } catch (\Exception $e) {
@@ -439,7 +441,72 @@ class SyncService
             }
 
             if (abs($cashbox->current_balance - $balance) > 0.001) {
-                $cashbox->update(['current_balance' => $balance]);
+                $cashbox->current_balance = $balance;
+                $cashbox->saveQuietly();
+            }
+        }
+    }
+
+    protected function recalcAffectedCustomerBalances(array $changes): void
+    {
+        $affectedIds = [];
+        foreach ($changes as $change) {
+            if ($change['type'] !== 'App\Models\CustomerTransaction') continue;
+            $id = $change['payload']['customer_id'] ?? null;
+            if ($id) $affectedIds[$id] = true;
+        }
+
+        foreach (array_keys($affectedIds) as $customerId) {
+            $customer = \App\Models\Customer::find($customerId);
+            if (!$customer) continue;
+
+            $transactions = \App\Models\CustomerTransaction::where('customer_id', $customerId)
+                ->orderBy('transaction_date')
+                ->orderBy('id')
+                ->get();
+
+            $balance = (float) $customer->opening_balance;
+            foreach ($transactions as $t) {
+                $balance = $t->type === 'debit' ? $balance + (float) $t->amount : $balance - (float) $t->amount;
+                if (abs((float) $t->balance_after - $balance) > 0.001) {
+                    DB::table('customer_transactions')->where('id', $t->id)->update(['balance_after' => round($balance, 2)]);
+                }
+            }
+            if (abs((float) $customer->current_balance - $balance) > 0.001) {
+                $customer->current_balance = round($balance, 2);
+                $customer->saveQuietly();
+            }
+        }
+    }
+
+    protected function recalcAffectedSupplierBalances(array $changes): void
+    {
+        $affectedIds = [];
+        foreach ($changes as $change) {
+            if ($change['type'] !== 'App\Models\SupplierTransaction') continue;
+            $id = $change['payload']['supplier_id'] ?? null;
+            if ($id) $affectedIds[$id] = true;
+        }
+
+        foreach (array_keys($affectedIds) as $supplierId) {
+            $supplier = \App\Models\Supplier::find($supplierId);
+            if (!$supplier) continue;
+
+            $transactions = \App\Models\SupplierTransaction::where('supplier_id', $supplierId)
+                ->orderBy('transaction_date')
+                ->orderBy('id')
+                ->get();
+
+            $balance = (float) $supplier->opening_balance;
+            foreach ($transactions as $t) {
+                $balance = $t->type === 'debit' ? $balance + (float) $t->amount : $balance - (float) $t->amount;
+                if (abs((float) $t->balance_after - $balance) > 0.001) {
+                    DB::table('supplier_transactions')->where('id', $t->id)->update(['balance_after' => round($balance, 2)]);
+                }
+            }
+            if (abs((float) $supplier->current_balance - $balance) > 0.001) {
+                $supplier->current_balance = round($balance, 2);
+                $supplier->saveQuietly();
             }
         }
     }
