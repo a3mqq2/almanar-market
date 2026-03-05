@@ -35,7 +35,7 @@ class AuditInventory extends Command
         $this->auditNegativeBatches($productId);
         $this->auditProductTotals($products);
         $this->auditMovementChain($products);
-        $this->auditOrphanedMovements();
+        $this->auditOrphanedMovements($productId);
 
         $this->newLine();
         $this->showSummary();
@@ -178,11 +178,16 @@ class AuditInventory extends Command
         }
     }
 
-    protected function auditOrphanedMovements(): void
+    protected function auditOrphanedMovements(?string $productId): void
     {
         $this->info('4. Checking for orphaned movements (missing batch)...');
 
-        $orphaned = StockMovement::whereNull('batch_id')->count();
+        $query = StockMovement::whereNull('batch_id');
+        if ($productId) {
+            $query->where('product_id', $productId);
+        }
+
+        $orphaned = $query->count();
 
         if ($orphaned === 0) {
             $this->line('   OK');
@@ -190,6 +195,7 @@ class AuditInventory extends Command
             $this->warn("   FOUND {$orphaned} orphaned movements (batch_id = NULL)");
 
             $byProduct = StockMovement::whereNull('batch_id')
+                ->when($productId, fn($q) => $q->where('product_id', $productId))
                 ->select('product_id', DB::raw('COUNT(*) as cnt'), DB::raw('SUM(quantity) as total_qty'))
                 ->groupBy('product_id')
                 ->get();
