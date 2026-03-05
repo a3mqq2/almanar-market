@@ -257,8 +257,8 @@ class FinancialTransactionService
         ?int $shiftId = null,
         ?int $paymentMethodId = null
     ): CashboxTransaction {
-        $currentBalance = $cashbox->current_balance;
-        $newBalance = $currentBalance - $amount;
+        $cashbox = Cashbox::lockForUpdate()->findOrFail($cashbox->id);
+        $newBalance = $cashbox->current_balance - $amount;
 
         $transaction = CashboxTransaction::create([
             'cashbox_id' => $cashbox->id,
@@ -289,8 +289,8 @@ class FinancialTransactionService
         ?int $shiftId = null,
         ?int $paymentMethodId = null
     ): CashboxTransaction {
-        $currentBalance = $cashbox->current_balance;
-        $newBalance = $currentBalance + $amount;
+        $cashbox = Cashbox::lockForUpdate()->findOrFail($cashbox->id);
+        $newBalance = $cashbox->current_balance + $amount;
 
         $transaction = CashboxTransaction::create([
             'cashbox_id' => $cashbox->id,

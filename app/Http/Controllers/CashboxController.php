@@ -215,8 +215,8 @@ class CashboxController extends Controller
         DB::beginTransaction();
 
         try {
-            $currentBalance = $cashbox->current_balance;
-            $newBalance = $currentBalance + $validated['amount'];
+            $cashbox = Cashbox::lockForUpdate()->findOrFail($cashbox->id);
+            $newBalance = $cashbox->current_balance + $validated['amount'];
 
             $transaction = CashboxTransaction::create([
                 'cashbox_id' => $cashbox->id,
@@ -256,18 +256,20 @@ class CashboxController extends Controller
             'transaction_date' => 'nullable|date',
         ]);
 
-        if ($cashbox->current_balance < $validated['amount']) {
-            return response()->json([
-                'success' => false,
-                'message' => 'الرصيد غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2),
-            ], 422);
-        }
-
         DB::beginTransaction();
 
         try {
-            $currentBalance = $cashbox->current_balance;
-            $newBalance = $currentBalance - $validated['amount'];
+            $cashbox = Cashbox::lockForUpdate()->findOrFail($cashbox->id);
+
+            if ($cashbox->current_balance < $validated['amount']) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الرصيد غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2),
+                ], 422);
+            }
+
+            $newBalance = $cashbox->current_balance - $validated['amount'];
 
             $transaction = CashboxTransaction::create([
                 'cashbox_id' => $cashbox->id,
@@ -315,25 +317,30 @@ class CashboxController extends Controller
             ], 422);
         }
 
-        if ($cashbox->current_balance < $validated['amount']) {
-            return response()->json([
-                'success' => false,
-                'message' => 'الرصيد غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2),
-            ], 422);
-        }
-
-        $toCashbox = Cashbox::findOrFail($validated['to_cashbox_id']);
-
-        if (!$toCashbox->status) {
-            return response()->json([
-                'success' => false,
-                'message' => 'الخزينة المستلمة غير نشطة',
-            ], 422);
-        }
-
         DB::beginTransaction();
 
         try {
+            $ids = collect([$cashbox->id, $validated['to_cashbox_id']])->sort()->values();
+            $locked = Cashbox::lockForUpdate()->whereIn('id', $ids)->orderBy('id')->get()->keyBy('id');
+            $cashbox = $locked[$cashbox->id];
+            $toCashbox = $locked[$validated['to_cashbox_id']];
+
+            if ($cashbox->current_balance < $validated['amount']) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الرصيد غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2),
+                ], 422);
+            }
+
+            if (!$toCashbox->status) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الخزينة المستلمة غير نشطة',
+                ], 422);
+            }
+
             $transactionDate = $validated['transaction_date'] ?? now();
             $description = $validated['description'] ?? "تحويل إلى {$toCashbox->name}";
             $descriptionIn = $validated['description'] ?? "تحويل من {$cashbox->name}";

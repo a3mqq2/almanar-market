@@ -282,7 +282,7 @@ Route::prefix('v1')->group(function () {
                     ->get();
 
                 foreach ($originalTxns as $original) {
-                    $cashbox = \App\Models\Cashbox::find($original->cashbox_id);
+                    $cashbox = \App\Models\Cashbox::lockForUpdate()->find($original->cashbox_id);
                     if ($cashbox) {
                         \App\Models\CashboxTransaction::create([
                             'cashbox_id' => $cashbox->id,

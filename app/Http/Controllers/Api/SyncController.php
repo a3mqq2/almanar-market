@@ -392,7 +392,7 @@ class SyncController extends Controller
                     ->get();
 
                 foreach ($originalTxns as $original) {
-                    $cashbox = \App\Models\Cashbox::find($original->cashbox_id);
+                    $cashbox = \App\Models\Cashbox::lockForUpdate()->find($original->cashbox_id);
                     if ($cashbox) {
                         \App\Models\CashboxTransaction::create([
                             'cashbox_id' => $cashbox->id,
@@ -511,7 +511,7 @@ class SyncController extends Controller
                             ->first();
 
                         if ($cashboxTxn) {
-                            $cashbox = \App\Models\Cashbox::find($cashboxTxn->cashbox_id);
+                            $cashbox = \App\Models\Cashbox::lockForUpdate()->find($cashboxTxn->cashbox_id);
                             if ($cashbox) {
                                 \App\Models\CashboxTransaction::create([
                                     'cashbox_id' => $cashbox->id,
@@ -583,7 +583,7 @@ class SyncController extends Controller
                 ->exists();
 
             if (!$hasCashboxTxn && ($returnModel->refund_amount ?? 0) > 0) {
-                $cashbox = \App\Models\Cashbox::first();
+                $cashbox = \App\Models\Cashbox::lockForUpdate()->first();
                 if ($cashbox) {
                     \App\Models\CashboxTransaction::create([
                         'cashbox_id' => $cashbox->id,

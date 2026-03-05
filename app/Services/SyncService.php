@@ -343,6 +343,8 @@ class SyncService
                 }
             }
 
+            $this->recalcAffectedCashboxBalances($changes);
+
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
@@ -362,6 +364,57 @@ class SyncService
         }
 
         return $applied;
+    }
+
+    protected function recalcAffectedCashboxBalances(array $changes): void
+    {
+        $affectedCashboxIds = [];
+
+        foreach ($changes as $change) {
+            if ($change['type'] !== 'App\Models\CashboxTransaction') {
+                continue;
+            }
+            $cashboxId = $change['payload']['cashbox_id'] ?? null;
+            if ($cashboxId) {
+                $affectedCashboxIds[$cashboxId] = true;
+            }
+            $relatedCashboxId = $change['payload']['related_cashbox_id'] ?? null;
+            if ($relatedCashboxId) {
+                $affectedCashboxIds[$relatedCashboxId] = true;
+            }
+        }
+
+        foreach (array_keys($affectedCashboxIds) as $cashboxId) {
+            $cashbox = \App\Models\Cashbox::find($cashboxId);
+            if (!$cashbox) {
+                continue;
+            }
+
+            $transactions = \App\Models\CashboxTransaction::where('cashbox_id', $cashboxId)
+                ->orderBy('transaction_date')
+                ->orderBy('id')
+                ->get();
+
+            $balance = $cashbox->opening_balance;
+
+            foreach ($transactions as $t) {
+                if (in_array($t->type, ['in', 'transfer_in'])) {
+                    $balance += $t->amount;
+                } else {
+                    $balance -= $t->amount;
+                }
+
+                if (abs($t->balance_after - $balance) > 0.001) {
+                    DB::table('cashbox_transactions')
+                        ->where('id', $t->id)
+                        ->update(['balance_after' => $balance]);
+                }
+            }
+
+            if (abs($cashbox->current_balance - $balance) > 0.001) {
+                $cashbox->update(['current_balance' => $balance]);
+            }
+        }
     }
 
     protected function findOrCreateModel(string $modelClass, int $serverId, array $payload)
@@ -487,7 +540,7 @@ class SyncService
                     ->get();
 
                 foreach ($originalCashboxTxns as $original) {
-                    $cashbox = \App\Models\Cashbox::find($original->cashbox_id);
+                    $cashbox = \App\Models\Cashbox::lockForUpdate()->find($original->cashbox_id);
                     if ($cashbox) {
                         \App\Models\CashboxTransaction::create([
                             'cashbox_id' => $cashbox->id,
@@ -605,7 +658,7 @@ class SyncService
                             ->first();
 
                         if ($cashboxTxn) {
-                            $cashbox = \App\Models\Cashbox::find($cashboxTxn->cashbox_id);
+                            $cashbox = \App\Models\Cashbox::lockForUpdate()->find($cashboxTxn->cashbox_id);
                             if ($cashbox) {
                                 \App\Models\CashboxTransaction::create([
                                     'cashbox_id' => $cashbox->id,
@@ -677,7 +730,7 @@ class SyncService
                 ->exists();
 
             if (!$hasCashboxTxn && ($returnModel->refund_amount ?? 0) > 0) {
-                $cashbox = \App\Models\Cashbox::first();
+                $cashbox = \App\Models\Cashbox::lockForUpdate()->first();
                 if ($cashbox) {
                     \App\Models\CashboxTransaction::create([
                         'cashbox_id' => $cashbox->id,
