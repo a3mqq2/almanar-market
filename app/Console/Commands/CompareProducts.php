@@ -458,6 +458,7 @@ class CompareProducts extends Command
         }
 
         $syncFields = ['synced_at', 'sync_version', 'local_uuid', 'device_id'];
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
         DB::beginTransaction();
 
@@ -485,12 +486,14 @@ class CompareProducts extends Command
             }
 
             DB::commit();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
             $this->info("Created {$created} missing batches, updated {$updated} batch quantities.");
 
             return 0;
 
         } catch (\Exception $e) {
             DB::rollBack();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
             $this->error("Sync failed: " . $e->getMessage());
             return 1;
         }
@@ -513,6 +516,7 @@ class CompareProducts extends Command
         $created = 0;
         $errors = 0;
 
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
         DB::beginTransaction();
 
         try {
@@ -561,6 +565,7 @@ class CompareProducts extends Command
             }
 
             DB::commit();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
             $this->newLine();
             $this->info("Successfully pulled {$created} products with all relationships.");
 
@@ -568,6 +573,7 @@ class CompareProducts extends Command
 
         } catch (\Exception $e) {
             DB::rollBack();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
             $this->newLine();
             $this->error("Pull failed: " . $e->getMessage());
             return 1;
