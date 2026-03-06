@@ -104,6 +104,8 @@ class FixMissingProductUnits extends Command
                     'is_base_unit' => true,
                 ]);
 
+                $product->touch();
+
                 $fixed++;
                 $this->line("  Fixed: [{$product->id}] {$product->name} (sell: {$sellPrice}, cost: {$costPrice})");
             }
