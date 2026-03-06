@@ -42,11 +42,8 @@ class FixMissingProductUnits extends Command
                 ->latest('id')
                 ->first();
 
-            $sellPrice = $saleItem->unit_price ?? 0;
-            $costPrice = $purchaseItem->unit_price ?? $saleItem->cost_at_sale ?? 0;
-            $unitId = $saleItem->product_unit_id
-                ? (ProductUnit::find($saleItem->product_unit_id)?->unit_id ?? 1)
-                : 1;
+            $sellPrice = $saleItem?->unit_price ?? 0;
+            $costPrice = $purchaseItem?->unit_price ?? $saleItem?->cost_at_sale ?? 0;
 
             $source = [];
             if ($saleItem) $source[] = "sale #{$saleItem->sale_id} (price: {$saleItem->unit_price})";
