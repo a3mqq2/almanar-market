@@ -351,7 +351,16 @@ class SyncService
 
                         $model->fill($payload);
                         $model->synced_at = now();
-                        $model->save();
+
+                        if (!$model->save() && $model->exists) {
+                            $updateData = array_intersect_key(
+                                $payload,
+                                array_flip($model->getFillable())
+                            );
+                            $updateData['synced_at'] = now();
+                            $updateData['updated_at'] = $payload['updated_at'] ?? now();
+                            DB::table($model->getTable())->where('id', $model->id)->update($updateData);
+                        }
 
                         if ($hashedPassword) {
                             DB::table('users')->where('id', $model->id)->update(['password' => $hashedPassword]);
