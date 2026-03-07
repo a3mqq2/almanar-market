@@ -290,7 +290,7 @@ class ShiftController extends Controller
         $rules = [
             'cashboxes' => 'required|array|min:1',
             'cashboxes.*.cashbox_id' => 'required|in:' . implode(',', $cashboxIds),
-            'cashboxes.*.closing_balance' => 'required|numeric|min:0',
+            'cashboxes.*.closing_balance' => 'required|numeric',
             'notes' => 'nullable|string|max:500',
         ];
 
@@ -381,7 +381,7 @@ class ShiftController extends Controller
             'reason' => 'required|string|max:500',
             'cashboxes' => 'nullable|array',
             'cashboxes.*.cashbox_id' => 'required_with:cashboxes|exists:cashboxes,id',
-            'cashboxes.*.closing_balance' => 'required_with:cashboxes|numeric|min:0',
+            'cashboxes.*.closing_balance' => 'required_with:cashboxes|numeric',
         ]);
 
         try {
