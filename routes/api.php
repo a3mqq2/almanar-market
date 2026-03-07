@@ -534,14 +534,20 @@ Route::prefix('v1')->group(function () {
             ->map(fn($t) => [
                 'id' => $t->id,
                 'cashbox_id' => $t->cashbox_id,
+                'shift_id' => $t->shift_id,
+                'payment_method_id' => $t->payment_method_id,
                 'type' => $t->type,
                 'amount' => (float) $t->amount,
                 'balance_after' => (float) $t->balance_after,
                 'description' => $t->description,
                 'reference_type' => $t->reference_type,
                 'reference_id' => $t->reference_id,
+                'related_cashbox_id' => $t->related_cashbox_id,
+                'related_transaction_id' => $t->related_transaction_id,
                 'transaction_date' => $t->transaction_date?->format('Y-m-d'),
+                'created_by' => $t->created_by,
                 'created_at' => $t->created_at?->format('Y-m-d H:i:s'),
+                'updated_at' => $t->updated_at?->format('Y-m-d H:i:s'),
             ]);
 
         $cashboxQuery = \App\Models\Cashbox::query();
@@ -560,5 +566,65 @@ Route::prefix('v1')->group(function () {
             'cashboxes' => $cashboxes,
             'transactions' => $transactions,
         ]);
+    });
+
+    Route::post('/sync/delete-cashbox-transactions', function (\Illuminate\Http\Request $request) {
+        $ids = $request->input('ids', []);
+        if (empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'No IDs provided']);
+        }
+
+        $deleted = \Illuminate\Support\Facades\DB::table('cashbox_transactions')
+            ->whereIn('id', $ids)
+            ->delete();
+
+        return response()->json(['success' => true, 'deleted' => $deleted]);
+    });
+
+    Route::post('/sync/recalc-cashbox-balances', function () {
+        $cashboxes = \App\Models\Cashbox::all();
+        $results = [];
+
+        foreach ($cashboxes as $cashbox) {
+            $transactions = \App\Models\CashboxTransaction::where('cashbox_id', $cashbox->id)
+                ->orderBy('transaction_date')
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->get();
+
+            $balance = (float) $cashbox->opening_balance;
+            $fixed = 0;
+
+            foreach ($transactions as $t) {
+                if (in_array($t->type, ['in', 'transfer_in'])) {
+                    $balance += (float) $t->amount;
+                } else {
+                    $balance -= (float) $t->amount;
+                }
+
+                if (abs((float) $t->balance_after - $balance) > 0.001) {
+                    \Illuminate\Support\Facades\DB::table('cashbox_transactions')
+                        ->where('id', $t->id)
+                        ->update(['balance_after' => round($balance, 2)]);
+                    $fixed++;
+                }
+            }
+
+            $oldBalance = (float) $cashbox->current_balance;
+            if (abs($oldBalance - $balance) > 0.001) {
+                $cashbox->current_balance = round($balance, 2);
+                $cashbox->saveQuietly();
+            }
+
+            $results[] = [
+                'id' => $cashbox->id,
+                'name' => $cashbox->name,
+                'old_balance' => $oldBalance,
+                'new_balance' => round($balance, 2),
+                'transactions_fixed' => $fixed,
+            ];
+        }
+
+        return response()->json(['success' => true, 'results' => $results]);
     });
 });
