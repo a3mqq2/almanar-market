@@ -262,7 +262,14 @@ class FixCashboxTransactions extends Command
             }
         }
 
-        return compact('matched', 'dateMismatches', 'onlyLocal', 'onlyRemote', 'duplicatesLocal', 'duplicatesRemote');
+        return [
+            'matched' => $matched,
+            'date_mismatches' => $dateMismatches,
+            'only_local' => $onlyLocal,
+            'only_remote' => $onlyRemote,
+            'duplicates_local' => $duplicatesLocal,
+            'duplicates_remote' => $duplicatesRemote,
+        ];
     }
 
     protected function recalcLocal(): void
