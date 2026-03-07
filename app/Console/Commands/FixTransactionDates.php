@@ -9,12 +9,16 @@ use Illuminate\Support\Facades\Http;
 
 class FixTransactionDates extends Command
 {
-    protected $signature = 'sync:fix-dates {--dry-run : Show differences without fixing}';
+    protected $signature = 'sync:fix-dates
+        {--dry-run : Show differences without fixing}
+        {--table= : Fix specific table only (customer_transactions, supplier_transactions, cashbox_transactions)}';
 
     protected $description = 'Compare transaction dates with production and fix local mismatches';
 
     public function handle(): int
     {
+        set_time_limit(0);
+
         $serverUrl = config('desktop.server_url');
         $device = DeviceRegistration::where('device_id', config('desktop.device_id'))->first();
 
@@ -23,11 +27,19 @@ class FixTransactionDates extends Command
             return 1;
         }
 
-        $tables = [
+        $allTables = [
             'customer_transactions' => \App\Models\CustomerTransaction::class,
             'supplier_transactions' => \App\Models\SupplierTransaction::class,
             'cashbox_transactions' => \App\Models\CashboxTransaction::class,
         ];
+
+        $onlyTable = $this->option('table');
+        $tables = $onlyTable ? [$onlyTable => $allTables[$onlyTable] ?? null] : $allTables;
+
+        if ($onlyTable && !isset($allTables[$onlyTable])) {
+            $this->error("Unknown table: {$onlyTable}");
+            return 1;
+        }
 
         $totalFixed = 0;
 
@@ -40,6 +52,8 @@ class FixTransactionDates extends Command
                 $this->error("  Failed to fetch from production.");
                 continue;
             }
+
+            $this->info("  Got " . count($remoteDates) . " records from production.");
 
             $localRecords = DB::table($tableName)->get(['id', 'transaction_date']);
             $fixed = 0;
@@ -87,23 +101,21 @@ class FixTransactionDates extends Command
     {
         $dates = [];
         $offsetId = 0;
+        $page = 0;
 
         do {
-            $params = [
-                'device_id' => $device->device_id,
-                'limit' => 5000,
-                'offset_model' => $modelClass,
-                'offset_id' => $offsetId,
-            ];
+            $page++;
+            $this->output->write("  Fetching page {$page}...");
 
-            $response = Http::withToken($device->api_token)
-                ->timeout(120)
-                ->get($serverUrl . '/api/v1/sync/pull', $params);
+            $data = $this->fetchPage($serverUrl, $device, $modelClass, $offsetId);
 
-            if (!$response->successful()) return null;
+            if ($data === null) {
+                $this->error(" failed");
+                return count($dates) > 0 ? $dates : null;
+            }
 
-            $data = $response->json();
             $changes = $data['changes'] ?? [];
+            $count = 0;
 
             foreach ($changes as $change) {
                 if ($change['type'] !== $modelClass) continue;
@@ -112,12 +124,45 @@ class FixTransactionDates extends Command
                 if ($id && $date) {
                     $dates[$id] = $date;
                     $offsetId = $id;
+                    $count++;
                 }
             }
+
+            $this->info(" {$count} records");
 
             $hasMore = $data['has_more'] ?? false;
         } while ($hasMore && !empty($changes));
 
         return $dates;
+    }
+
+    protected function fetchPage(string $serverUrl, DeviceRegistration $device, string $modelClass, int $offsetId, int $limit = 500): ?array
+    {
+        $params = [
+            'device_id' => $device->device_id,
+            'limit' => $limit,
+            'offset_model' => $modelClass,
+            'offset_id' => $offsetId,
+        ];
+
+        try {
+            /** @var \Illuminate\Http\Client\Response $response */
+            $response = Http::withToken($device->api_token)
+                ->timeout(300)
+                ->get($serverUrl . '/api/v1/sync/pull', $params);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            return null;
+        } catch (\Exception) {
+            if ($limit > 100) {
+                $this->warn(" timeout, retrying with smaller batch...");
+                return $this->fetchPage($serverUrl, $device, $modelClass, $offsetId, (int) ($limit / 2));
+            }
+
+            return null;
+        }
     }
 }
