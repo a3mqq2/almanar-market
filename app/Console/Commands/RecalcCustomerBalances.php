@@ -55,8 +55,10 @@ class RecalcCustomerBalances extends Command
 
             if (abs((float) $customer->current_balance - $balance) > 0.001) {
                 $this->warn("  Balance: {$customer->current_balance} → {$balance}");
-                $customer->current_balance = round($balance, 2);
-                $customer->saveQuietly();
+                DB::table('customers')->where('id', $customer->id)->update([
+                    'current_balance' => round($balance, 2),
+                    'updated_at' => now(),
+                ]);
             }
 
             $totalFixed += $fixed;
