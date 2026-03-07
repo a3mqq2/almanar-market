@@ -419,7 +419,7 @@ class CashboxController extends Controller
             $query->whereDate('transaction_date', '<=', $request->date_to);
         }
 
-        $transactions = $query->orderBy('id', 'desc')->paginate(20);
+        $transactions = $query->orderBy('transaction_date', 'desc')->orderBy('id', 'desc')->paginate(20);
 
         $data = $transactions->map(function ($t) {
             return [
