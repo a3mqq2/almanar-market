@@ -1179,17 +1179,23 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         'X-CSRF-TOKEN': csrfToken
                     },
                     body: JSON.stringify({ cashboxes, notes })
                 });
 
-                if (!response.ok) {
-                    const errText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errText.substring(0, 500)}`);
+                const responseText = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (e) {
+                    throw new Error(`HTTP ${response.status}: ${responseText.substring(0, 500)}`);
                 }
 
-                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.message || `HTTP ${response.status}`);
+                }
 
                 if (result.success) {
                     closeShiftModal.hide();
