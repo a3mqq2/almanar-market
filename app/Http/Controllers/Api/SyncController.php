@@ -81,6 +81,8 @@ class SyncController extends Controller
             }
         }
 
+        $this->recalcAfterPush($changes);
+
         DB::commit();
         DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
@@ -91,6 +93,88 @@ class SyncController extends Controller
             'errors' => $errors,
             'timestamp' => now()->toIso8601String(),
         ]);
+    }
+
+    protected function recalcAfterPush(array $changes): void
+    {
+        $customerIds = [];
+        $supplierIds = [];
+        $cashboxIds = [];
+
+        foreach ($changes as $change) {
+            $type = $change['type'] ?? '';
+            $payload = $change['payload'] ?? [];
+
+            if ($type === 'App\Models\CustomerTransaction') {
+                $id = $payload['customer_id'] ?? null;
+                if ($id) $customerIds[$id] = true;
+            }
+            if ($type === 'App\Models\SupplierTransaction') {
+                $id = $payload['supplier_id'] ?? null;
+                if ($id) $supplierIds[$id] = true;
+            }
+            if ($type === 'App\Models\CashboxTransaction') {
+                $id = $payload['cashbox_id'] ?? null;
+                if ($id) $cashboxIds[$id] = true;
+            }
+        }
+
+        foreach (array_keys($customerIds) as $customerId) {
+            $customer = \App\Models\Customer::find($customerId);
+            if (!$customer) continue;
+
+            $transactions = \App\Models\CustomerTransaction::where('customer_id', $customerId)
+                ->orderBy('transaction_date')->orderBy('id')->get();
+
+            $balance = (float) $customer->opening_balance;
+            foreach ($transactions as $t) {
+                $balance = $t->type === 'debit' ? $balance + (float) $t->amount : $balance - (float) $t->amount;
+                if (abs((float) $t->balance_after - $balance) > 0.001) {
+                    DB::table('customer_transactions')->where('id', $t->id)->update(['balance_after' => round($balance, 2)]);
+                }
+            }
+            if (abs((float) $customer->current_balance - $balance) > 0.001) {
+                DB::table('customers')->where('id', $customer->id)->update(['current_balance' => round($balance, 2)]);
+            }
+        }
+
+        foreach (array_keys($supplierIds) as $supplierId) {
+            $supplier = \App\Models\Supplier::find($supplierId);
+            if (!$supplier) continue;
+
+            $transactions = \App\Models\SupplierTransaction::where('supplier_id', $supplierId)
+                ->orderBy('transaction_date')->orderBy('id')->get();
+
+            $balance = (float) $supplier->opening_balance;
+            foreach ($transactions as $t) {
+                $balance = $t->type === 'debit' ? $balance + (float) $t->amount : $balance - (float) $t->amount;
+                if (abs((float) $t->balance_after - $balance) > 0.001) {
+                    DB::table('supplier_transactions')->where('id', $t->id)->update(['balance_after' => round($balance, 2)]);
+                }
+            }
+            if (abs((float) $supplier->current_balance - $balance) > 0.001) {
+                DB::table('suppliers')->where('id', $supplier->id)->update(['current_balance' => round($balance, 2)]);
+            }
+        }
+
+        foreach (array_keys($cashboxIds) as $cashboxId) {
+            $cashbox = \App\Models\Cashbox::find($cashboxId);
+            if (!$cashbox) continue;
+
+            $transactions = \App\Models\CashboxTransaction::where('cashbox_id', $cashboxId)
+                ->orderBy('transaction_date')->orderBy('id')->get();
+
+            $balance = (float) $cashbox->opening_balance;
+            foreach ($transactions as $t) {
+                $balance = in_array($t->type, ['in', 'transfer_in']) ? $balance + (float) $t->amount : $balance - (float) $t->amount;
+                if (abs((float) $t->balance_after - $balance) > 0.001) {
+                    DB::table('cashbox_transactions')->where('id', $t->id)->update(['balance_after' => round($balance, 2)]);
+                }
+            }
+            if (abs((float) $cashbox->current_balance - $balance) > 0.001) {
+                DB::table('cashboxes')->where('id', $cashbox->id)->update(['current_balance' => round($balance, 2)]);
+            }
+        }
     }
 
     protected function processChange(array $change, string $deviceId): array
