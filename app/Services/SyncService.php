@@ -352,7 +352,7 @@ class SyncService
                         $casts = $model->getCasts();
                         foreach ($casts as $key => $cast) {
                             if ($cast === 'date' && isset($payload[$key]) && is_string($payload[$key]) && strlen($payload[$key]) > 10) {
-                                $payload[$key] = substr($payload[$key], 0, 10);
+                                $payload[$key] = \Carbon\Carbon::parse($payload[$key])->setTimezone(config('app.timezone'))->format('Y-m-d');
                             }
                         }
 

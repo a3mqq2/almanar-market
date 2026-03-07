@@ -789,11 +789,18 @@ class SyncController extends Controller
                         break 2;
                     }
 
+                    $payload = $record->makeVisible($record->getHidden())->toArray();
+                    foreach ($record->getCasts() as $key => $cast) {
+                        if ($cast === 'date' && isset($payload[$key]) && $record->$key) {
+                            $payload[$key] = $record->$key->format('Y-m-d');
+                        }
+                    }
+
                     $changes[] = [
                         'id' => $record->id,
                         'type' => $modelClass,
                         'action' => 'updated',
-                        'payload' => $record->makeVisible($record->getHidden())->toArray(),
+                        'payload' => $payload,
                         'timestamp' => $record->updated_at?->toIso8601String() ?? now()->toIso8601String(),
                     ];
                     $lastModel = $modelClass;
