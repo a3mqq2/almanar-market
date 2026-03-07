@@ -130,8 +130,10 @@ class FixTransactionDates extends Command
 
             $this->info(" {$count} records");
 
+            if ($count === 0) break;
+
             $hasMore = $data['has_more'] ?? false;
-        } while ($hasMore && !empty($changes));
+        } while ($hasMore);
 
         return $dates;
     }
