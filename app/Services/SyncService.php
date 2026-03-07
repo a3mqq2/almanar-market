@@ -349,6 +349,13 @@ class SyncService
                             break;
                         }
 
+                        $casts = $model->getCasts();
+                        foreach ($casts as $key => $cast) {
+                            if ($cast === 'date' && isset($payload[$key]) && is_string($payload[$key]) && strlen($payload[$key]) > 10) {
+                                $payload[$key] = substr($payload[$key], 0, 10);
+                            }
+                        }
+
                         $model->fill($payload);
                         $model->synced_at = now();
 
