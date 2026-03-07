@@ -419,7 +419,7 @@ class CashboxController extends Controller
             $query->whereDate('transaction_date', '<=', $request->date_to);
         }
 
-        $transactions = $query->orderBy('transaction_date', 'desc')->orderBy('id', 'desc')->paginate(20);
+        $transactions = $query->orderBy('transaction_date', 'desc')->orderBy('created_at', 'desc')->orderBy('id', 'desc')->paginate(20);
 
         $data = $transactions->map(function ($t) {
             return [
@@ -514,6 +514,8 @@ class CashboxController extends Controller
         if ($dateFrom) {
             $openingBalance = $cashbox->transactions()
                 ->where('transaction_date', '<', $dateFrom)
+                ->orderBy('transaction_date', 'desc')
+                ->orderBy('created_at', 'desc')
                 ->orderBy('id', 'desc')
                 ->value('balance_after') ?? $cashbox->opening_balance;
 
@@ -526,7 +528,7 @@ class CashboxController extends Controller
             $query->whereDate('transaction_date', '<=', $dateTo);
         }
 
-        $transactions = $query->orderBy('transaction_date', 'asc')->orderBy('id', 'asc')->get();
+        $transactions = $query->orderBy('transaction_date', 'asc')->orderBy('created_at', 'asc')->orderBy('id', 'asc')->get();
 
         $totalIn = $transactions->whereIn('type', ['in', 'transfer_in'])->sum('amount');
         $totalOut = $transactions->whereIn('type', ['out', 'transfer_out'])->sum('amount');

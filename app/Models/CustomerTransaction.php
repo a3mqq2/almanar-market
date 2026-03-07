@@ -81,6 +81,11 @@ class CustomerTransaction extends Model
         return $this->type == 'credit';
     }
 
+    public function getSyncExcludedFields(): array
+    {
+        return ['balance_after'];
+    }
+
     protected static function booted(): void
     {
         static::creating(function ($transaction) {

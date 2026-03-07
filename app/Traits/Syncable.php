@@ -70,6 +70,12 @@ trait Syncable
 
         unset($attributes['synced_at']);
 
+        if (method_exists($this, 'getSyncExcludedFields')) {
+            foreach ($this->getSyncExcludedFields() as $field) {
+                unset($attributes[$field]);
+            }
+        }
+
         if (method_exists($this, 'getSyncRelations')) {
             foreach ($this->getSyncRelations() as $relation) {
                 if ($this->relationLoaded($relation)) {

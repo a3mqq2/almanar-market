@@ -437,6 +437,7 @@ class SyncService
 
             $transactions = \App\Models\CashboxTransaction::where('cashbox_id', $cashboxId)
                 ->orderBy('transaction_date')
+                ->orderBy('created_at')
                 ->orderBy('id')
                 ->get();
 
@@ -478,6 +479,7 @@ class SyncService
 
             $transactions = \App\Models\CustomerTransaction::where('customer_id', $customerId)
                 ->orderBy('transaction_date')
+                ->orderBy('created_at')
                 ->orderBy('id')
                 ->get();
 
@@ -510,6 +512,7 @@ class SyncService
 
             $transactions = \App\Models\SupplierTransaction::where('supplier_id', $supplierId)
                 ->orderBy('transaction_date')
+                ->orderBy('created_at')
                 ->orderBy('id')
                 ->get();
 

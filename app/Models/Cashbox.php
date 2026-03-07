@@ -73,6 +73,11 @@ class Cashbox extends Model
         $this->saveQuietly();
     }
 
+    public function getSyncExcludedFields(): array
+    {
+        return ['current_balance'];
+    }
+
     public function scopeActive($query)
     {
         return $query->where('status', true);

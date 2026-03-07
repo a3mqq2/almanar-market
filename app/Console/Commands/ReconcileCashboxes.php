@@ -30,6 +30,7 @@ class ReconcileCashboxes extends Command
 
             $transactions = CashboxTransaction::where('cashbox_id', $cashbox->id)
                 ->orderBy('transaction_date')
+                ->orderBy('created_at')
                 ->orderBy('id')
                 ->get();
 
@@ -122,6 +123,7 @@ class ReconcileCashboxes extends Command
         foreach ($customers as $customer) {
             $transactions = $customer->transactions()
                 ->orderBy('transaction_date')
+                ->orderBy('created_at')
                 ->orderBy('id')
                 ->get();
 
@@ -160,6 +162,7 @@ class ReconcileCashboxes extends Command
         foreach ($suppliers as $supplier) {
             $transactions = $supplier->transactions()
                 ->orderBy('transaction_date')
+                ->orderBy('created_at')
                 ->orderBy('id')
                 ->get();
 

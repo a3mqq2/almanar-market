@@ -46,6 +46,11 @@ class Supplier extends Model
         return $this->transactions()->latest('id')->first();
     }
 
+    public function getSyncExcludedFields(): array
+    {
+        return ['current_balance'];
+    }
+
     public function recalculateBalance(): void
     {
         $lastTransaction = $this->lastTransaction;

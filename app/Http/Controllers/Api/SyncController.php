@@ -124,7 +124,7 @@ class SyncController extends Controller
             if (!$customer) continue;
 
             $transactions = \App\Models\CustomerTransaction::where('customer_id', $customerId)
-                ->orderBy('transaction_date')->orderBy('id')->get();
+                ->orderBy('transaction_date')->orderBy('created_at')->orderBy('id')->get();
 
             $balance = (float) $customer->opening_balance;
             foreach ($transactions as $t) {
@@ -143,7 +143,7 @@ class SyncController extends Controller
             if (!$supplier) continue;
 
             $transactions = \App\Models\SupplierTransaction::where('supplier_id', $supplierId)
-                ->orderBy('transaction_date')->orderBy('id')->get();
+                ->orderBy('transaction_date')->orderBy('created_at')->orderBy('id')->get();
 
             $balance = (float) $supplier->opening_balance;
             foreach ($transactions as $t) {
@@ -162,7 +162,7 @@ class SyncController extends Controller
             if (!$cashbox) continue;
 
             $transactions = \App\Models\CashboxTransaction::where('cashbox_id', $cashboxId)
-                ->orderBy('transaction_date')->orderBy('id')->get();
+                ->orderBy('transaction_date')->orderBy('created_at')->orderBy('id')->get();
 
             $balance = (float) $cashbox->opening_balance;
             foreach ($transactions as $t) {
@@ -222,6 +222,7 @@ class SyncController extends Controller
                 if (isset($payload['created_at']) && $payload['created_at']) {
                     $model->created_at = $payload['created_at'];
                 }
+                $this->ensureBalanceAfter($modelClass, $model);
                 $model->save();
 
                 return [
@@ -253,6 +254,7 @@ class SyncController extends Controller
                     if (isset($payload['created_at']) && $payload['created_at']) {
                         $model->created_at = $payload['created_at'];
                     }
+                    $this->ensureBalanceAfter($modelClass, $model);
                     $model->save();
 
                     return [
@@ -456,6 +458,29 @@ class SyncController extends Controller
         }
 
         return $payload;
+    }
+
+    protected function ensureBalanceAfter(string $modelClass, $model): void
+    {
+        $balanceModels = [
+            'App\Models\CashboxTransaction',
+            'App\Models\CustomerTransaction',
+            'App\Models\SupplierTransaction',
+        ];
+
+        if (in_array($modelClass, $balanceModels) && empty($model->balance_after)) {
+            $model->balance_after = 0;
+        }
+
+        $parentModels = [
+            'App\Models\Cashbox',
+            'App\Models\Customer',
+            'App\Models\Supplier',
+        ];
+
+        if (in_array($modelClass, $parentModels) && !$model->exists && empty($model->current_balance)) {
+            $model->current_balance = $model->opening_balance ?? 0;
+        }
     }
 
     protected function handleSaleCancellation($sale, array $payload): void

@@ -123,4 +123,9 @@ class CashboxTransaction extends Model
     {
         return in_array($this->type, ['transfer_in', 'transfer_out']);
     }
+
+    public function getSyncExcludedFields(): array
+    {
+        return ['balance_after'];
+    }
 }

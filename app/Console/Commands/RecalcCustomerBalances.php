@@ -28,6 +28,7 @@ class RecalcCustomerBalances extends Command
         foreach ($customers as $customer) {
             $transactions = CustomerTransaction::where('customer_id', $customer->id)
                 ->orderBy('transaction_date')
+                ->orderBy('created_at')
                 ->orderBy('id')
                 ->get();
 

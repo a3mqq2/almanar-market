@@ -71,6 +71,11 @@ class Customer extends Model
         return ($this->current_balance + $amount) <= $this->credit_limit;
     }
 
+    public function getSyncExcludedFields(): array
+    {
+        return ['current_balance'];
+    }
+
     public function scopeActive($query)
     {
         return $query->where('status', true);

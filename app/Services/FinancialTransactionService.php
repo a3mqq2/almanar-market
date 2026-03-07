@@ -396,6 +396,7 @@ class FinancialTransactionService
         $customer = Customer::lockForUpdate()->findOrFail($customer->id);
         $transactions = $customer->transactions()
             ->orderBy('transaction_date', 'asc')
+            ->orderBy('created_at', 'asc')
             ->orderBy('id', 'asc')
             ->get();
 

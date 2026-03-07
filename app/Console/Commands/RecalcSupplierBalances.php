@@ -28,6 +28,7 @@ class RecalcSupplierBalances extends Command
         foreach ($suppliers as $supplier) {
             $transactions = SupplierTransaction::where('supplier_id', $supplier->id)
                 ->orderBy('transaction_date')
+                ->orderBy('created_at')
                 ->orderBy('id')
                 ->get();
 

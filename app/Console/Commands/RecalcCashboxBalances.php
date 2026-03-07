@@ -28,6 +28,7 @@ class RecalcCashboxBalances extends Command
 
             $transactions = CashboxTransaction::where('cashbox_id', $cashbox->id)
                 ->orderBy('transaction_date')
+                ->orderBy('created_at')
                 ->orderBy('id')
                 ->get();
 

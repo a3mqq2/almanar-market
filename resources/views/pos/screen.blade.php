@@ -1184,6 +1184,11 @@
                     body: JSON.stringify({ cashboxes, notes })
                 });
 
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errText.substring(0, 500)}`);
+                }
+
                 const result = await response.json();
 
                 if (result.success) {
@@ -1232,7 +1237,19 @@
                 }
             } catch (error) {
                 console.error('Close shift error:', error);
-                showToast('حدث خطأ في الاتصال', 'danger');
+                let errorMsg = error.message || 'حدث خطأ في الاتصال';
+                if (error.response) {
+                    try {
+                        const errData = await error.response.json();
+                        errorMsg = errData.message || errorMsg;
+                    } catch (e) {}
+                }
+                Swal.fire({
+                    title: 'خطأ في إغلاق الوردية',
+                    html: `<div class="text-start" dir="ltr" style="font-size:13px;max-height:300px;overflow:auto"><pre>${errorMsg}</pre></div>`,
+                    icon: 'error',
+                    confirmButtonText: 'حسناً'
+                });
             }
 
             this.disabled = false;

@@ -152,7 +152,7 @@ class CustomerAccountController extends Controller
             $query->whereDate('transaction_date', '<=', $request->date_to);
         }
 
-        $transactions = $query->orderBy('transaction_date', 'desc')->orderBy('id', 'desc')->paginate(20);
+        $transactions = $query->orderBy('transaction_date', 'desc')->orderBy('created_at', 'desc')->orderBy('id', 'desc')->paginate(20);
 
         $data = $transactions->map(function ($t) {
             return [
@@ -224,6 +224,7 @@ class CustomerAccountController extends Controller
 
         $allTransactions = $customer->transactions()
             ->orderBy('transaction_date', 'asc')
+            ->orderBy('created_at', 'asc')
             ->orderBy('id', 'asc')
             ->get();
 

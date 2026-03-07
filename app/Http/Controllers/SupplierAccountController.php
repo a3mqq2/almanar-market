@@ -154,7 +154,7 @@ class SupplierAccountController extends Controller
             $query->whereDate('transaction_date', '<=', $request->date_to);
         }
 
-        $transactions = $query->orderBy('transaction_date', 'desc')->orderBy('id', 'desc')->paginate(20);
+        $transactions = $query->orderBy('transaction_date', 'desc')->orderBy('created_at', 'desc')->orderBy('id', 'desc')->paginate(20);
 
         $data = $transactions->map(function ($t) {
             return [
@@ -224,6 +224,8 @@ class SupplierAccountController extends Controller
         if ($dateFrom) {
             $openingBalance = $supplier->transactions()
                 ->where('transaction_date', '<', $dateFrom)
+                ->orderBy('transaction_date', 'desc')
+                ->orderBy('created_at', 'desc')
                 ->orderBy('id', 'desc')
                 ->value('balance_after') ?? $supplier->opening_balance;
 
@@ -236,7 +238,7 @@ class SupplierAccountController extends Controller
             $query->whereDate('transaction_date', '<=', $dateTo);
         }
 
-        $transactions = $query->orderBy('id', 'asc')->get();
+        $transactions = $query->orderBy('transaction_date', 'asc')->orderBy('created_at', 'asc')->orderBy('id', 'asc')->get();
 
         $totalDebit = $transactions->where('type', 'debit')->sum('amount');
         $totalCredit = $transactions->where('type', 'credit')->sum('amount');
