@@ -76,6 +76,7 @@ class FixTransactionDates extends Command
             $this->newLine();
             $this->info('Recalculating balances...');
             $this->call('customers:recalc');
+            $this->call('suppliers:recalc');
             $this->call('cashbox:recalc');
         }
 
