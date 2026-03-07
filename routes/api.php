@@ -512,4 +512,53 @@ Route::prefix('v1')->group(function () {
             'details' => $details,
         ]);
     });
+
+    Route::get('/sync/compare-cashbox-transactions', function (\Illuminate\Http\Request $request) {
+        $query = \App\Models\CashboxTransaction::query();
+
+        if ($request->filled('cashbox_id')) {
+            $query->where('cashbox_id', $request->cashbox_id);
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('transaction_date', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('transaction_date', '<=', $request->date_to);
+        }
+
+        $transactions = $query
+            ->orderBy('transaction_date')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn($t) => [
+                'id' => $t->id,
+                'cashbox_id' => $t->cashbox_id,
+                'type' => $t->type,
+                'amount' => (float) $t->amount,
+                'balance_after' => (float) $t->balance_after,
+                'description' => $t->description,
+                'reference_type' => $t->reference_type,
+                'reference_id' => $t->reference_id,
+                'transaction_date' => $t->transaction_date?->format('Y-m-d'),
+                'created_at' => $t->created_at?->format('Y-m-d H:i:s'),
+            ]);
+
+        $cashboxQuery = \App\Models\Cashbox::query();
+        if ($request->filled('cashbox_id')) {
+            $cashboxQuery->where('id', $request->cashbox_id);
+        }
+
+        $cashboxes = $cashboxQuery->get()->map(fn($c) => [
+            'id' => $c->id,
+            'name' => $c->name,
+            'opening_balance' => (float) $c->opening_balance,
+            'current_balance' => (float) $c->current_balance,
+        ]);
+
+        return response()->json([
+            'cashboxes' => $cashboxes,
+            'transactions' => $transactions,
+        ]);
+    });
 });
