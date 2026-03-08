@@ -73,6 +73,7 @@ class FixCashboxTransactions extends Command
 
         if (count($analysis['only_remote']) == 0
             && count($analysis['date_mismatches']) == 0
+            && count($analysis['only_local']) == 0
             && count($analysis['duplicates_local']) == 0
             && count($analysis['duplicates_remote']) == 0
         ) {
@@ -166,8 +167,23 @@ class FixCashboxTransactions extends Command
             $this->newLine();
         }
 
+        $deletedOnlyLocal = 0;
+        if (count($analysis['only_local']) > 0) {
+            $this->info('Step 5: Removing local-only transactions (not in production)...');
+            $localOnlyIds = collect($analysis['only_local'])->pluck('id')->toArray();
+            if (!$dryRun) {
+                $deletedOnlyLocal = DB::table('cashbox_transactions')
+                    ->whereIn('id', $localOnlyIds)
+                    ->delete();
+            } else {
+                $deletedOnlyLocal = count($localOnlyIds);
+            }
+            $this->info("  Deleted local-only: {$deletedOnlyLocal}");
+            $this->newLine();
+        }
+
         if (count($analysis['duplicates_local']) > 0) {
-            $this->info('Step 5: Removing local duplicates...');
+            $this->info('Step 6: Removing local duplicates...');
             $dupeIds = collect($analysis['duplicates_local'])->pluck('id')->toArray();
             if (!$dryRun) {
                 $deletedLocalDupes = DB::table('cashbox_transactions')
@@ -181,7 +197,7 @@ class FixCashboxTransactions extends Command
         }
 
         if (count($analysis['duplicates_remote']) > 0) {
-            $this->info('Step 6: Removing production duplicates...');
+            $this->info('Step 7: Removing production duplicates...');
             $dupeIds = collect($analysis['duplicates_remote'])->pluck('id')->toArray();
             if (!$dryRun) {
                 $deletedRemoteDupes = $this->deleteRemoteDuplicates($dupeIds);
@@ -193,15 +209,15 @@ class FixCashboxTransactions extends Command
         }
 
         if (!$dryRun) {
-            $this->info('Step 7: Recalculating local balances...');
+            $this->info('Step 8: Recalculating local balances...');
             $this->recalcLocal();
             $this->newLine();
 
-            $this->info('Step 8: Recalculating production balances...');
+            $this->info('Step 9: Recalculating production balances...');
             $this->recalcRemote();
             $this->newLine();
 
-            $this->info('Step 9: Verifying...');
+            $this->info('Step 10: Verifying...');
             $this->verify();
         }
 
@@ -210,6 +226,7 @@ class FixCashboxTransactions extends Command
         $this->table(['Action', 'Count'], [
             ['Dates fixed', $fixedDates],
             ['Transactions pulled from production', $pulled],
+            ['Local-only deleted (not in production)', $deletedOnlyLocal],
             ['Local duplicates deleted', $deletedLocalDupes],
             ['Production duplicates deleted', $deletedRemoteDupes],
         ]);
