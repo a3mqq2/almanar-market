@@ -112,27 +112,38 @@ class FixCashboxTransactions extends Command
 
         if (count($analysis['only_remote']) > 0) {
             $this->info('Step 4: Pulling missing transactions from production...');
+            if (!$dryRun) {
+                DB::statement('PRAGMA foreign_keys = OFF');
+            }
             foreach ($analysis['only_remote'] as $remote) {
                 if (!$dryRun) {
-                    DB::table('cashbox_transactions')->insert([
-                        'cashbox_id' => $remote['cashbox_id'],
-                        'shift_id' => $remote['shift_id'] ?? null,
-                        'payment_method_id' => $remote['payment_method_id'] ?? null,
-                        'type' => $remote['type'],
-                        'amount' => $remote['amount'],
-                        'balance_after' => $remote['balance_after'],
-                        'description' => $remote['description'],
-                        'reference_type' => $remote['reference_type'],
-                        'reference_id' => $remote['reference_id'],
-                        'related_cashbox_id' => $remote['related_cashbox_id'] ?? null,
-                        'related_transaction_id' => $remote['related_transaction_id'] ?? null,
-                        'transaction_date' => $remote['transaction_date'],
-                        'created_by' => $remote['created_by'] ?? null,
-                        'created_at' => $remote['created_at'],
-                        'updated_at' => $remote['updated_at'] ?? $remote['created_at'],
-                    ]);
+                    try {
+                        DB::table('cashbox_transactions')->insert([
+                            'cashbox_id' => $remote['cashbox_id'],
+                            'shift_id' => $remote['shift_id'] ?? null,
+                            'payment_method_id' => $remote['payment_method_id'] ?? null,
+                            'type' => $remote['type'],
+                            'amount' => $remote['amount'],
+                            'balance_after' => $remote['balance_after'],
+                            'description' => $remote['description'],
+                            'reference_type' => $remote['reference_type'],
+                            'reference_id' => $remote['reference_id'],
+                            'related_cashbox_id' => $remote['related_cashbox_id'] ?? null,
+                            'related_transaction_id' => $remote['related_transaction_id'] ?? null,
+                            'transaction_date' => $remote['transaction_date'],
+                            'created_by' => $remote['created_by'] ?? null,
+                            'created_at' => $remote['created_at'],
+                            'updated_at' => $remote['updated_at'] ?? $remote['created_at'],
+                        ]);
+                    } catch (\Exception $e) {
+                        $this->warn("  Skip: {$remote['description']} - {$e->getMessage()}");
+                        continue;
+                    }
                 }
                 $pulled++;
+            }
+            if (!$dryRun) {
+                DB::statement('PRAGMA foreign_keys = ON');
             }
             $this->info("  Pulled: {$pulled}");
             $this->newLine();
