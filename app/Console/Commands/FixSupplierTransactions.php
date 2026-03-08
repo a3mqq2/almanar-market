@@ -2,19 +2,19 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Customer;
-use App\Models\CustomerTransaction;
+use App\Models\Supplier;
+use App\Models\SupplierTransaction;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-class FixCustomerTransactions extends Command
+class FixSupplierTransactions extends Command
 {
-    protected $signature = 'sync:fix-customer-transactions
+    protected $signature = 'sync:fix-supplier-transactions
         {--device= : Device ID to use for API auth}
         {--dry-run : Show what would change without applying}';
 
-    protected $description = 'Make local customer transactions match production: pull missing, fix dates, remove duplicates, recalculate balances';
+    protected $description = 'Make local supplier transactions match production: pull missing, fix dates, remove duplicates, recalculate balances';
 
     protected string $serverUrl;
     protected string $apiToken;
@@ -47,10 +47,10 @@ class FixCustomerTransactions extends Command
         }
 
         $remoteTransactions = collect($remoteData['transactions'] ?? []);
-        $remoteCustomers = collect($remoteData['customers'] ?? []);
+        $remoteSuppliers = collect($remoteData['suppliers'] ?? []);
         $this->info("Production: {$remoteTransactions->count()} transactions");
 
-        $localTransactions = CustomerTransaction::orderBy('transaction_date')
+        $localTransactions = SupplierTransaction::orderBy('transaction_date')
             ->orderBy('created_at')
             ->orderBy('id')
             ->get();
@@ -96,7 +96,7 @@ class FixCustomerTransactions extends Command
                 $remote = $item['remote'];
 
                 if (!$dryRun) {
-                    DB::table('customer_transactions')
+                    DB::table('supplier_transactions')
                         ->where('id', $local->id)
                         ->update([
                             'transaction_date' => $remote['transaction_date'],
@@ -113,15 +113,15 @@ class FixCustomerTransactions extends Command
         if (count($analysis['only_remote']) > 0) {
             $this->info('Step 4: Pulling missing transactions from production...');
 
-            $localCustomerIds = DB::table('customers')->pluck('id')->flip();
+            $localSupplierIds = DB::table('suppliers')->pluck('id')->flip();
             $localCashboxIds = DB::table('cashboxes')->pluck('id')->flip();
             $localUserIds = DB::table('users')->pluck('id')->flip();
             $skipped = 0;
 
             foreach ($analysis['only_remote'] as $remote) {
                 if (!$dryRun) {
-                    if (!$localCustomerIds->has($remote['customer_id'])) {
-                        $this->warn("  Skip (customer {$remote['customer_id']} not found): {$remote['description']}");
+                    if (!$localSupplierIds->has($remote['supplier_id'])) {
+                        $this->warn("  Skip (supplier {$remote['supplier_id']} not found): {$remote['description']}");
                         $skipped++;
                         continue;
                     }
@@ -132,8 +132,8 @@ class FixCustomerTransactions extends Command
                         ? $remote['created_by'] : null;
 
                     try {
-                        DB::table('customer_transactions')->insert([
-                            'customer_id' => $remote['customer_id'],
+                        DB::table('supplier_transactions')->insert([
+                            'supplier_id' => $remote['supplier_id'],
                             'type' => $remote['type'],
                             'amount' => $remote['amount'],
                             'balance_after' => $remote['balance_after'],
@@ -162,7 +162,7 @@ class FixCustomerTransactions extends Command
             $this->info('Step 5: Removing local duplicates...');
             $dupeIds = collect($analysis['duplicates_local'])->pluck('id')->toArray();
             if (!$dryRun) {
-                $deletedLocalDupes = DB::table('customer_transactions')
+                $deletedLocalDupes = DB::table('supplier_transactions')
                     ->whereIn('id', $dupeIds)
                     ->delete();
             } else {
@@ -219,13 +219,13 @@ class FixCustomerTransactions extends Command
     {
         $localGrouped = [];
         foreach ($localTransactions as $t) {
-            $key = $this->matchKey($t->customer_id, $t->type, $t->amount, $t->description);
+            $key = $this->matchKey($t->supplier_id, $t->type, $t->amount, $t->description);
             $localGrouped[$key][] = $t;
         }
 
         $remoteGrouped = [];
         foreach ($remoteTransactions as $t) {
-            $key = $this->matchKey($t['customer_id'], $t['type'], $t['amount'], $t['description']);
+            $key = $this->matchKey($t['supplier_id'], $t['type'], $t['amount'], $t['description']);
             $remoteGrouped[$key][] = $t;
         }
 
@@ -294,16 +294,16 @@ class FixCustomerTransactions extends Command
 
     protected function recalcLocal(): void
     {
-        $customers = Customer::all();
+        $suppliers = Supplier::all();
 
-        foreach ($customers as $customer) {
-            $transactions = CustomerTransaction::where('customer_id', $customer->id)
+        foreach ($suppliers as $supplier) {
+            $transactions = SupplierTransaction::where('supplier_id', $supplier->id)
                 ->orderBy('transaction_date')
                 ->orderBy('created_at')
                 ->orderBy('id')
                 ->get();
 
-            $balance = (float) $customer->opening_balance;
+            $balance = (float) $supplier->opening_balance;
             $fixed = 0;
 
             foreach ($transactions as $t) {
@@ -314,20 +314,20 @@ class FixCustomerTransactions extends Command
                 }
 
                 if (abs((float) $t->balance_after - $balance) > 0.001) {
-                    DB::table('customer_transactions')
+                    DB::table('supplier_transactions')
                         ->where('id', $t->id)
                         ->update(['balance_after' => round($balance, 2)]);
                     $fixed++;
                 }
             }
 
-            if (abs((float) $customer->current_balance - $balance) > 0.001) {
-                $this->line("  {$customer->name}: {$customer->current_balance} -> " . round($balance, 2));
-                $customer->current_balance = round($balance, 2);
-                $customer->saveQuietly();
+            if (abs((float) $supplier->current_balance - $balance) > 0.001) {
+                $this->line("  {$supplier->name}: {$supplier->current_balance} -> " . round($balance, 2));
+                $supplier->current_balance = round($balance, 2);
+                $supplier->saveQuietly();
             }
 
-            $this->info("  {$customer->name}: {$transactions->count()} txns, {$fixed} balance_after fixed, balance = " . round($balance, 2));
+            $this->info("  {$supplier->name}: {$transactions->count()} txns, {$fixed} balance_after fixed, balance = " . round($balance, 2));
         }
     }
 
@@ -338,7 +338,7 @@ class FixCustomerTransactions extends Command
                 'X-Device-ID' => $this->deviceId,
                 'X-API-Token' => $this->apiToken,
                 'Accept' => 'application/json',
-            ])->timeout(120)->post("{$this->serverUrl}/api/v1/sync/recalc-customer-balances");
+            ])->timeout(120)->post("{$this->serverUrl}/api/v1/sync/recalc-supplier-balances");
 
             if ($response->successful()) {
                 $results = $response->json('results', []);
@@ -360,7 +360,7 @@ class FixCustomerTransactions extends Command
                 'X-Device-ID' => $this->deviceId,
                 'X-API-Token' => $this->apiToken,
                 'Accept' => 'application/json',
-            ])->timeout(60)->post("{$this->serverUrl}/api/v1/sync/delete-customer-transactions", [
+            ])->timeout(60)->post("{$this->serverUrl}/api/v1/sync/delete-supplier-transactions", [
                 'ids' => $ids,
             ]);
 
@@ -384,12 +384,12 @@ class FixCustomerTransactions extends Command
             return;
         }
 
-        $remoteCustomers = collect($remoteData['customers'] ?? []);
-        $localCustomers = Customer::all();
+        $remoteSuppliers = collect($remoteData['suppliers'] ?? []);
+        $localSuppliers = Supplier::all();
 
         $allMatch = true;
-        foreach ($localCustomers as $local) {
-            $remote = $remoteCustomers->firstWhere('id', $local->id);
+        foreach ($localSuppliers as $local) {
+            $remote = $remoteSuppliers->firstWhere('id', $local->id);
             if (!$remote) continue;
 
             $localBalance = (float) $local->fresh()->current_balance;
@@ -403,7 +403,7 @@ class FixCustomerTransactions extends Command
         }
 
         $remoteCount = count($remoteData['transactions'] ?? []);
-        $localCount = CustomerTransaction::count();
+        $localCount = SupplierTransaction::count();
         $this->line("  Transaction count: Local={$localCount} Production={$remoteCount}");
 
         if ($allMatch && $localCount == $remoteCount) {
@@ -420,7 +420,7 @@ class FixCustomerTransactions extends Command
                 'X-Device-ID' => $this->deviceId,
                 'X-API-Token' => $this->apiToken,
                 'Accept' => 'application/json',
-            ])->timeout(60)->get("{$this->serverUrl}/api/v1/sync/compare-customer-transactions");
+            ])->timeout(60)->get("{$this->serverUrl}/api/v1/sync/compare-supplier-transactions");
 
             if (!$response->successful()) {
                 $this->error("Server returned HTTP {$response->status()}");
@@ -434,10 +434,10 @@ class FixCustomerTransactions extends Command
         }
     }
 
-    protected function matchKey($customerId, $type, $amount, $description): string
+    protected function matchKey($supplierId, $type, $amount, $description): string
     {
         $amount = number_format((float) $amount, 2, '.', '');
-        return "{$customerId}|{$type}|{$amount}|{$description}";
+        return "{$supplierId}|{$type}|{$amount}|{$description}";
     }
 
     protected function resolveDevice(): ?object

@@ -627,4 +627,122 @@ Route::prefix('v1')->group(function () {
 
         return response()->json(['success' => true, 'results' => $results]);
     });
+
+    Route::get('/sync/compare-customer-transactions', function (\Illuminate\Http\Request $request) {
+        $query = \App\Models\CustomerTransaction::query();
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        $transactions = $query->orderBy('transaction_date')->orderBy('created_at')->orderBy('id')
+            ->get()->map(fn($t) => [
+                'id' => $t->id,
+                'customer_id' => $t->customer_id,
+                'type' => $t->type,
+                'amount' => (float) $t->amount,
+                'balance_after' => (float) $t->balance_after,
+                'description' => $t->description,
+                'reference_type' => $t->reference_type,
+                'reference_id' => $t->reference_id,
+                'cashbox_id' => $t->cashbox_id,
+                'transaction_date' => $t->transaction_date?->format('Y-m-d'),
+                'created_by' => $t->created_by,
+                'created_at' => $t->created_at?->format('Y-m-d H:i:s'),
+                'updated_at' => $t->updated_at?->format('Y-m-d H:i:s'),
+            ]);
+
+        $customers = \App\Models\Customer::all()->map(fn($c) => [
+            'id' => $c->id, 'name' => $c->name,
+            'opening_balance' => (float) $c->opening_balance,
+            'current_balance' => (float) $c->current_balance,
+        ]);
+
+        return response()->json(['customers' => $customers, 'transactions' => $transactions]);
+    });
+
+    Route::get('/sync/compare-supplier-transactions', function (\Illuminate\Http\Request $request) {
+        $query = \App\Models\SupplierTransaction::query();
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
+        $transactions = $query->orderBy('transaction_date')->orderBy('created_at')->orderBy('id')
+            ->get()->map(fn($t) => [
+                'id' => $t->id,
+                'supplier_id' => $t->supplier_id,
+                'type' => $t->type,
+                'amount' => (float) $t->amount,
+                'balance_after' => (float) $t->balance_after,
+                'description' => $t->description,
+                'reference_type' => $t->reference_type,
+                'reference_id' => $t->reference_id,
+                'cashbox_id' => $t->cashbox_id,
+                'transaction_date' => $t->transaction_date?->format('Y-m-d'),
+                'created_by' => $t->created_by,
+                'created_at' => $t->created_at?->format('Y-m-d H:i:s'),
+                'updated_at' => $t->updated_at?->format('Y-m-d H:i:s'),
+            ]);
+
+        $suppliers = \App\Models\Supplier::all()->map(fn($s) => [
+            'id' => $s->id, 'name' => $s->name,
+            'opening_balance' => (float) $s->opening_balance,
+            'current_balance' => (float) $s->current_balance,
+        ]);
+
+        return response()->json(['suppliers' => $suppliers, 'transactions' => $transactions]);
+    });
+
+    Route::post('/sync/delete-customer-transactions', function (\Illuminate\Http\Request $request) {
+        $ids = $request->input('ids', []);
+        if (empty($ids)) return response()->json(['success' => false]);
+        $deleted = \Illuminate\Support\Facades\DB::table('customer_transactions')->whereIn('id', $ids)->delete();
+        return response()->json(['success' => true, 'deleted' => $deleted]);
+    });
+
+    Route::post('/sync/delete-supplier-transactions', function (\Illuminate\Http\Request $request) {
+        $ids = $request->input('ids', []);
+        if (empty($ids)) return response()->json(['success' => false]);
+        $deleted = \Illuminate\Support\Facades\DB::table('supplier_transactions')->whereIn('id', $ids)->delete();
+        return response()->json(['success' => true, 'deleted' => $deleted]);
+    });
+
+    Route::post('/sync/recalc-customer-balances', function () {
+        $results = [];
+        foreach (\App\Models\Customer::all() as $customer) {
+            $transactions = $customer->transactions()->orderBy('transaction_date')->orderBy('created_at')->orderBy('id')->get();
+            $balance = (float) $customer->opening_balance;
+            $fixed = 0;
+            foreach ($transactions as $t) {
+                $balance = $t->type === 'debit' ? $balance + (float) $t->amount : $balance - (float) $t->amount;
+                if (abs((float) $t->balance_after - $balance) > 0.001) {
+                    \Illuminate\Support\Facades\DB::table('customer_transactions')->where('id', $t->id)->update(['balance_after' => round($balance, 2)]);
+                    $fixed++;
+                }
+            }
+            $old = (float) $customer->current_balance;
+            if (abs($old - $balance) > 0.001) { $customer->current_balance = round($balance, 2); $customer->saveQuietly(); }
+            $results[] = ['id' => $customer->id, 'name' => $customer->name, 'old_balance' => $old, 'new_balance' => round($balance, 2), 'transactions_fixed' => $fixed];
+        }
+        return response()->json(['success' => true, 'results' => $results]);
+    });
+
+    Route::post('/sync/recalc-supplier-balances', function () {
+        $results = [];
+        foreach (\App\Models\Supplier::all() as $supplier) {
+            $transactions = $supplier->transactions()->orderBy('transaction_date')->orderBy('created_at')->orderBy('id')->get();
+            $balance = (float) $supplier->opening_balance;
+            $fixed = 0;
+            foreach ($transactions as $t) {
+                $balance = $t->type === 'debit' ? $balance + (float) $t->amount : $balance - (float) $t->amount;
+                if (abs((float) $t->balance_after - $balance) > 0.001) {
+                    \Illuminate\Support\Facades\DB::table('supplier_transactions')->where('id', $t->id)->update(['balance_after' => round($balance, 2)]);
+                    $fixed++;
+                }
+            }
+            $old = (float) $supplier->current_balance;
+            if (abs($old - $balance) > 0.001) { $supplier->current_balance = round($balance, 2); $supplier->saveQuietly(); }
+            $results[] = ['id' => $supplier->id, 'name' => $supplier->name, 'old_balance' => $old, 'new_balance' => round($balance, 2), 'transactions_fixed' => $fixed];
+        }
+        return response()->json(['success' => true, 'results' => $results]);
+    });
 });
