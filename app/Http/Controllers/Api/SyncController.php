@@ -161,11 +161,17 @@ class SyncController extends Controller
             foreach ($transactions as $t) {
                 $balance = $t->type === 'debit' ? $balance + (float) $t->amount : $balance - (float) $t->amount;
                 if (abs((float) $t->balance_after - $balance) > 0.001) {
-                    DB::table('customer_transactions')->where('id', $t->id)->update(['balance_after' => round($balance, 2)]);
+                    DB::table('customer_transactions')->where('id', $t->id)->update([
+                        'balance_after' => round($balance, 2),
+                        'updated_at' => now(),
+                    ]);
                 }
             }
             if (abs((float) $customer->current_balance - $balance) > 0.001) {
-                DB::table('customers')->where('id', $customer->id)->update(['current_balance' => round($balance, 2)]);
+                DB::table('customers')->where('id', $customer->id)->update([
+                    'current_balance' => round($balance, 2),
+                    'updated_at' => now(),
+                ]);
             }
         }
 
@@ -180,11 +186,17 @@ class SyncController extends Controller
             foreach ($transactions as $t) {
                 $balance = $t->type === 'debit' ? $balance + (float) $t->amount : $balance - (float) $t->amount;
                 if (abs((float) $t->balance_after - $balance) > 0.001) {
-                    DB::table('supplier_transactions')->where('id', $t->id)->update(['balance_after' => round($balance, 2)]);
+                    DB::table('supplier_transactions')->where('id', $t->id)->update([
+                        'balance_after' => round($balance, 2),
+                        'updated_at' => now(),
+                    ]);
                 }
             }
             if (abs((float) $supplier->current_balance - $balance) > 0.001) {
-                DB::table('suppliers')->where('id', $supplier->id)->update(['current_balance' => round($balance, 2)]);
+                DB::table('suppliers')->where('id', $supplier->id)->update([
+                    'current_balance' => round($balance, 2),
+                    'updated_at' => now(),
+                ]);
             }
         }
 
@@ -199,11 +211,17 @@ class SyncController extends Controller
             foreach ($transactions as $t) {
                 $balance = in_array($t->type, ['in', 'transfer_in']) ? $balance + (float) $t->amount : $balance - (float) $t->amount;
                 if (abs((float) $t->balance_after - $balance) > 0.001) {
-                    DB::table('cashbox_transactions')->where('id', $t->id)->update(['balance_after' => round($balance, 2)]);
+                    DB::table('cashbox_transactions')->where('id', $t->id)->update([
+                        'balance_after' => round($balance, 2),
+                        'updated_at' => now(),
+                    ]);
                 }
             }
             if (abs((float) $cashbox->current_balance - $balance) > 0.001) {
-                DB::table('cashboxes')->where('id', $cashbox->id)->update(['current_balance' => round($balance, 2)]);
+                DB::table('cashboxes')->where('id', $cashbox->id)->update([
+                    'current_balance' => round($balance, 2),
+                    'updated_at' => now(),
+                ]);
             }
         }
 
