@@ -745,4 +745,41 @@ Route::prefix('v1')->group(function () {
         }
         return response()->json(['success' => true, 'results' => $results]);
     });
+
+    Route::get('/sync/compare-products', function (\Illuminate\Http\Request $request) {
+        $productQuery = \App\Models\Product::query();
+        if ($request->filled('product_id')) {
+            $productQuery->where('id', $request->product_id);
+        }
+        $products = $productQuery->with(['productUnits.unit:id,name', 'inventoryBatches'])->get();
+
+        $data = $products->map(function ($product) {
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'barcode' => $product->barcode,
+                'total_stock' => (float) $product->inventoryBatches->sum('quantity'),
+                'units' => $product->productUnits->map(fn($pu) => [
+                    'id' => $pu->id,
+                    'unit_id' => $pu->unit_id,
+                    'unit_name' => $pu->unit?->name,
+                    'sell_price' => (float) $pu->sell_price,
+                    'cost_price' => (float) $pu->cost_price,
+                    'multiplier' => (float) $pu->multiplier,
+                    'is_base_unit' => $pu->is_base_unit,
+                ])->values(),
+                'batches' => $product->inventoryBatches->map(fn($b) => [
+                    'id' => $b->id,
+                    'batch_number' => $b->batch_number,
+                    'quantity' => (float) $b->quantity,
+                    'cost_price' => (float) $b->cost_price,
+                ])->values(),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'products' => $data,
+        ]);
+    });
 });

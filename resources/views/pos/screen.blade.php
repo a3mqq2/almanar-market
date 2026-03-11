@@ -1014,10 +1014,8 @@
                 }
 
                 if (result.success) {
-                    console.log('DEBUG shift_id:', result.debug_shift_id, 'shift_cashboxes_count:', result.debug_shift_cashboxes_count, 'raw:', result.debug_raw);
                     const s = result.summary;
                     shiftCashboxData = s.cashboxes || [];
-                    console.log('Shift cashboxes loaded:', shiftCashboxData.length, shiftCashboxData);
 
                     const totalOpeningBalance = parseFloat(s.total_opening_balance) || 0;
                     const totalCashSales = parseFloat(s.total_cash_sales) || 0;

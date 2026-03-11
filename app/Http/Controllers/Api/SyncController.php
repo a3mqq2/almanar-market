@@ -81,7 +81,7 @@ class SyncController extends Controller
             }
         }
 
-        $this->recalcAfterPush($changes);
+        $this->recalcAfterPush($changes, $deviceId);
 
         DB::commit();
         DB::statement('SET FOREIGN_KEY_CHECKS=1');
@@ -95,11 +95,12 @@ class SyncController extends Controller
         ]);
     }
 
-    protected function recalcAfterPush(array $changes): void
+    protected function recalcAfterPush(array $changes, string $deviceId): void
     {
         $customerIds = [];
         $supplierIds = [];
         $cashboxIds = [];
+        $batchIds = [];
 
         foreach ($changes as $change) {
             $type = $change['type'] ?? '';
@@ -116,6 +117,17 @@ class SyncController extends Controller
             if ($type === 'App\Models\CashboxTransaction') {
                 $id = $payload['cashbox_id'] ?? null;
                 if ($id) $cashboxIds[$id] = true;
+            }
+            if ($type === 'App\Models\InventoryBatch') {
+                $batchIds[$change['record_id']] = true;
+            }
+            if ($type === 'App\Models\StockMovement') {
+                $id = $payload['batch_id'] ?? null;
+                if ($id) $batchIds[$id] = true;
+            }
+            if (in_array($type, ['App\Models\SaleItem', 'App\Models\PurchaseItem', 'App\Models\SaleReturnItem'])) {
+                $id = $payload['inventory_batch_id'] ?? null;
+                if ($id) $batchIds[$id] = true;
             }
         }
 
@@ -173,6 +185,28 @@ class SyncController extends Controller
             }
             if (abs((float) $cashbox->current_balance - $balance) > 0.001) {
                 DB::table('cashboxes')->where('id', $cashbox->id)->update(['current_balance' => round($balance, 2)]);
+            }
+        }
+
+        $deviceBatchIds = \App\Models\StockMovement::where('device_id', $deviceId)
+            ->whereNotNull('batch_id')
+            ->pluck('batch_id')
+            ->unique()
+            ->toArray();
+
+        $allBatchIds = array_unique(array_merge(array_keys($batchIds), $deviceBatchIds));
+
+        foreach ($allBatchIds as $batchId) {
+            $batch = \App\Models\InventoryBatch::find($batchId);
+            if (!$batch) continue;
+
+            $expectedQty = (float) \App\Models\StockMovement::where('batch_id', $batchId)->sum('quantity');
+
+            if (abs((float) $batch->quantity - $expectedQty) > 0.001) {
+                DB::table('inventory_batches')->where('id', $batchId)->update([
+                    'quantity' => round($expectedQty, 4),
+                    'updated_at' => now(),
+                ]);
             }
         }
     }
@@ -294,6 +328,15 @@ class SyncController extends Controller
                         'server_id' => $model->id,
                         'server_data' => $model->toArray(),
                     ];
+                }
+
+                if ($modelClass === 'App\Models\ProductUnit' && $model->exists) {
+                    $payload['sell_price'] = $model->sell_price;
+                    $payload['cost_price'] = $model->cost_price;
+                }
+
+                if ($modelClass === 'App\Models\InventoryBatch' && $model->exists) {
+                    unset($payload['quantity']);
                 }
 
                 $model->fill($payload);
