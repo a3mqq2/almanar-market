@@ -103,10 +103,12 @@ class SyncController extends Controller
         $batchIds = [];
 
         $batchIdMap = $idMap['App\Models\InventoryBatch'] ?? [];
+        $createdBatchIds = [];
 
         foreach ($changes as $change) {
             $type = $change['type'] ?? '';
             $payload = $change['payload'] ?? [];
+            $action = $change['action'] ?? '';
 
             if ($type === 'App\Models\CustomerTransaction') {
                 $id = $payload['customer_id'] ?? null;
@@ -122,7 +124,11 @@ class SyncController extends Controller
             }
             if ($type === 'App\Models\InventoryBatch') {
                 $serverId = $batchIdMap[$change['record_id']] ?? $change['record_id'];
-                $batchIds[$serverId] = true;
+                if ($action === 'created') {
+                    $createdBatchIds[$serverId] = true;
+                } else {
+                    $batchIds[$serverId] = true;
+                }
             }
             if ($type === 'App\Models\StockMovement') {
                 $id = $payload['batch_id'] ?? null;
@@ -138,6 +144,10 @@ class SyncController extends Controller
                     $batchIds[$serverId] = true;
                 }
             }
+        }
+
+        foreach (array_keys($createdBatchIds) as $id) {
+            unset($batchIds[$id]);
         }
 
         foreach (array_keys($customerIds) as $customerId) {
