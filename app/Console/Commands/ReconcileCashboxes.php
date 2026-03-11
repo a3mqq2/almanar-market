@@ -31,7 +31,8 @@ class ReconcileCashboxes extends Command
             $transactions = CashboxTransaction::where('cashbox_id', $cashbox->id)
                 ->orderBy('transaction_date')
                 ->orderBy('created_at')
-                ->orderBy('id')
+                ->orderBy('type')
+                ->orderBy('amount')
                 ->get();
 
             $salePaymentsTotal = SalePayment::where('cashbox_id', $cashbox->id)
@@ -124,7 +125,8 @@ class ReconcileCashboxes extends Command
             $transactions = $customer->transactions()
                 ->orderBy('transaction_date')
                 ->orderBy('created_at')
-                ->orderBy('id')
+                ->orderBy('type')
+                ->orderBy('amount')
                 ->get();
 
             $balance = (float) $customer->opening_balance;
@@ -163,7 +165,8 @@ class ReconcileCashboxes extends Command
             $transactions = $supplier->transactions()
                 ->orderBy('transaction_date')
                 ->orderBy('created_at')
-                ->orderBy('id')
+                ->orderBy('type')
+                ->orderBy('amount')
                 ->get();
 
             $balance = (float) $supplier->opening_balance;

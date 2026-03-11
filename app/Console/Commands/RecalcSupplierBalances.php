@@ -29,7 +29,8 @@ class RecalcSupplierBalances extends Command
             $transactions = SupplierTransaction::where('supplier_id', $supplier->id)
                 ->orderBy('transaction_date')
                 ->orderBy('created_at')
-                ->orderBy('id')
+                ->orderBy('type')
+                ->orderBy('amount')
                 ->get();
 
             if ($transactions->isEmpty()) continue;

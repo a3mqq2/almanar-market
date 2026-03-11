@@ -29,7 +29,8 @@ class RecalcCustomerBalances extends Command
             $transactions = CustomerTransaction::where('customer_id', $customer->id)
                 ->orderBy('transaction_date')
                 ->orderBy('created_at')
-                ->orderBy('id')
+                ->orderBy('type')
+                ->orderBy('amount')
                 ->get();
 
             if ($transactions->isEmpty()) continue;

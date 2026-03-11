@@ -52,7 +52,8 @@ class FixCustomerTransactions extends Command
 
         $localTransactions = CustomerTransaction::orderBy('transaction_date')
             ->orderBy('created_at')
-            ->orderBy('id')
+            ->orderBy('type')
+            ->orderBy('amount')
             ->get();
         $this->info("Local: {$localTransactions->count()} transactions");
         $this->newLine();

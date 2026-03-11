@@ -66,7 +66,8 @@ class CompareCustomerTransactions extends Command
         $localTransactions = $localQuery
             ->orderBy('transaction_date')
             ->orderBy('created_at')
-            ->orderBy('id')
+            ->orderBy('type')
+            ->orderBy('amount')
             ->get();
 
         $this->info("Local: {$localTransactions->count()} transactions");

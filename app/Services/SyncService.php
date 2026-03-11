@@ -438,7 +438,8 @@ class SyncService
             $transactions = \App\Models\CashboxTransaction::where('cashbox_id', $cashboxId)
                 ->orderBy('transaction_date')
                 ->orderBy('created_at')
-                ->orderBy('id')
+                ->orderBy('type')
+                ->orderBy('amount')
                 ->get();
 
             $balance = $cashbox->opening_balance;
@@ -480,7 +481,8 @@ class SyncService
             $transactions = \App\Models\CustomerTransaction::where('customer_id', $customerId)
                 ->orderBy('transaction_date')
                 ->orderBy('created_at')
-                ->orderBy('id')
+                ->orderBy('type')
+                ->orderBy('amount')
                 ->get();
 
             $balance = (float) $customer->opening_balance;
@@ -513,7 +515,8 @@ class SyncService
             $transactions = \App\Models\SupplierTransaction::where('supplier_id', $supplierId)
                 ->orderBy('transaction_date')
                 ->orderBy('created_at')
-                ->orderBy('id')
+                ->orderBy('type')
+                ->orderBy('amount')
                 ->get();
 
             $balance = (float) $supplier->opening_balance;
