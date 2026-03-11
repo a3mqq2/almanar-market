@@ -41,6 +41,23 @@ class PosController extends Controller
             $currentShift = $this->autoOpenShift($user, $cashboxes);
         }
 
+        if ($currentShift && $cashboxes->isNotEmpty()) {
+            $existingCashboxIds = $currentShift->shiftCashboxes()->pluck('cashbox_id')->toArray();
+            foreach ($cashboxes as $cashbox) {
+                if (!in_array($cashbox->id, $existingCashboxIds)) {
+                    \App\Models\ShiftCashbox::create([
+                        'shift_id' => $currentShift->id,
+                        'cashbox_id' => $cashbox->id,
+                        'opening_balance' => $cashbox->current_balance ?? 0,
+                        'expected_balance' => $cashbox->current_balance ?? 0,
+                        'total_in' => 0,
+                        'total_out' => 0,
+                        'difference' => 0,
+                    ]);
+                }
+            }
+        }
+
         $hasOpenShift = $currentShift != null;
 
         return view('pos.screen', compact('cashboxes', 'paymentMethods', 'suspendedCount', 'currentShift', 'hasOpenShift', 'isManager'));
