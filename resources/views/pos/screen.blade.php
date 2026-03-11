@@ -993,12 +993,30 @@
             if (!currentShiftId) return;
 
             try {
-                const response = await fetch(`{{ url('shifts') }}/${currentShiftId}/summary`);
-                const result = await response.json();
+                const response = await fetch(`{{ url('shifts') }}/${currentShiftId}/summary`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const responseText = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('Summary response not JSON:', responseText.substring(0, 500));
+                    throw new Error(`HTTP ${response.status}: استجابة غير صالحة من السيرفر`);
+                }
+
+                if (!response.ok) {
+                    throw new Error(result.message || `HTTP ${response.status}`);
+                }
 
                 if (result.success) {
                     const s = result.summary;
                     shiftCashboxData = s.cashboxes || [];
+                    console.log('Shift cashboxes loaded:', shiftCashboxData.length, shiftCashboxData);
 
                     const totalOpeningBalance = parseFloat(s.total_opening_balance) || 0;
                     const totalCashSales = parseFloat(s.total_cash_sales) || 0;
@@ -1054,7 +1072,10 @@
             } catch (error) {
                 console.error('Load shift summary error:', error);
                 document.getElementById('shiftSummaryContent').innerHTML = `
-                    <div class="alert alert-danger">حدث خطأ في تحميل الملخص</div>
+                    <div class="alert alert-danger">
+                        <p class="mb-1">حدث خطأ في تحميل الملخص</p>
+                        <small class="text-muted">${error.message || 'خطأ غير معروف'}</small>
+                    </div>
                 `;
             }
         }

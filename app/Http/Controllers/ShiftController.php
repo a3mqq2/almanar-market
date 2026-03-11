@@ -50,7 +50,7 @@ class ShiftController extends Controller
                 'total_expected_balance' => $shift->total_expected_balance,
                 'opened_at' => $shift->opened_at->format('Y-m-d H:i'),
                 'status' => $shift->status,
-                'cashboxes' => $shift->shiftCashboxes->map(function ($sc) {
+                'cashboxes' => $shift->shiftCashboxes->filter(fn($sc) => $sc->cashbox)->map(function ($sc) {
                     return [
                         'id' => $sc->cashbox_id,
                         'name' => $sc->cashbox->name,
@@ -60,7 +60,7 @@ class ShiftController extends Controller
                         'total_in' => round($sc->total_in, 2),
                         'total_out' => round($sc->total_out, 2),
                     ];
-                }),
+                })->values(),
             ],
         ]);
     }
@@ -258,7 +258,7 @@ class ShiftController extends Controller
                 'total_opening_balance' => round($shift->total_opening_balance, 2),
                 'total_expected_balance' => round($shift->total_expected_balance, 2),
                 'status' => $shift->status,
-                'cashboxes' => $shift->shiftCashboxes->map(function ($sc) {
+                'cashboxes' => $shift->shiftCashboxes->filter(fn($sc) => $sc->cashbox)->map(function ($sc) {
                     return [
                         'id' => $sc->cashbox_id,
                         'name' => $sc->cashbox->name,
@@ -270,7 +270,7 @@ class ShiftController extends Controller
                         'total_in' => round($sc->total_in, 2),
                         'total_out' => round($sc->total_out, 2),
                     ];
-                }),
+                })->values(),
             ],
         ]);
     }
@@ -563,7 +563,7 @@ class ShiftController extends Controller
                 'terminal_id' => $shift->terminal_id,
                 'opened_at' => $shift->opened_at->format('Y-m-d H:i'),
                 'closed_at' => $shift->closed_at?->format('Y-m-d H:i'),
-                'cashboxes' => $shift->shiftCashboxes->map(function ($sc) {
+                'cashboxes' => $shift->shiftCashboxes->filter(fn($sc) => $sc->cashbox)->map(function ($sc) {
                     return [
                         'id' => $sc->cashbox_id,
                         'name' => $sc->cashbox->name,
@@ -575,7 +575,7 @@ class ShiftController extends Controller
                         'total_in' => round($sc->total_in, 2),
                         'total_out' => round($sc->total_out, 2),
                     ];
-                }),
+                })->values(),
                 'total_opening_balance' => round($shift->total_opening_balance, 2),
                 'total_closing_balance' => round($shift->total_closing_balance, 2),
                 'total_expected_balance' => round($shift->total_expected_balance, 2),
