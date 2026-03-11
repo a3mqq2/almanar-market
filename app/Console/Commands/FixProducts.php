@@ -185,8 +185,7 @@ class FixProducts extends Command
                 }
 
                 if (!$dryRun) {
-                    DB::table('inventory_batches')->insert([
-                        'id' => $remoteBatch['id'],
+                    $insertData = [
                         'product_id' => $remote['id'],
                         'batch_number' => $remoteBatch['batch_number'],
                         'quantity' => $remoteBatch['quantity'],
@@ -194,7 +193,14 @@ class FixProducts extends Command
                         'type' => 'purchase',
                         'created_at' => now(),
                         'updated_at' => now(),
-                    ]);
+                    ];
+
+                    $idExists = DB::table('inventory_batches')->where('id', $remoteBatch['id'])->exists();
+                    if (!$idExists) {
+                        $insertData['id'] = $remoteBatch['id'];
+                    }
+
+                    DB::table('inventory_batches')->insert($insertData);
                 }
                 $created++;
                 $this->line("  [{$remote['id']}] " . mb_substr($remote['name'], 0, 30) .
