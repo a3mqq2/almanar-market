@@ -966,10 +966,10 @@
                     confirmButtonColor: '#dc3545',
                     confirmButtonText: 'خروج',
                     cancelButtonText: 'إلغاء'
-                }).then((result) => {
+                }).then(async (result) => {
                     if (result.isConfirmed) {
-                        loadShiftSummary();
                         closeShiftModal.show();
+                        await loadShiftSummary();
                     }
                 });
             } else {
@@ -1170,10 +1170,10 @@
             }
         }
 
-        document.getElementById('openCloseShiftModal').addEventListener('click', function() {
+        document.getElementById('openCloseShiftModal').addEventListener('click', async function() {
             shiftInfoModal.hide();
-            loadShiftSummary();
             closeShiftModal.show();
+            await loadShiftSummary();
         });
 
         document.getElementById('confirmCloseShift').addEventListener('click', async function() {
