@@ -122,16 +122,16 @@ class FixProducts extends Command
             $remoteUnits = collect($remote['units'] ?? []);
 
             foreach ($remoteUnits as $remoteUnit) {
-                $localUnit = ProductUnit::find($remoteUnit['id']);
-                if (!$localUnit) {
-                    $localUnit = ProductUnit::where('product_id', $remote['id'])
-                        ->where('unit_id', $remoteUnit['unit_id'])
-                        ->first();
-                }
+                $localUnit = ProductUnit::where('product_id', $remote['id'])
+                    ->where('unit_id', $remoteUnit['unit_id'])
+                    ->first();
                 if (!$localUnit) continue;
 
-                $sellDiff = abs((float) $localUnit->sell_price - (float) $remoteUnit['sell_price']) > 0.01;
-                $costDiff = abs((float) $localUnit->cost_price - (float) $remoteUnit['cost_price']) > 0.01;
+                $localSell = (float) DB::table('product_units')->where('id', $localUnit->id)->value('sell_price');
+                $localCost = (float) DB::table('product_units')->where('id', $localUnit->id)->value('cost_price');
+
+                $sellDiff = abs($localSell - (float) $remoteUnit['sell_price']) > 0.01;
+                $costDiff = abs($localCost - (float) $remoteUnit['cost_price']) > 0.01;
 
                 if ($sellDiff || $costDiff) {
                     if (!$dryRun) {
@@ -143,8 +143,8 @@ class FixProducts extends Command
                     }
                     $fixed++;
                     $this->line("  [{$remote['id']}] " . mb_substr($remote['name'], 0, 30) .
-                        " | sell: {$localUnit->sell_price} → {$remoteUnit['sell_price']}" .
-                        " | cost: {$localUnit->cost_price} → {$remoteUnit['cost_price']}");
+                        " | sell: {$localSell} → {$remoteUnit['sell_price']}" .
+                        " | cost: {$localCost} → {$remoteUnit['cost_price']}");
                 }
             }
         }
@@ -166,12 +166,12 @@ class FixProducts extends Command
             if (!$product) continue;
 
             foreach ($remoteBatches as $remoteBatch) {
-                $localBatch = InventoryBatch::find($remoteBatch['id']);
-                if (!$localBatch) {
-                    $localBatch = InventoryBatch::where('batch_number', $remoteBatch['batch_number'])
-                        ->where('product_id', $remote['id'])
-                        ->first();
-                }
+                $localBatch = InventoryBatch::where('product_id', $remote['id'])
+                    ->where(function ($q) use ($remoteBatch) {
+                        $q->where('id', $remoteBatch['id'])
+                            ->orWhere('batch_number', $remoteBatch['batch_number']);
+                    })
+                    ->first();
 
                 if (!$localBatch) {
                     if (!$dryRun) {
@@ -201,6 +201,7 @@ class FixProducts extends Command
     protected function fixBatchQuantities($remoteProducts, bool $dryRun): int
     {
         $fixed = 0;
+        $processedBatchIds = [];
 
         InventoryBatch::disableSyncLogging();
 
@@ -208,15 +209,18 @@ class FixProducts extends Command
             $remoteBatches = collect($remote['batches'] ?? []);
 
             foreach ($remoteBatches as $remoteBatch) {
-                $localBatch = InventoryBatch::find($remoteBatch['id']);
-                if (!$localBatch) {
-                    $localBatch = InventoryBatch::where('batch_number', $remoteBatch['batch_number'])
-                        ->where('product_id', $remote['id'])
-                        ->first();
-                }
+                $localBatch = InventoryBatch::where('product_id', $remote['id'])
+                    ->where(function ($q) use ($remoteBatch) {
+                        $q->where('id', $remoteBatch['id'])
+                            ->orWhere('batch_number', $remoteBatch['batch_number']);
+                    })
+                    ->first();
                 if (!$localBatch) continue;
 
-                $localQty = (float) $localBatch->quantity;
+                if (in_array($localBatch->id, $processedBatchIds)) continue;
+                $processedBatchIds[] = $localBatch->id;
+
+                $localQty = (float) DB::table('inventory_batches')->where('id', $localBatch->id)->value('quantity');
                 $remoteQty = (float) $remoteBatch['quantity'];
 
                 if (abs($localQty - $remoteQty) > 0.01) {
