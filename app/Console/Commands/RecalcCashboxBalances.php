@@ -31,6 +31,7 @@ class RecalcCashboxBalances extends Command
                 ->orderBy('created_at')
                 ->orderBy('type')
                 ->orderBy('amount')
+                ->orderBy('description')
                 ->get();
 
             $balance = $cashbox->opening_balance;

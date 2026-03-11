@@ -440,6 +440,7 @@ class SyncService
                 ->orderBy('created_at')
                 ->orderBy('type')
                 ->orderBy('amount')
+                ->orderBy('description')
                 ->get();
 
             $balance = $cashbox->opening_balance;
@@ -483,6 +484,7 @@ class SyncService
                 ->orderBy('created_at')
                 ->orderBy('type')
                 ->orderBy('amount')
+                ->orderBy('description')
                 ->get();
 
             $balance = (float) $customer->opening_balance;
@@ -517,6 +519,7 @@ class SyncService
                 ->orderBy('created_at')
                 ->orderBy('type')
                 ->orderBy('amount')
+                ->orderBy('description')
                 ->get();
 
             $balance = (float) $supplier->opening_balance;

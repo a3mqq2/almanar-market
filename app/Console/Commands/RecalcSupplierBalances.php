@@ -31,6 +31,7 @@ class RecalcSupplierBalances extends Command
                 ->orderBy('created_at')
                 ->orderBy('type')
                 ->orderBy('amount')
+                ->orderBy('description')
                 ->get();
 
             if ($transactions->isEmpty()) continue;

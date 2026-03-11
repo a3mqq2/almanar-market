@@ -155,7 +155,7 @@ class SyncController extends Controller
             if (!$customer) continue;
 
             $transactions = \App\Models\CustomerTransaction::where('customer_id', $customerId)
-                ->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')->get();
+                ->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')->orderBy('description')->get();
 
             $balance = (float) $customer->opening_balance;
             foreach ($transactions as $t) {
@@ -180,7 +180,7 @@ class SyncController extends Controller
             if (!$supplier) continue;
 
             $transactions = \App\Models\SupplierTransaction::where('supplier_id', $supplierId)
-                ->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')->get();
+                ->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')->orderBy('description')->get();
 
             $balance = (float) $supplier->opening_balance;
             foreach ($transactions as $t) {
@@ -205,7 +205,7 @@ class SyncController extends Controller
             if (!$cashbox) continue;
 
             $transactions = \App\Models\CashboxTransaction::where('cashbox_id', $cashboxId)
-                ->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')->get();
+                ->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')->orderBy('description')->get();
 
             $balance = (float) $cashbox->opening_balance;
             foreach ($transactions as $t) {

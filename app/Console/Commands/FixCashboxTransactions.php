@@ -54,6 +54,7 @@ class FixCashboxTransactions extends Command
             ->orderBy('created_at')
             ->orderBy('type')
             ->orderBy('amount')
+            ->orderBy('description')
             ->get();
         $this->info("Local: {$localTransactions->count()} transactions");
         $this->newLine();

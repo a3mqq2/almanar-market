@@ -531,6 +531,7 @@ Route::prefix('v1')->group(function () {
             ->orderBy('created_at')
             ->orderBy('type')
             ->orderBy('amount')
+            ->orderBy('description')
             ->get()
             ->map(fn($t) => [
                 'id' => $t->id,
@@ -592,6 +593,7 @@ Route::prefix('v1')->group(function () {
                 ->orderBy('created_at')
                 ->orderBy('type')
                 ->orderBy('amount')
+                ->orderBy('description')
                 ->get();
 
             $balance = (float) $cashbox->opening_balance;
@@ -636,7 +638,7 @@ Route::prefix('v1')->group(function () {
             $query->where('customer_id', $request->customer_id);
         }
 
-        $transactions = $query->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')
+        $transactions = $query->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')->orderBy('description')
             ->get()->map(fn($t) => [
                 'id' => $t->id,
                 'customer_id' => $t->customer_id,
@@ -668,7 +670,7 @@ Route::prefix('v1')->group(function () {
             $query->where('supplier_id', $request->supplier_id);
         }
 
-        $transactions = $query->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')
+        $transactions = $query->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')->orderBy('description')
             ->get()->map(fn($t) => [
                 'id' => $t->id,
                 'supplier_id' => $t->supplier_id,
@@ -711,7 +713,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/sync/recalc-customer-balances', function () {
         $results = [];
         foreach (\App\Models\Customer::all() as $customer) {
-            $transactions = $customer->transactions()->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')->get();
+            $transactions = $customer->transactions()->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')->orderBy('description')->get();
             $balance = (float) $customer->opening_balance;
             $fixed = 0;
             foreach ($transactions as $t) {
@@ -731,7 +733,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/sync/recalc-supplier-balances', function () {
         $results = [];
         foreach (\App\Models\Supplier::all() as $supplier) {
-            $transactions = $supplier->transactions()->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')->get();
+            $transactions = $supplier->transactions()->orderBy('transaction_date')->orderBy('created_at')->orderBy('type')->orderBy('amount')->orderBy('description')->get();
             $balance = (float) $supplier->opening_balance;
             $fixed = 0;
             foreach ($transactions as $t) {
