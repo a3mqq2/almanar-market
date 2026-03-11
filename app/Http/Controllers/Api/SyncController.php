@@ -81,7 +81,7 @@ class SyncController extends Controller
             }
         }
 
-        $this->recalcAfterPush($changes, $deviceId);
+        $this->recalcAfterPush($changes, $deviceId, $idMap);
 
         DB::commit();
         DB::statement('SET FOREIGN_KEY_CHECKS=1');
@@ -95,12 +95,14 @@ class SyncController extends Controller
         ]);
     }
 
-    protected function recalcAfterPush(array $changes, string $deviceId): void
+    protected function recalcAfterPush(array $changes, string $deviceId, array $idMap = []): void
     {
         $customerIds = [];
         $supplierIds = [];
         $cashboxIds = [];
         $batchIds = [];
+
+        $batchIdMap = $idMap['App\Models\InventoryBatch'] ?? [];
 
         foreach ($changes as $change) {
             $type = $change['type'] ?? '';
@@ -119,15 +121,22 @@ class SyncController extends Controller
                 if ($id) $cashboxIds[$id] = true;
             }
             if ($type === 'App\Models\InventoryBatch') {
-                $batchIds[$change['record_id']] = true;
+                $serverId = $batchIdMap[$change['record_id']] ?? $change['record_id'];
+                $batchIds[$serverId] = true;
             }
             if ($type === 'App\Models\StockMovement') {
                 $id = $payload['batch_id'] ?? null;
-                if ($id) $batchIds[$id] = true;
+                if ($id) {
+                    $serverId = $batchIdMap[$id] ?? $id;
+                    $batchIds[$serverId] = true;
+                }
             }
             if (in_array($type, ['App\Models\SaleItem', 'App\Models\PurchaseItem', 'App\Models\SaleReturnItem'])) {
                 $id = $payload['inventory_batch_id'] ?? null;
-                if ($id) $batchIds[$id] = true;
+                if ($id) {
+                    $serverId = $batchIdMap[$id] ?? $id;
+                    $batchIds[$serverId] = true;
+                }
             }
         }
 
