@@ -389,7 +389,6 @@ class SyncService
             $this->recalcAffectedCashboxBalances($changes);
             $this->recalcAffectedCustomerBalances($changes);
             $this->recalcAffectedSupplierBalances($changes);
-            $this->recalcAffectedBatchQuantities($changes);
 
             DB::commit();
         } catch (\Exception $e) {
@@ -527,41 +526,6 @@ class SyncService
             if (abs((float) $supplier->current_balance - $balance) > 0.001) {
                 $supplier->current_balance = round($balance, 2);
                 $supplier->saveQuietly();
-            }
-        }
-    }
-
-    protected function recalcAffectedBatchQuantities(array $changes): void
-    {
-        $batchIds = [];
-        foreach ($changes as $change) {
-            $type = $change['type'] ?? '';
-            $payload = $change['payload'] ?? [];
-
-            if ($type === 'App\Models\InventoryBatch') {
-                $batchIds[$change['id']] = true;
-            }
-            if ($type === 'App\Models\StockMovement') {
-                $id = $payload['batch_id'] ?? null;
-                if ($id) $batchIds[$id] = true;
-            }
-            if (in_array($type, ['App\Models\SaleItem', 'App\Models\PurchaseItem', 'App\Models\SaleReturnItem'])) {
-                $id = $payload['inventory_batch_id'] ?? null;
-                if ($id) $batchIds[$id] = true;
-            }
-        }
-
-        foreach (array_keys($batchIds) as $batchId) {
-            $batch = \App\Models\InventoryBatch::find($batchId);
-            if (!$batch) continue;
-
-            $expectedQty = (float) \App\Models\StockMovement::where('batch_id', $batchId)->sum('quantity');
-
-            if (abs((float) $batch->quantity - $expectedQty) > 0.001) {
-                DB::table('inventory_batches')->where('id', $batchId)->update([
-                    'quantity' => round($expectedQty, 4),
-                    'updated_at' => now(),
-                ]);
             }
         }
     }

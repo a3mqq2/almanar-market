@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Models\InventoryBatch;
 use App\Models\Product;
 use App\Models\ProductUnit;
-use App\Models\StockMovement;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -72,11 +71,6 @@ class FixProducts extends Command
         $this->info("  Fixed batch quantities: {$fixedBatchQty}");
         $this->newLine();
 
-        $this->info('Step 5: Recalculating batch quantities from stock movements...');
-        $recalcBatches = $this->recalcFromStockMovements($dryRun);
-        $this->info("  Recalculated batches: {$recalcBatches}");
-        $this->newLine();
-
         $this->warn('=== Summary ===');
         $this->table(
             ['Action', 'Count'],
@@ -84,7 +78,6 @@ class FixProducts extends Command
                 ['Prices fixed', $fixedPrices],
                 ['Batches created from production', $createdBatches],
                 ['Batch quantities fixed', $fixedBatchQty],
-                ['Batches recalculated from movements', $recalcBatches],
             ]
         );
 
@@ -166,7 +159,6 @@ class FixProducts extends Command
         $created = 0;
 
         InventoryBatch::disableSyncLogging();
-        StockMovement::disableSyncLogging();
 
         foreach ($remoteProducts as $remote) {
             $remoteBatches = collect($remote['batches'] ?? []);
@@ -202,7 +194,6 @@ class FixProducts extends Command
         }
 
         InventoryBatch::enableSyncLogging();
-        StockMovement::enableSyncLogging();
 
         return $created;
     }
@@ -245,35 +236,6 @@ class FixProducts extends Command
         InventoryBatch::enableSyncLogging();
 
         return $fixed;
-    }
-
-    protected function recalcFromStockMovements(bool $dryRun): int
-    {
-        $recalced = 0;
-
-        $batchIds = StockMovement::whereNotNull('batch_id')
-            ->distinct()
-            ->pluck('batch_id');
-
-        foreach ($batchIds as $batchId) {
-            $batch = InventoryBatch::find($batchId);
-            if (!$batch) continue;
-
-            $expectedQty = (float) StockMovement::where('batch_id', $batchId)->sum('quantity');
-            $currentQty = (float) $batch->quantity;
-
-            if (abs($currentQty - $expectedQty) > 0.01) {
-                if (!$dryRun) {
-                    DB::table('inventory_batches')->where('id', $batchId)->update([
-                        'quantity' => round($expectedQty, 4),
-                        'updated_at' => now(),
-                    ]);
-                }
-                $recalced++;
-            }
-        }
-
-        return $recalced;
     }
 
     protected function resolveDevice(): ?object
