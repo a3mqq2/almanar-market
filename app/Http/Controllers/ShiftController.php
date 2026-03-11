@@ -234,12 +234,22 @@ class ShiftController extends Controller
     public function summary(Shift $shift)
     {
         $shift->load(['shiftCashboxes.cashbox:id,name,type', 'user:id,name']);
+
+        $debugRaw = $shift->shiftCashboxes->map(fn($sc) => [
+            'shift_cashbox_id' => $sc->id,
+            'cashbox_id' => $sc->cashbox_id,
+            'cashbox_exists' => $sc->cashbox !== null,
+        ])->toArray();
+
         $shift->recalculateTotals();
         $shift->save();
         $shift->load('shiftCashboxes.cashbox:id,name,type');
 
         return response()->json([
             'success' => true,
+            'debug_shift_id' => $shift->id,
+            'debug_shift_cashboxes_count' => $shift->shiftCashboxes->count(),
+            'debug_raw' => $debugRaw,
             'summary' => [
                 'id' => $shift->id,
                 'user_name' => $shift->user->name,
