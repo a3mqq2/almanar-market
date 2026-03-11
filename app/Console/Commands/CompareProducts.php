@@ -219,24 +219,32 @@ class CompareProducts extends Command
             if (!$remote) continue;
 
             $remoteBatches = collect($remote['batches'] ?? []);
+            $matchedLocalIds = [];
+            $matchedRemoteIds = [];
 
-            foreach ($local->inventoryBatches as $localBatch) {
-                $remoteBatch = $remoteBatches->firstWhere('id', $localBatch->id);
-                if (!$remoteBatch) {
-                    $remoteBatch = $remoteBatches->first(fn($b) => $b['batch_number'] == $localBatch->batch_number);
+            foreach ($remoteBatches as $remoteBatch) {
+                $localBatch = $local->inventoryBatches->firstWhere('id', $remoteBatch['id']);
+
+                if (!$localBatch) {
+                    $localBatch = $local->inventoryBatches
+                        ->filter(fn($b) => !in_array($b->id, $matchedLocalIds))
+                        ->first(fn($b) => $b->batch_number == $remoteBatch['batch_number']);
                 }
 
-                if (!$remoteBatch) {
-                    $onlyLocal[] = [
+                if (!$localBatch || in_array($localBatch->id, $matchedLocalIds)) {
+                    $onlyRemote[] = [
                         $local->id,
                         mb_substr($local->name, 0, 25),
-                        $localBatch->id,
-                        $localBatch->batch_number,
-                        number_format((float) $localBatch->quantity, 4),
-                        number_format((float) $localBatch->cost_price, 2),
+                        $remoteBatch['id'],
+                        $remoteBatch['batch_number'],
+                        number_format((float) $remoteBatch['quantity'], 4),
+                        number_format((float) $remoteBatch['cost_price'], 2),
                     ];
                     continue;
                 }
+
+                $matchedLocalIds[] = $localBatch->id;
+                $matchedRemoteIds[] = $remoteBatch['id'];
 
                 $localQty = (float) $localBatch->quantity;
                 $remoteQty = (float) $remoteBatch['quantity'];
@@ -255,19 +263,15 @@ class CompareProducts extends Command
                 }
             }
 
-            foreach ($remoteBatches as $remoteBatch) {
-                $localBatch = $local->inventoryBatches->firstWhere('id', $remoteBatch['id']);
-                if (!$localBatch) {
-                    $localBatch = $local->inventoryBatches->first(fn($b) => $b->batch_number == $remoteBatch['batch_number']);
-                }
-                if (!$localBatch) {
-                    $onlyRemote[] = [
+            foreach ($local->inventoryBatches as $localBatch) {
+                if (!in_array($localBatch->id, $matchedLocalIds)) {
+                    $onlyLocal[] = [
                         $local->id,
                         mb_substr($local->name, 0, 25),
-                        $remoteBatch['id'],
-                        $remoteBatch['batch_number'],
-                        number_format((float) $remoteBatch['quantity'], 4),
-                        number_format((float) $remoteBatch['cost_price'], 2),
+                        $localBatch->id,
+                        $localBatch->batch_number,
+                        number_format((float) $localBatch->quantity, 4),
+                        number_format((float) $localBatch->cost_price, 2),
                     ];
                 }
             }

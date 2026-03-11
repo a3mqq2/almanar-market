@@ -165,31 +165,40 @@ class FixProducts extends Command
             $product = Product::find($remote['id']);
             if (!$product) continue;
 
+            $matchedLocalIds = [];
+
             foreach ($remoteBatches as $remoteBatch) {
                 $localBatch = InventoryBatch::where('product_id', $remote['id'])
-                    ->where(function ($q) use ($remoteBatch) {
-                        $q->where('id', $remoteBatch['id'])
-                            ->orWhere('batch_number', $remoteBatch['batch_number']);
-                    })
+                    ->where('id', $remoteBatch['id'])
                     ->first();
 
                 if (!$localBatch) {
-                    if (!$dryRun) {
-                        DB::table('inventory_batches')->insert([
-                            'id' => $remoteBatch['id'],
-                            'product_id' => $remote['id'],
-                            'batch_number' => $remoteBatch['batch_number'],
-                            'quantity' => $remoteBatch['quantity'],
-                            'cost_price' => $remoteBatch['cost_price'],
-                            'type' => 'purchase',
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
-                    }
-                    $created++;
-                    $this->line("  [{$remote['id']}] " . mb_substr($remote['name'], 0, 30) .
-                        " | batch: {$remoteBatch['batch_number']} qty: {$remoteBatch['quantity']}");
+                    $localBatch = InventoryBatch::where('product_id', $remote['id'])
+                        ->where('batch_number', $remoteBatch['batch_number'])
+                        ->whereNotIn('id', $matchedLocalIds)
+                        ->first();
                 }
+
+                if ($localBatch) {
+                    $matchedLocalIds[] = $localBatch->id;
+                    continue;
+                }
+
+                if (!$dryRun) {
+                    DB::table('inventory_batches')->insert([
+                        'id' => $remoteBatch['id'],
+                        'product_id' => $remote['id'],
+                        'batch_number' => $remoteBatch['batch_number'],
+                        'quantity' => $remoteBatch['quantity'],
+                        'cost_price' => $remoteBatch['cost_price'],
+                        'type' => 'purchase',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+                $created++;
+                $this->line("  [{$remote['id']}] " . mb_substr($remote['name'], 0, 30) .
+                    " | batch: {$remoteBatch['batch_number']} qty: {$remoteBatch['quantity']}");
             }
         }
 
@@ -201,24 +210,29 @@ class FixProducts extends Command
     protected function fixBatchQuantities($remoteProducts, bool $dryRun): int
     {
         $fixed = 0;
-        $processedBatchIds = [];
 
         InventoryBatch::disableSyncLogging();
 
         foreach ($remoteProducts as $remote) {
             $remoteBatches = collect($remote['batches'] ?? []);
+            $matchedLocalIds = [];
 
             foreach ($remoteBatches as $remoteBatch) {
                 $localBatch = InventoryBatch::where('product_id', $remote['id'])
-                    ->where(function ($q) use ($remoteBatch) {
-                        $q->where('id', $remoteBatch['id'])
-                            ->orWhere('batch_number', $remoteBatch['batch_number']);
-                    })
+                    ->where('id', $remoteBatch['id'])
                     ->first();
+
+                if (!$localBatch) {
+                    $localBatch = InventoryBatch::where('product_id', $remote['id'])
+                        ->where('batch_number', $remoteBatch['batch_number'])
+                        ->whereNotIn('id', $matchedLocalIds)
+                        ->first();
+                }
+
                 if (!$localBatch) continue;
 
-                if (in_array($localBatch->id, $processedBatchIds)) continue;
-                $processedBatchIds[] = $localBatch->id;
+                if (in_array($localBatch->id, $matchedLocalIds)) continue;
+                $matchedLocalIds[] = $localBatch->id;
 
                 $localQty = (float) DB::table('inventory_batches')->where('id', $localBatch->id)->value('quantity');
                 $remoteQty = (float) $remoteBatch['quantity'];
