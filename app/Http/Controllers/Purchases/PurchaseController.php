@@ -448,6 +448,69 @@ class PurchaseController extends Controller
         }
     }
 
+    public function printList(Request $request)
+    {
+        $query = Purchase::with(['supplier', 'creator', 'items.product', 'items.productUnit.unit'])
+            ->orderBy('id', 'desc');
+
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('payment_type')) {
+            $query->where('payment_type', $request->payment_type);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('purchase_date', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('purchase_date', '<=', $request->date_to);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('invoice_number', 'like', "%{$search}%")
+                    ->orWhereHas('supplier', function ($sq) use ($search) {
+                        $sq->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('items.product', function ($pq) use ($search) {
+                        $pq->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        $purchases = $query->get();
+
+        $summary = [
+            'total_count' => $purchases->count(),
+            'total_amount' => $purchases->sum('total'),
+            'total_paid' => $purchases->sum('paid_amount'),
+            'total_remaining' => $purchases->sum('remaining_amount'),
+            'cash_count' => $purchases->where('payment_type', 'cash')->count(),
+            'credit_count' => $purchases->where('payment_type', 'credit')->count(),
+        ];
+
+        $filters = [
+            'supplier' => $request->filled('supplier_id')
+                ? \App\Models\Supplier::find($request->supplier_id)?->name
+                : null,
+            'status' => $request->status,
+            'payment_type' => $request->payment_type,
+            'date_from' => $request->date_from,
+            'date_to' => $request->date_to,
+            'search' => $request->search,
+        ];
+
+        return view('purchases.print-list', compact('purchases', 'summary', 'filters'));
+    }
+
     public function print(Purchase $purchase)
     {
         $purchase->load([

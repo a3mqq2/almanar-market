@@ -49,9 +49,14 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0"><i class="ti ti-shopping-cart me-1"></i>سجل المشتريات</h5>
-        <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="clearFiltersBtn">
-            <i class="ti ti-x me-1"></i>مسح الفلاتر
-        </button>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="clearFiltersBtn">
+                <i class="ti ti-x me-1"></i>مسح الفلاتر
+            </button>
+            <button type="button" class="btn btn-outline-dark btn-sm" id="printListBtn">
+                <i class="ti ti-printer me-1"></i>طباعة
+            </button>
+        </div>
     </div>
     <div class="card-body">
         <div class="filter-section">
@@ -338,6 +343,13 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('clearFiltersBtn').addEventListener('click', function() {
         Object.values(els).forEach(el => { el.value = ''; });
         loadData(1);
+    });
+
+    document.getElementById('printListBtn').addEventListener('click', function() {
+        const filters = getFilters();
+        const params = new URLSearchParams();
+        Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
+        window.open(`{{ route('purchases.print-list') }}?${params}`, '_blank');
     });
 
     loadData(1);

@@ -120,6 +120,7 @@ Route::middleware('role:manager')->group(function () {
         Route::get('/search-products', [PurchaseController::class, 'searchProducts'])->name('search-products');
         Route::get('/supplier-products', [PurchaseController::class, 'getSupplierProducts'])->name('supplier-products');
         Route::get('/product-by-barcode', [PurchaseController::class, 'getProductByBarcode'])->name('product-by-barcode');
+        Route::get('/print-list', [PurchaseController::class, 'printList'])->name('print-list');
         Route::get('/{purchase}', [PurchaseController::class, 'show'])->name('show');
         Route::get('/{purchase}/edit', [PurchaseController::class, 'edit'])->name('edit');
         Route::put('/{purchase}', [PurchaseController::class, 'update'])->name('update');
