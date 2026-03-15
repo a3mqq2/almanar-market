@@ -2,7 +2,7 @@ const { app, BrowserWindow, globalShortcut, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
 
-const BASE_URL = 'http://192.168.110.183/almanar-market/public'
+const BASE_URL = 'http://192.168.1.101/almanar-market/public'
 const PRINTER_NAME = 'XP-80C (copy 1)'
 const PRINTABLE_WIDTH_MICRONS = 72000
 const PRINTABLE_WIDTH_PX = 272
