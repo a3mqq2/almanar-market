@@ -164,7 +164,7 @@
                                             </div>
 
                                             <div class="d-grid">
-                                                <button type="submit" class="btn btn-primary fw-semibold py-2">دخول</button>
+                                                <button type="submit" class="btn btn-primary fw-semibold py-2" id="loginBtn">دخول</button>
                                             </div>
                                         </form>
                                     </div>
@@ -187,6 +187,14 @@
 
         <!-- App js -->
         <script src="{{ asset('assets/js/app.js') }}"></script>
+
+        <script>
+            document.querySelector('form').addEventListener('submit', function() {
+                const btn = document.getElementById('loginBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الدخول...';
+            });
+        </script>
 
     </body>
 </html>
