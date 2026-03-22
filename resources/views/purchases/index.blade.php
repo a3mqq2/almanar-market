@@ -98,6 +98,13 @@
                         <input type="date" class="form-control form-control-sm" id="fDateTo">
                     </div>
                 </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">العرض</label>
+                    <select class="form-select form-select-sm" id="fGroupBy">
+                        <option value="">عادي</option>
+                        <option value="invoice">تجميع بالفاتورة</option>
+                    </select>
+                </div>
                 <div class="col-md-1 d-flex align-items-end">
                     <button type="button" class="btn btn-primary btn-sm w-100" id="searchBtn">
                         <i class="ti ti-search"></i>
@@ -113,9 +120,10 @@
             </div>
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
-                    <thead>
+                    <thead id="tableHead">
                         <tr>
                             <th>#</th>
+                            <th>رقم الفاتورة</th>
                             <th>التاريخ</th>
                             <th>المنتج</th>
                             <th>المورد</th>
@@ -126,7 +134,6 @@
                             <th>المدفوع</th>
                             <th>المتبقي</th>
                             <th>الحالة</th>
-                            <th>بواسطة</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
@@ -161,6 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
         status: document.getElementById('fStatus'),
         dateFrom: document.getElementById('fDateFrom'),
         dateTo: document.getElementById('fDateTo'),
+        groupBy: document.getElementById('fGroupBy'),
     };
 
     function getFilters() {
@@ -171,6 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
             status: els.status.value,
             date_from: els.dateFrom.value,
             date_to: els.dateTo.value,
+            group_by: els.groupBy.value,
         };
     }
 
@@ -201,7 +210,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
 
             if (data.success) {
-                renderTable(data.purchases);
+                updateTableHeaders(data.grouped);
+                renderTable(data.purchases, data.grouped);
                 renderPagination(data.purchases);
             }
         } catch (e) {
@@ -213,13 +223,46 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('loading').classList.add('d-none');
     }
 
-    function renderTable(paginated) {
+    function updateTableHeaders(grouped) {
+        const thead = document.getElementById('tableHead');
+        if (grouped) {
+            thead.innerHTML = `<tr>
+                <th>رقم الفاتورة</th>
+                <th>التاريخ</th>
+                <th>المورد</th>
+                <th>عدد الأصناف</th>
+                <th>الإجمالي</th>
+                <th>الدفع</th>
+                <th>المدفوع</th>
+                <th>المتبقي</th>
+                <th>الحالة</th>
+            </tr>`;
+        } else {
+            thead.innerHTML = `<tr>
+                <th>#</th>
+                <th>رقم الفاتورة</th>
+                <th>التاريخ</th>
+                <th>المنتج</th>
+                <th>المورد</th>
+                <th>الكمية</th>
+                <th>سعر الوحدة</th>
+                <th>الإجمالي</th>
+                <th>الدفع</th>
+                <th>المدفوع</th>
+                <th>المتبقي</th>
+                <th>الحالة</th>
+            </tr>`;
+        }
+    }
+
+    function renderTable(paginated, grouped) {
         const tbody = document.getElementById('tableBody');
         const rows = paginated.data;
+        const colSpan = grouped ? 9 : 12;
 
         if (!rows.length) {
             tbody.innerHTML = `
-                <tr><td colspan="12">
+                <tr><td colspan="${colSpan}">
                     <div class="empty-state">
                         <i class="ti ti-shopping-cart-off d-block mb-2"></i>
                         <p class="text-muted mb-1">لا توجد عمليات شراء</p>
@@ -230,43 +273,85 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        tbody.innerHTML = rows.map(p => {
-            const items = p.items || [];
-            const productTags = items.map(i =>
-                `<span class="product-tag">${esc(i.product_name)} <small class="text-muted">(${num(i.quantity)} ${esc(i.unit_name || '')})</small></span>`
-            ).join('');
+        if (grouped) {
+            tbody.innerHTML = rows.map(p => {
+                const products = p.products || [];
+                const productTags = products.map(i =>
+                    `<span class="product-tag">${esc(i.product_name)} <small class="text-muted">(${num(i.quantity)} ${esc(i.unit_name || '')})</small></span>`
+                ).join('');
 
-            const qtyCell = items.length === 1
-                ? num(items[0].quantity)
-                : `<span class="text-muted">${items.length} أصناف</span>`;
+                const payBadge = p.payment_type === 'credit'
+                    ? '<span class="badge bg-warning text-dark">آجل</span>'
+                    : (p.payment_type === 'mixed' ? '<span class="badge bg-secondary">مختلط</span>' : '<span class="badge bg-success">نقدي</span>');
 
-            const priceCell = items.length === 1 ? num(items[0].unit_price) : '-';
+                const remClass = parseFloat(p.remaining_amount) > 0 ? 'text-danger fw-bold' : 'text-muted';
 
-            const payBadge = p.payment_type === 'credit'
-                ? '<span class="badge bg-warning text-dark">آجل</span>'
-                : '<span class="badge bg-success">نقدي</span>';
+                return `<tr class="clickable-row" data-href="${p.show_url}">
+                    <td><code>${esc(p.invoice_number)}</code></td>
+                    <td>${p.purchase_date}</td>
+                    <td>${esc(p.supplier_name)}</td>
+                    <td>
+                        <span class="fw-bold">${p.purchases_count}</span>
+                        <button type="button" class="btn btn-link btn-sm p-0 ms-1 toggle-products" title="عرض الأصناف">
+                            <i class="ti ti-chevron-down"></i>
+                        </button>
+                        <div class="d-none mt-1 products-list" style="max-width:350px">${productTags}</div>
+                    </td>
+                    <td class="fw-bold">${num(p.total)}</td>
+                    <td>${payBadge}</td>
+                    <td class="text-success">${num(p.paid_amount)}</td>
+                    <td class="${remClass}">${num(p.remaining_amount)}</td>
+                    <td><span class="badge bg-${p.status_color}">${esc(p.status_arabic)}</span></td>
+                </tr>`;
+            }).join('');
+        } else {
+            tbody.innerHTML = rows.map(p => {
+                const items = p.items || [];
+                const productTags = items.map(i =>
+                    `<span class="product-tag">${esc(i.product_name)} <small class="text-muted">(${num(i.quantity)} ${esc(i.unit_name || '')})</small></span>`
+                ).join('');
 
-            const remClass = parseFloat(p.remaining_amount) > 0 ? 'text-danger fw-bold' : 'text-muted';
+                const qtyCell = items.length ? num(items[0].quantity) : '-';
+                const priceCell = items.length ? num(items[0].unit_price) : '-';
 
-            return `<tr class="clickable-row" data-href="${p.show_url}">
-                <td class="text-muted">${p.id}</td>
-                <td>${p.purchase_date}</td>
-                <td style="max-width:250px">${productTags}</td>
-                <td>${esc(p.supplier_name)}</td>
-                <td>${qtyCell}</td>
-                <td>${priceCell}</td>
-                <td class="fw-bold">${num(p.total)}</td>
-                <td>${payBadge}</td>
-                <td class="text-success">${num(p.paid_amount)}</td>
-                <td class="${remClass}">${num(p.remaining_amount)}</td>
-                <td><span class="badge bg-${p.status_color}">${esc(p.status_arabic)}</span></td>
-                <td class="text-muted small">${esc(p.creator_name || '-')}</td>
-            </tr>`;
-        }).join('');
+                const payBadge = p.payment_type === 'credit'
+                    ? '<span class="badge bg-warning text-dark">آجل</span>'
+                    : '<span class="badge bg-success">نقدي</span>';
+
+                const remClass = parseFloat(p.remaining_amount) > 0 ? 'text-danger fw-bold' : 'text-muted';
+
+                return `<tr class="clickable-row" data-href="${p.show_url}">
+                    <td class="text-muted">${p.id}</td>
+                    <td><code>${esc(p.invoice_number)}</code></td>
+                    <td>${p.purchase_date}</td>
+                    <td style="max-width:250px">${productTags}</td>
+                    <td>${esc(p.supplier_name)}</td>
+                    <td>${qtyCell}</td>
+                    <td>${priceCell}</td>
+                    <td class="fw-bold">${num(p.total)}</td>
+                    <td>${payBadge}</td>
+                    <td class="text-success">${num(p.paid_amount)}</td>
+                    <td class="${remClass}">${num(p.remaining_amount)}</td>
+                    <td><span class="badge bg-${p.status_color}">${esc(p.status_arabic)}</span></td>
+                </tr>`;
+            }).join('');
+        }
 
         tbody.querySelectorAll('.clickable-row').forEach(row => {
-            row.addEventListener('click', function() {
+            row.addEventListener('click', function(e) {
+                if (e.target.closest('.toggle-products')) return;
                 window.location.href = this.dataset.href;
+            });
+        });
+
+        tbody.querySelectorAll('.toggle-products').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const list = this.closest('td').querySelector('.products-list');
+                list.classList.toggle('d-none');
+                const icon = this.querySelector('i');
+                icon.classList.toggle('ti-chevron-down');
+                icon.classList.toggle('ti-chevron-up');
             });
         });
     }
@@ -336,7 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
         debounceTimer = setTimeout(() => loadData(1), 400);
     });
 
-    [els.supplier, els.payment, els.status, els.dateFrom, els.dateTo].forEach(el => {
+    [els.supplier, els.payment, els.status, els.dateFrom, els.dateTo, els.groupBy].forEach(el => {
         el.addEventListener('change', () => loadData(1));
     });
 

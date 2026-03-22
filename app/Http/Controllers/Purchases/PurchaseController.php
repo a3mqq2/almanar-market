@@ -66,11 +66,53 @@ class PurchaseController extends Controller
         if ($request->ajax()) {
             $purchases = $query->paginate($request->input('per_page', 20));
 
+            if ($request->input('group_by') === 'invoice') {
+                $all = $query->get();
+                $grouped = $all->groupBy('invoice_number')->map(function ($items, $invoice) {
+                    $first = $items->first();
+                    return [
+                        'invoice_number' => $invoice ?: '-',
+                        'purchase_date' => $first->purchase_date?->format('Y-m-d'),
+                        'supplier_name' => $first->supplier?->name ?? '-',
+                        'purchases_count' => $items->count(),
+                        'products' => $items->flatMap(fn($p) => $p->items->map(fn($i) => [
+                            'product_name' => $i->product?->name ?? '-',
+                            'quantity' => $i->quantity,
+                            'unit_name' => $i->productUnit?->unit?->name,
+                            'unit_price' => $i->unit_price,
+                        ]))->values(),
+                        'total' => $items->sum('total'),
+                        'paid_amount' => $items->sum('paid_amount'),
+                        'remaining_amount' => $items->sum('remaining_amount'),
+                        'payment_type' => $items->every(fn($p) => $p->payment_type === 'cash') ? 'cash' : ($items->every(fn($p) => $p->payment_type === 'credit') ? 'credit' : 'mixed'),
+                        'status' => $items->every(fn($p) => $p->status === 'approved') ? 'approved' : 'mixed',
+                        'status_arabic' => $items->every(fn($p) => $p->status === 'approved') ? 'معتمدة' : 'مختلطة',
+                        'status_color' => $items->every(fn($p) => $p->status === 'approved') ? 'success' : 'secondary',
+                        'show_url' => route('purchases.show', $first),
+                    ];
+                })->values();
+
+                return response()->json([
+                    'success' => true,
+                    'grouped' => true,
+                    'purchases' => [
+                        'data' => $grouped->forPage($request->input('page', 1), 20)->values(),
+                        'current_page' => (int) $request->input('page', 1),
+                        'last_page' => (int) ceil($grouped->count() / 20),
+                        'from' => ($request->input('page', 1) - 1) * 20 + 1,
+                        'to' => min($request->input('page', 1) * 20, $grouped->count()),
+                        'total' => $grouped->count(),
+                    ],
+                ]);
+            }
+
             return response()->json([
                 'success' => true,
+                'grouped' => false,
                 'purchases' => $purchases->through(function ($p) {
                     return [
                         'id' => $p->id,
+                        'invoice_number' => $p->invoice_number ?? '-',
                         'purchase_date' => $p->purchase_date?->format('Y-m-d'),
                         'supplier_name' => $p->supplier?->name ?? '-',
                         'items' => $p->items->map(fn($i) => [
@@ -506,9 +548,12 @@ class PurchaseController extends Controller
             'date_from' => $request->date_from,
             'date_to' => $request->date_to,
             'search' => $request->search,
+            'group_by' => $request->group_by,
         ];
 
-        return view('purchases.print-list', compact('purchases', 'summary', 'filters'));
+        $groupByInvoice = $request->input('group_by') === 'invoice';
+
+        return view('purchases.print-list', compact('purchases', 'summary', 'filters', 'groupByInvoice'));
     }
 
     public function print(Purchase $purchase)

@@ -225,47 +225,95 @@
     </div>
     @endif
 
+    @if($groupByInvoice)
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>رقم الفاتورة</th>
+                <th>التاريخ</th>
+                <th>المورد</th>
+                <th>الأصناف</th>
+                <th>الدفع</th>
+                <th>الإجمالي</th>
+                <th>المدفوع</th>
+                <th>المتبقي</th>
+            </tr>
+        </thead>
+        <tbody>
+            @php $grouped = $purchases->groupBy('invoice_number'); @endphp
+            @forelse($grouped as $invoice => $items)
+            @php $first = $items->first(); @endphp
+            <tr>
+                <td class="fw-bold">{{ $invoice ?: '-' }}</td>
+                <td>{{ $first->purchase_date?->format('Y-m-d') }}</td>
+                <td>{{ $first->supplier?->name ?? '-' }}</td>
+                <td class="text-right">
+                    @foreach($items as $p)
+                        @foreach($p->items as $item)
+                            {{ $item->product?->name ?? '-' }}
+                            ({{ number_format($item->quantity, 2) }} {{ $item->productUnit?->unit?->name ?? '' }}
+                            × {{ number_format($item->unit_price, 2) }})@if(!$loop->parent->last || !$loop->last)،@endif
+                        @endforeach
+                    @endforeach
+                </td>
+                <td>
+                    @if($items->every(fn($p) => $p->payment_type === 'cash')) نقدي
+                    @elseif($items->every(fn($p) => $p->payment_type === 'credit')) آجل
+                    @else مختلط @endif
+                </td>
+                <td class="fw-bold">{{ number_format($items->sum('total'), 2) }}</td>
+                <td>{{ number_format($items->sum('paid_amount'), 2) }}</td>
+                <td @if($items->sum('remaining_amount') > 0) class="text-danger" @endif>{{ number_format($items->sum('remaining_amount'), 2) }}</td>
+            </tr>
+            @empty
+            <tr>
+                <td colspan="8" style="padding: 30px; text-align: center;">لا توجد عمليات شراء</td>
+            </tr>
+            @endforelse
+        </tbody>
+    </table>
+    @else
     <table class="data-table">
         <thead>
             <tr>
                 <th>#</th>
+                <th>رقم الفاتورة</th>
                 <th>التاريخ</th>
-                <th>الأصناف</th>
+                <th>المنتج</th>
                 <th>المورد</th>
+                <th>الكمية</th>
+                <th>سعر الوحدة</th>
                 <th>الدفع</th>
                 <th>الإجمالي</th>
                 <th>المدفوع</th>
                 <th>المتبقي</th>
                 <th>الحالة</th>
-                <th>بواسطة</th>
             </tr>
         </thead>
         <tbody>
             @forelse($purchases as $index => $p)
             <tr>
                 <td>{{ $p->id }}</td>
+                <td>{{ $p->invoice_number ?? '-' }}</td>
                 <td>{{ $p->purchase_date?->format('Y-m-d') }}</td>
-                <td class="text-right">
-                    @foreach($p->items as $item)
-                        {{ $item->product?->name ?? '-' }}
-                        ({{ number_format($item->quantity, 2) }} {{ $item->productUnit?->unit?->name ?? '' }})@if(!$loop->last)،@endif
-                    @endforeach
-                </td>
+                <td class="text-right">{{ $p->items->first()?->product?->name ?? '-' }}</td>
                 <td>{{ $p->supplier?->name ?? '-' }}</td>
+                <td>{{ $p->items->first() ? number_format($p->items->first()->quantity, 2) : '-' }}</td>
+                <td>{{ $p->items->first() ? number_format($p->items->first()->unit_price, 2) : '-' }}</td>
                 <td>{{ $p->payment_type === 'credit' ? 'آجل' : 'نقدي' }}</td>
                 <td class="fw-bold">{{ number_format($p->total, 2) }}</td>
                 <td>{{ number_format($p->paid_amount, 2) }}</td>
                 <td @if($p->remaining_amount > 0) class="text-danger" @endif>{{ number_format($p->remaining_amount, 2) }}</td>
                 <td>{{ $p->status_arabic }}</td>
-                <td>{{ $p->creator?->name ?? '-' }}</td>
             </tr>
             @empty
             <tr>
-                <td colspan="10" style="padding: 30px; text-align: center;">لا توجد عمليات شراء</td>
+                <td colspan="12" style="padding: 30px; text-align: center;">لا توجد عمليات شراء</td>
             </tr>
             @endforelse
         </tbody>
     </table>
+    @endif
 
     <div class="summary-section">
         <div class="summary-box">
