@@ -850,4 +850,64 @@ Route::prefix('v1/sync')->group(function () {
             'ids' => $ids,
         ]);
     });
+
+    Route::post('/fix-cashbox-transfers', function () {
+        $transferIds = \Illuminate\Support\Facades\DB::table('cashbox_transactions')
+            ->whereIn('type', ['transfer_in', 'transfer_out'])
+            ->pluck('id')
+            ->toArray();
+
+        $deletedCount = 0;
+        if (!empty($transferIds)) {
+            $deletedCount = \Illuminate\Support\Facades\DB::table('cashbox_transactions')
+                ->whereIn('id', $transferIds)
+                ->delete();
+        }
+
+        $cashboxes = \Illuminate\Support\Facades\DB::table('cashboxes')->get();
+        $results = [];
+
+        foreach ($cashboxes as $cashbox) {
+            $transactions = \Illuminate\Support\Facades\DB::table('cashbox_transactions')
+                ->where('cashbox_id', $cashbox->id)
+                ->orderBy('id')
+                ->get();
+
+            $balance = (float) $cashbox->opening_balance;
+
+            foreach ($transactions as $tx) {
+                if ($tx->type === 'in') {
+                    $balance += (float) $tx->amount;
+                } elseif ($tx->type === 'out') {
+                    $balance -= (float) $tx->amount;
+                }
+
+                \Illuminate\Support\Facades\DB::table('cashbox_transactions')
+                    ->where('id', $tx->id)
+                    ->update([
+                        'balance_after' => $balance,
+                        'related_cashbox_id' => null,
+                        'related_transaction_id' => null,
+                    ]);
+            }
+
+            \Illuminate\Support\Facades\DB::table('cashboxes')
+                ->where('id', $cashbox->id)
+                ->update(['current_balance' => $balance]);
+
+            $results[] = [
+                'name' => $cashbox->name,
+                'opening' => (float) $cashbox->opening_balance,
+                'old_balance' => (float) $cashbox->current_balance,
+                'new_balance' => $balance,
+                'transactions_count' => $transactions->count(),
+            ];
+        }
+
+        return response()->json([
+            'transfers_deleted' => $deletedCount,
+            'transfer_ids' => $transferIds,
+            'cashboxes' => $results,
+        ]);
+    });
 });
