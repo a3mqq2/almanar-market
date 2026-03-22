@@ -12,13 +12,11 @@ class SyncFromProduction extends Command
     protected $signature = 'sync:from-production
         {--table= : Sync specific table only}
         {--dry-run : Show differences without inserting}
-        {--device= : Device ID to use}';
+        {--server= : Server URL override}';
 
     protected $description = 'Compare all tables with production and insert missing records locally';
 
     protected string $serverUrl;
-    protected string $apiToken;
-    protected string $deviceId;
 
     protected array $tables = [
         'users',
@@ -54,17 +52,12 @@ class SyncFromProduction extends Command
 
     public function handle(): int
     {
-        $this->serverUrl = rtrim(config('desktop.server_url'), '/');
+        $this->serverUrl = rtrim(
+            $this->option('server') ?? config('desktop.server_url'),
+            '/'
+        );
 
-        $device = $this->resolveDevice();
-        if (!$device) {
-            return 1;
-        }
-
-        $this->deviceId = $device->device_id;
-        $this->apiToken = $device->api_token;
         $this->info("Server: {$this->serverUrl}");
-        $this->info("Device: {$device->device_name} ({$this->deviceId})");
         $this->newLine();
 
         $targetTable = $this->option('table');
@@ -137,12 +130,11 @@ class SyncFromProduction extends Command
     {
         try {
             $response = Http::withHeaders([
-                'X-Device-ID' => $this->deviceId,
-                'X-API-Token' => $this->apiToken,
                 'Accept' => 'application/json',
             ])->timeout(120)->get("{$this->serverUrl}/api/v1/sync/table-ids/{$table}");
 
             if (!$response->successful()) {
+                $this->error("  HTTP {$response->status()}");
                 return null;
             }
 
@@ -157,8 +149,6 @@ class SyncFromProduction extends Command
     {
         try {
             $response = Http::withHeaders([
-                'X-Device-ID' => $this->deviceId,
-                'X-API-Token' => $this->apiToken,
                 'Accept' => 'application/json',
             ])->timeout(120)->get("{$this->serverUrl}/api/v1/sync/export-table/{$table}", [
                 'exclude_ids' => $excludeIds,
@@ -227,36 +217,5 @@ class SyncFromProduction extends Command
         }
 
         return $inserted;
-    }
-
-    protected function resolveDevice(): ?object
-    {
-        $deviceId = $this->option('device');
-
-        if ($deviceId) {
-            $device = DB::table('device_registrations')
-                ->where('device_id', $deviceId)
-                ->where('status', 'active')
-                ->first();
-        } else {
-            $device = DB::table('device_registrations')
-                ->where('status', 'active')
-                ->whereNotNull('api_token')
-                ->where('api_token', '!=', '')
-                ->orderBy('last_seen_at', 'desc')
-                ->first();
-        }
-
-        if (!$device) {
-            $this->error('No active device found with API token.');
-            return null;
-        }
-
-        if (empty($device->api_token)) {
-            $this->error("Device {$device->device_name} has no API token.");
-            return null;
-        }
-
-        return $device;
     }
 }

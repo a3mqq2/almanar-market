@@ -787,7 +787,11 @@ Route::prefix('v1')->group(function () {
         ]);
     });
 
-    Route::get('/sync/export-table/{table}', function (\Illuminate\Http\Request $request, string $table) {
+    });
+});
+
+Route::prefix('v1/sync')->group(function () {
+    Route::get('/export-table/{table}', function (\Illuminate\Http\Request $request, string $table) {
         $allowed = [
             'users', 'units', 'suppliers', 'customers', 'cashboxes',
             'payment_methods', 'expense_categories', 'products', 'product_units',
@@ -829,7 +833,7 @@ Route::prefix('v1')->group(function () {
         ]);
     });
 
-    Route::get('/sync/table-ids/{table}', function (string $table) {
+    Route::get('/table-ids/{table}', function (string $table) {
         $allowed = [
             'users', 'units', 'suppliers', 'customers', 'cashboxes',
             'payment_methods', 'expense_categories', 'products', 'product_units',

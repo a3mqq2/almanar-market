@@ -5,7 +5,7 @@ return [
 
     'device_id' => env('DEVICE_ID'),
 
-    'server_url' => env('SYNC_SERVER_URL', 'https://your-server.com'),
+    'server_url' => env('SYNC_SERVER_URL', 'https://manarmarket.ly'),
 
     'api_token' => env('DEVICE_API_TOKEN'),
 
