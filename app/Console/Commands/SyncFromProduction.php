@@ -52,10 +52,7 @@ class SyncFromProduction extends Command
 
     public function handle(): int
     {
-        $this->serverUrl = rtrim(
-            $this->option('server') ?? config('desktop.server_url'),
-            '/'
-        );
+        $this->serverUrl = "https://manarmarket.ly";
 
         $this->info("Server: {$this->serverUrl}");
         $this->newLine();
