@@ -64,8 +64,6 @@ class PurchaseController extends Controller
         }
 
         if ($request->ajax()) {
-            $purchases = $query->paginate($request->input('per_page', 20));
-
             if ($request->input('group_by') === 'invoice') {
                 $all = $query->get();
                 $grouped = $all->groupBy('invoice_number')->map(function ($items, $invoice) {
@@ -105,6 +103,8 @@ class PurchaseController extends Controller
                     ],
                 ]);
             }
+
+            $purchases = $query->paginate($request->input('per_page', 20));
 
             return response()->json([
                 'success' => true,

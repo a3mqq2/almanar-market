@@ -232,7 +232,7 @@
                 <th>رقم الفاتورة</th>
                 <th>التاريخ</th>
                 <th>المورد</th>
-                <th>الأصناف</th>
+                <th>عدد الأصناف</th>
                 <th>الدفع</th>
                 <th>الإجمالي</th>
                 <th>المدفوع</th>
@@ -247,15 +247,7 @@
                 <td class="fw-bold">{{ $invoice ?: '-' }}</td>
                 <td>{{ $first->purchase_date?->format('Y-m-d') }}</td>
                 <td>{{ $first->supplier?->name ?? '-' }}</td>
-                <td class="text-right">
-                    @foreach($items as $p)
-                        @foreach($p->items as $item)
-                            {{ $item->product?->name ?? '-' }}
-                            ({{ number_format($item->quantity, 2) }} {{ $item->productUnit?->unit?->name ?? '' }}
-                            × {{ number_format($item->unit_price, 2) }})@if(!$loop->parent->last || !$loop->last)،@endif
-                        @endforeach
-                    @endforeach
-                </td>
+                <td>{{ $items->sum(fn($p) => $p->items->count()) }}</td>
                 <td>
                     @if($items->every(fn($p) => $p->payment_type === 'cash')) نقدي
                     @elseif($items->every(fn($p) => $p->payment_type === 'credit')) آجل
