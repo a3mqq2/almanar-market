@@ -786,8 +786,6 @@ Route::prefix('v1')->group(function () {
             'products' => $data,
         ]);
     });
-
-    });
 });
 
 Route::prefix('v1/sync')->group(function () {
