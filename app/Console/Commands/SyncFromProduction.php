@@ -11,8 +11,7 @@ class SyncFromProduction extends Command
 {
     protected $signature = 'sync:from-production
         {--table= : Sync specific table only}
-        {--dry-run : Show differences without inserting}
-        {--server= : Server URL override}';
+        {--dry-run : Show differences without inserting}';
 
     protected $description = 'Compare all tables with production and insert missing records locally';
 
@@ -142,22 +141,21 @@ class SyncFromProduction extends Command
         }
     }
 
-    protected function fetchRemoteRecords(string $table, array $excludeIds, int $page = 1): ?array
+    protected function fetchRemoteRecords(string $table, array $ids): ?array
     {
         try {
             $response = Http::withHeaders([
                 'Accept' => 'application/json',
-            ])->timeout(120)->get("{$this->serverUrl}/api/v1/sync/export-table/{$table}", [
-                'exclude_ids' => $excludeIds,
-                'page' => $page,
-                'per_page' => 500,
+            ])->timeout(120)->post("{$this->serverUrl}/api/v1/sync/export-table/{$table}", [
+                'ids' => $ids,
             ]);
 
             if (!$response->successful()) {
+                $this->error("  HTTP {$response->status()} fetching records");
                 return null;
             }
 
-            return $response->json();
+            return $response->json('records', []);
         } catch (\Exception $e) {
             $this->error("  Fetch error: {$e->getMessage()}");
             return null;
@@ -166,28 +164,19 @@ class SyncFromProduction extends Command
 
     protected function insertMissing(string $table, array $missingIds): int
     {
-        $localIds = DB::table($table)->pluck('id')->toArray();
         $inserted = 0;
-        $page = 1;
 
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
         try {
-            while (true) {
-                $data = $this->fetchRemoteRecords($table, $localIds, $page);
-                if ($data === null) {
-                    break;
+            foreach (array_chunk($missingIds, 500) as $chunk) {
+                $records = $this->fetchRemoteRecords($table, $chunk);
+                if ($records === null || empty($records)) {
+                    continue;
                 }
 
-                $records = $data['records'] ?? [];
-                if (empty($records)) {
-                    break;
-                }
-
-                $filtered = array_filter($records, fn($r) => in_array($r['id'] ?? null, $missingIds));
-
-                foreach (array_chunk($filtered, 100) as $chunk) {
-                    $rows = array_map(fn($r) => (array) $r, $chunk);
+                foreach (array_chunk($records, 100) as $batch) {
+                    $rows = array_map(fn($r) => (array) $r, $batch);
                     try {
                         DB::table($table)->insert($rows);
                         $inserted += count($rows);
@@ -202,12 +191,6 @@ class SyncFromProduction extends Command
                         }
                     }
                 }
-
-                if (count($records) < ($data['per_page'] ?? 500)) {
-                    break;
-                }
-
-                $page++;
             }
         } finally {
             DB::statement('SET FOREIGN_KEY_CHECKS=1');

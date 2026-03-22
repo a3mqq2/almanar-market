@@ -789,7 +789,7 @@ Route::prefix('v1')->group(function () {
 });
 
 Route::prefix('v1/sync')->group(function () {
-    Route::get('/export-table/{table}', function (\Illuminate\Http\Request $request, string $table) {
+    Route::post('/export-table/{table}', function (\Illuminate\Http\Request $request, string $table) {
         $allowed = [
             'users', 'units', 'suppliers', 'customers', 'cashboxes',
             'payment_methods', 'expense_categories', 'products', 'product_units',
@@ -809,24 +809,19 @@ Route::prefix('v1/sync')->group(function () {
             return response()->json(['error' => 'Table not found'], 404);
         }
 
-        $excludeIds = $request->input('exclude_ids', []);
-        $page = (int) $request->input('page', 1);
-        $perPage = (int) $request->input('per_page', 500);
+        $ids = $request->input('ids', []);
 
-        $query = \Illuminate\Support\Facades\DB::table($table);
-
-        if (!empty($excludeIds)) {
-            $query->whereNotIn('id', $excludeIds);
+        if (empty($ids)) {
+            return response()->json(['table' => $table, 'records' => []]);
         }
 
-        $total = $query->count();
-        $records = $query->orderBy('id')->forPage($page, $perPage)->get();
+        $records = \Illuminate\Support\Facades\DB::table($table)
+            ->whereIn('id', $ids)
+            ->orderBy('id')
+            ->get();
 
         return response()->json([
             'table' => $table,
-            'total' => $total,
-            'page' => $page,
-            'per_page' => $perPage,
             'records' => $records,
         ]);
     });
