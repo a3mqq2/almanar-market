@@ -172,6 +172,37 @@
             </div>
         </div>
 
+        @if($user->isManager())
+        <div class="card mb-4" id="permissionsCard">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="ti ti-shield-lock me-1"></i>الصلاحيات</h5>
+                <button type="button" class="btn btn-primary btn-sm" id="savePermissionsBtn">
+                    <i class="ti ti-check me-1"></i>حفظ
+                </button>
+            </div>
+            <div class="card-body">
+                @foreach($permissionsGrouped as $key => $group)
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input permission-parent" value="{{ $group['permission']->key }}" id="show_perm_{{ $group['permission']->key }}" data-children="{{ $key }}" {{ in_array($group['permission']->key, $userPermissionKeys) ? 'checked' : '' }}>
+                            <label class="form-check-label fw-bold" for="show_perm_{{ $group['permission']->key }}">{{ $group['permission']->label }}</label>
+                        </div>
+                        @if(count($group['children']) > 0)
+                            <div class="ms-4 mt-1" id="show_children_{{ $key }}">
+                                @foreach($group['children'] as $child)
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input permission-child" value="{{ $child->key }}" id="show_perm_{{ $child->key }}" data-parent="{{ $key }}" {{ in_array($child->key, $userPermissionKeys) ? 'checked' : '' }} {{ !in_array($group['permission']->key, $userPermissionKeys) ? 'disabled' : '' }}>
+                                        <label class="form-check-label" for="show_perm_{{ $child->key }}">{{ $child->label }}</label>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
         <div class="card mb-4" id="cashboxesCard" style="{{ in_array($user->role, ['manager', 'price_checker']) ? 'display:none;' : '' }}">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0"><i class="ti ti-building-bank me-1"></i>الخزائن المسموحة</h5>
@@ -277,6 +308,62 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('toastContainer').appendChild(toast);
         setTimeout(() => toast.remove(), 4000);
     }
+
+    document.querySelectorAll('.permission-parent').forEach(parent => {
+        parent.addEventListener('change', function() {
+            const childrenContainer = document.getElementById('show_children_' + this.dataset.children);
+            if (childrenContainer) {
+                childrenContainer.querySelectorAll('.permission-child').forEach(child => {
+                    child.checked = this.checked;
+                    child.disabled = !this.checked;
+                });
+            }
+        });
+    });
+
+    document.querySelectorAll('.permission-child').forEach(child => {
+        child.addEventListener('change', function() {
+            const parentCheckbox = document.querySelector(`.permission-parent[data-children="${this.dataset.parent}"]`);
+            if (parentCheckbox && !parentCheckbox.checked) {
+                parentCheckbox.checked = true;
+            }
+        });
+    });
+
+    document.getElementById('savePermissionsBtn')?.addEventListener('click', async function() {
+        const permissionKeys = [];
+        document.querySelectorAll('.permission-parent:checked, .permission-child:checked').forEach(cb => {
+            permissionKeys.push(cb.value);
+        });
+
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+
+        try {
+            const response = await fetch(`/users/${userId}/permissions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ permission_keys: permissionKeys })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showToast(result.message, 'success');
+            } else {
+                showToast(result.message || 'حدث خطأ', 'danger');
+            }
+        } catch (error) {
+            showToast('حدث خطأ', 'danger');
+        }
+
+        this.disabled = false;
+        this.innerHTML = '<i class="ti ti-check me-1"></i>حفظ';
+    });
 
     document.querySelectorAll('.cashbox-assign-checkbox').forEach(cb => {
         cb.addEventListener('change', function() {

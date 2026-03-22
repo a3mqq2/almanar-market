@@ -215,7 +215,7 @@
 </div>
 
 <div class="modal fade" id="userModal" tabindex="-1">
-    <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalTitle"><i class="ti ti-plus me-1"></i>إضافة مستخدم</h5>
@@ -223,7 +223,7 @@
             </div>
             <form id="userForm" method="POST" action="javascript:void(0);" novalidate>
                 <input type="hidden" id="userId">
-                <div class="modal-body">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div class="mb-3">
                         <label class="form-label">الاسم <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="userName" name="name" required>
@@ -260,6 +260,29 @@
                             @endforeach
                         </div>
                         <div class="form-text">حدد الخزائن التي يمكن للكاشير استخدامها</div>
+                    </div>
+                    <div class="mb-3" id="permissionsGroup" style="display: none;">
+                        <label class="form-label">الصلاحيات</label>
+                        <div class="border rounded p-2" style="max-height: 300px; overflow-y: auto;">
+                            @foreach($permissionsGrouped as $key => $group)
+                                <div class="mb-2">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input permission-parent" value="{{ $group['permission']->key }}" id="perm_{{ $group['permission']->key }}" data-children="{{ $key }}">
+                                        <label class="form-check-label fw-bold" for="perm_{{ $group['permission']->key }}">{{ $group['permission']->label }}</label>
+                                    </div>
+                                    @if(count($group['children']) > 0)
+                                        <div class="ms-4 mt-1" id="children_{{ $key }}">
+                                            @foreach($group['children'] as $child)
+                                                <div class="form-check">
+                                                    <input type="checkbox" class="form-check-input permission-child" value="{{ $child->key }}" id="perm_{{ $child->key }}" data-parent="{{ $key }}">
+                                                    <label class="form-check-label" for="perm_{{ $child->key }}">{{ $child->label }}</label>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
                     <div class="mb-3">
                         <div class="form-check form-switch">
@@ -499,7 +522,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('userRole').addEventListener('change', function() {
         const cashboxesGroup = document.getElementById('cashboxesGroup');
+        const permissionsGroup = document.getElementById('permissionsGroup');
         cashboxesGroup.style.display = (this.value == 'manager' || this.value == 'price_checker') ? 'none' : 'block';
+        permissionsGroup.style.display = this.value == 'manager' ? 'block' : 'none';
+    });
+
+    document.querySelectorAll('.permission-parent').forEach(parent => {
+        parent.addEventListener('change', function() {
+            const childrenContainer = document.getElementById('children_' + this.dataset.children);
+            if (childrenContainer) {
+                childrenContainer.querySelectorAll('.permission-child').forEach(child => {
+                    child.checked = this.checked;
+                    child.disabled = !this.checked;
+                });
+            }
+        });
+    });
+
+    document.querySelectorAll('.permission-child').forEach(child => {
+        child.addEventListener('change', function() {
+            const parentCheckbox = document.querySelector(`.permission-parent[data-children="${this.dataset.parent}"]`);
+            if (parentCheckbox && !parentCheckbox.checked) {
+                parentCheckbox.checked = true;
+            }
+        });
     });
 
     window.openCreateModal = function() {
@@ -510,10 +556,15 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('userStatus').checked = true;
         document.getElementById('userRole').value = 'cashier';
         document.getElementById('cashboxesGroup').style.display = 'block';
+        document.getElementById('permissionsGroup').style.display = 'none';
         document.getElementById('passwordGroup').style.display = '';
         document.getElementById('userPassword').required = true;
         document.getElementById('userUsername').classList.remove('is-invalid', 'is-valid');
         document.querySelectorAll('.cashbox-checkbox').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.permission-parent, .permission-child').forEach(cb => {
+            cb.checked = false;
+            cb.disabled = false;
+        });
         isUsernameValid = true;
     };
 
@@ -586,6 +637,13 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
+        const permissionKeys = [];
+        if (role == 'manager') {
+            document.querySelectorAll('.permission-parent:checked, .permission-child:checked').forEach(cb => {
+                permissionKeys.push(cb.value);
+            });
+        }
+
         const submitBtn = document.getElementById('submitBtn');
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
@@ -594,7 +652,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const url = editMode ? `/users/${userId}` : '{{ route("users.store") }}';
             const method = editMode ? 'PUT' : 'POST';
 
-            const body = { name, username, email: email || null, role, status, cashbox_ids: cashboxIds };
+            const body = { name, username, email: email || null, role, status, cashbox_ids: cashboxIds, permission_keys: permissionKeys };
             if (!editMode || password) {
                 body.password = password;
             }

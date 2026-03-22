@@ -39,6 +39,7 @@ use Illuminate\Support\Facades\Route;
 Route::redirect('/','login');
 Route::get('/dashboard', [DashboardController::class, 'dashboard'])->name('dashboard')->middleware('role:manager');
 
+
 Route::prefix('dashboard/stats')->name('dashboard.stats.')->group(function () {
     Route::get('/all', [DashboardStatsController::class, 'getAllStats'])->name('all');
     Route::get('/sales', [DashboardStatsController::class, 'getSalesStats'])->name('sales');
@@ -65,103 +66,115 @@ Route::middleware('auth')->group(function () {
     Route::post('/price-checker/lookup', [PriceCheckerController::class, 'lookup'])->name('price-checker.lookup');
 });
 
-// Products Module Routes (Manager Only)
-Route::middleware('role:manager')->group(function () {
+// Products Module Routes
+Route::middleware('permission:products')->group(function () {
     Route::get('/products/generate-barcode', [ProductController::class, 'generateBarcode'])->name('products.generate-barcode');
     Route::get('/products/check-barcode', [ProductController::class, 'checkBarcode'])->name('products.check-barcode');
-    Route::post('/products/quick-store', [ProductController::class, 'quickStore'])->name('products.quick-store');
-    Route::post('/products/{product}/duplicate', [ProductController::class, 'duplicate'])->name('products.duplicate');
-    Route::post('/products/{product}/barcodes', [ProductController::class, 'storeBarcode'])->name('products.barcodes.store');
-    Route::put('/products/{product}/barcodes/{barcode}', [ProductController::class, 'updateBarcode'])->name('products.barcodes.update');
-    Route::delete('/products/{product}/barcodes/{barcode}', [ProductController::class, 'destroyBarcode'])->name('products.barcodes.destroy');
-    Route::resource('products', ProductController::class);
+    Route::post('/products/quick-store', [ProductController::class, 'quickStore'])->name('products.quick-store')->middleware('permission:products.create');
+    Route::post('/products/{product}/duplicate', [ProductController::class, 'duplicate'])->name('products.duplicate')->middleware('permission:products.create');
+    Route::post('/products/{product}/barcodes', [ProductController::class, 'storeBarcode'])->name('products.barcodes.store')->middleware('permission:products.barcodes');
+    Route::put('/products/{product}/barcodes/{barcode}', [ProductController::class, 'updateBarcode'])->name('products.barcodes.update')->middleware('permission:products.barcodes');
+    Route::delete('/products/{product}/barcodes/{barcode}', [ProductController::class, 'destroyBarcode'])->name('products.barcodes.destroy')->middleware('permission:products.barcodes');
+    Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+    Route::get('/products/create', [ProductController::class, 'create'])->name('products.create')->middleware('permission:products.create');
+    Route::post('/products', [ProductController::class, 'store'])->name('products.store')->middleware('permission:products.create');
+    Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
+    Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit')->middleware('permission:products.edit');
+    Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update')->middleware('permission:products.edit');
+    Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy')->middleware('permission:products.delete');
 });
 
-// Manager-Only Routes
-Route::middleware('role:manager')->group(function () {
-    // Inventory Routes (AJAX)
+// Inventory Routes
+Route::middleware('permission:products.inventory')->group(function () {
     Route::prefix('products/{product}/inventory')->name('products.inventory.')->group(function () {
         Route::post('/add', [InventoryController::class, 'addStock'])->name('add');
         Route::post('/remove', [InventoryController::class, 'removeStock'])->name('remove');
         Route::post('/adjust', [InventoryController::class, 'adjustStock'])->name('adjust');
         Route::get('/batches', [InventoryController::class, 'getBatches'])->name('batches');
         Route::get('/history', [InventoryController::class, 'getHistory'])->name('history');
-        Route::post('/units', [InventoryController::class, 'updateUnits'])->name('units');
-        Route::post('/quick-purchase', [InventoryController::class, 'quickPurchase'])->name('quick-purchase');
+    });
+});
+
+// Product Units & Quick Purchase Routes
+Route::middleware('permission:products')->group(function () {
+    Route::prefix('products/{product}/inventory')->name('products.inventory.')->group(function () {
+        Route::post('/units', [InventoryController::class, 'updateUnits'])->name('units')->middleware('permission:products.units_prices');
+        Route::post('/quick-purchase', [InventoryController::class, 'quickPurchase'])->name('quick-purchase')->middleware('permission:products.purchase');
     });
 
-    // Units Routes (AJAX)
-    Route::post('/units', [UnitController::class, 'store'])->name('units.store');
+    Route::post('/units', [UnitController::class, 'store'])->name('units.store')->middleware('permission:products.units_prices');
     Route::get('/units', [UnitController::class, 'index'])->name('units.index');
+});
 
-    // Suppliers Routes
+// Suppliers Routes
+Route::middleware('permission:suppliers')->group(function () {
     Route::get('/suppliers/check-phone', [SupplierController::class, 'checkPhone'])->name('suppliers.check-phone');
     Route::get('/suppliers/link-products', [SupplierController::class, 'linkProducts'])->name('suppliers.link-products');
     Route::get('/suppliers/search-products', [SupplierController::class, 'searchProducts'])->name('suppliers.search-products');
     Route::post('/suppliers/assign-supplier', [SupplierController::class, 'assignSupplier'])->name('suppliers.assign-supplier');
     Route::resource('suppliers', SupplierController::class)->except(['create', 'show', 'edit']);
 
-    // Supplier Account Routes
     Route::prefix('suppliers/{supplier}/account')->name('suppliers.account.')->group(function () {
-        Route::get('/', [SupplierAccountController::class, 'show'])->name('show');
-        Route::post('/debit', [SupplierAccountController::class, 'addDebit'])->name('debit');
-        Route::post('/credit', [SupplierAccountController::class, 'addCredit'])->name('credit');
-        Route::post('/opening-balance', [SupplierAccountController::class, 'setOpeningBalance'])->name('opening-balance');
-        Route::get('/ledger', [SupplierAccountController::class, 'getLedger'])->name('ledger');
-        Route::get('/summary', [SupplierAccountController::class, 'getAccountSummary'])->name('summary');
-        Route::get('/print', [SupplierAccountController::class, 'print'])->name('print');
-    });
-
-    // Purchases Module Routes
-    Route::prefix('purchases')->name('purchases.')->group(function () {
-        Route::get('/', [PurchaseController::class, 'index'])->name('index');
-        Route::get('/create', [PurchaseController::class, 'create'])->name('create');
-        Route::post('/', [PurchaseController::class, 'store'])->name('store');
-        Route::get('/search-products', [PurchaseController::class, 'searchProducts'])->name('search-products');
-        Route::get('/supplier-products', [PurchaseController::class, 'getSupplierProducts'])->name('supplier-products');
-        Route::get('/product-by-barcode', [PurchaseController::class, 'getProductByBarcode'])->name('product-by-barcode');
-        Route::get('/print-list', [PurchaseController::class, 'printList'])->name('print-list');
-        Route::get('/{purchase}', [PurchaseController::class, 'show'])->name('show');
-        Route::get('/{purchase}/edit', [PurchaseController::class, 'edit'])->name('edit');
-        Route::put('/{purchase}', [PurchaseController::class, 'update'])->name('update');
-        Route::post('/{purchase}/approve', [PurchaseController::class, 'approve'])->name('approve');
-        Route::post('/{purchase}/cancel', [PurchaseController::class, 'cancel'])->name('cancel');
-        Route::get('/{purchase}/print', [PurchaseController::class, 'print'])->name('print');
-    });
-
-    // Cashbox (Treasury) Routes
-    Route::get('/cashboxes/check-name', [CashboxController::class, 'checkName'])->name('cashboxes.check-name');
-    Route::get('/cashboxes/list', [CashboxController::class, 'getList'])->name('cashboxes.list');
-    Route::get('/cashboxes', [CashboxController::class, 'index'])->name('cashboxes.index');
-    Route::post('/cashboxes', [CashboxController::class, 'store'])->name('cashboxes.store');
-    Route::get('/cashboxes/{cashbox}', [CashboxController::class, 'show'])->name('cashboxes.show');
-    Route::put('/cashboxes/{cashbox}', [CashboxController::class, 'update'])->name('cashboxes.update');
-
-    Route::prefix('cashboxes/{cashbox}')->name('cashboxes.')->group(function () {
-        Route::post('/deposit', [CashboxController::class, 'deposit'])->name('deposit');
-        Route::post('/withdraw', [CashboxController::class, 'withdraw'])->name('withdraw');
-        Route::post('/transfer', [CashboxController::class, 'transfer'])->name('transfer');
-        Route::get('/transactions', [CashboxController::class, 'getTransactions'])->name('transactions');
-        Route::get('/summary', [CashboxController::class, 'getSummary'])->name('summary');
-        Route::post('/opening-balance', [CashboxController::class, 'setOpeningBalance'])->name('opening-balance');
-        Route::get('/print', [CashboxController::class, 'print'])->name('print');
+        Route::get('/', [SupplierAccountController::class, 'show'])->name('show')->middleware('permission:suppliers.statement');
+        Route::post('/debit', [SupplierAccountController::class, 'addDebit'])->name('debit')->middleware('permission:suppliers.transactions');
+        Route::post('/credit', [SupplierAccountController::class, 'addCredit'])->name('credit')->middleware('permission:suppliers.transactions');
+        Route::post('/opening-balance', [SupplierAccountController::class, 'setOpeningBalance'])->name('opening-balance')->middleware('permission:suppliers.transactions');
+        Route::get('/ledger', [SupplierAccountController::class, 'getLedger'])->name('ledger')->middleware('permission:suppliers.statement');
+        Route::get('/summary', [SupplierAccountController::class, 'getAccountSummary'])->name('summary')->middleware('permission:suppliers.statement');
+        Route::get('/print', [SupplierAccountController::class, 'print'])->name('print')->middleware('permission:suppliers.statement');
     });
 });
 
-// Customers Routes (Manager Only)
-Route::middleware('role:manager')->group(function () {
+// Purchases Module Routes
+Route::middleware('permission:purchases')->prefix('purchases')->name('purchases.')->group(function () {
+    Route::get('/', [PurchaseController::class, 'index'])->name('index');
+    Route::get('/create', [PurchaseController::class, 'create'])->name('create');
+    Route::post('/', [PurchaseController::class, 'store'])->name('store');
+    Route::get('/search-products', [PurchaseController::class, 'searchProducts'])->name('search-products');
+    Route::get('/supplier-products', [PurchaseController::class, 'getSupplierProducts'])->name('supplier-products');
+    Route::get('/product-by-barcode', [PurchaseController::class, 'getProductByBarcode'])->name('product-by-barcode');
+    Route::get('/print-list', [PurchaseController::class, 'printList'])->name('print-list');
+    Route::get('/{purchase}', [PurchaseController::class, 'show'])->name('show');
+    Route::get('/{purchase}/edit', [PurchaseController::class, 'edit'])->name('edit');
+    Route::put('/{purchase}', [PurchaseController::class, 'update'])->name('update');
+    Route::post('/{purchase}/approve', [PurchaseController::class, 'approve'])->name('approve');
+    Route::post('/{purchase}/cancel', [PurchaseController::class, 'cancel'])->name('cancel');
+    Route::get('/{purchase}/print', [PurchaseController::class, 'print'])->name('print');
+});
+
+// Cashbox (Treasury) Routes
+Route::middleware('permission:cashboxes')->group(function () {
+    Route::get('/cashboxes/check-name', [CashboxController::class, 'checkName'])->name('cashboxes.check-name');
+    Route::get('/cashboxes/list', [CashboxController::class, 'getList'])->name('cashboxes.list');
+    Route::get('/cashboxes', [CashboxController::class, 'index'])->name('cashboxes.index');
+    Route::post('/cashboxes', [CashboxController::class, 'store'])->name('cashboxes.store')->middleware('permission:cashboxes.create');
+    Route::get('/cashboxes/{cashbox}', [CashboxController::class, 'show'])->name('cashboxes.show');
+    Route::put('/cashboxes/{cashbox}', [CashboxController::class, 'update'])->name('cashboxes.update')->middleware('permission:cashboxes.create');
+
+    Route::prefix('cashboxes/{cashbox}')->name('cashboxes.')->group(function () {
+        Route::post('/deposit', [CashboxController::class, 'deposit'])->name('deposit')->middleware('permission:cashboxes.transactions');
+        Route::post('/withdraw', [CashboxController::class, 'withdraw'])->name('withdraw')->middleware('permission:cashboxes.transactions');
+        Route::post('/transfer', [CashboxController::class, 'transfer'])->name('transfer')->middleware('permission:cashboxes.transactions');
+        Route::get('/transactions', [CashboxController::class, 'getTransactions'])->name('transactions')->middleware('permission:cashboxes.statement');
+        Route::get('/summary', [CashboxController::class, 'getSummary'])->name('summary')->middleware('permission:cashboxes.statement');
+        Route::post('/opening-balance', [CashboxController::class, 'setOpeningBalance'])->name('opening-balance')->middleware('permission:cashboxes.transactions');
+        Route::get('/print', [CashboxController::class, 'print'])->name('print')->middleware('permission:cashboxes.statement');
+    });
+});
+
+// Customers Routes
+Route::middleware('permission:customers')->group(function () {
     Route::get('/customers/check-phone', [CustomerController::class, 'checkPhone'])->name('customers.check-phone');
     Route::resource('customers', CustomerController::class)->except(['create', 'show', 'edit']);
 
-    // Customer Account Routes
     Route::prefix('customers/{customer}/account')->name('customers.account.')->group(function () {
-        Route::get('/', [CustomerAccountController::class, 'show'])->name('show');
-        Route::post('/debit', [CustomerAccountController::class, 'addDebit'])->name('debit');
-        Route::post('/credit', [CustomerAccountController::class, 'addCredit'])->name('credit');
-        Route::post('/opening-balance', [CustomerAccountController::class, 'setOpeningBalance'])->name('opening-balance');
-        Route::get('/ledger', [CustomerAccountController::class, 'getLedger'])->name('ledger');
-        Route::get('/summary', [CustomerAccountController::class, 'getAccountSummary'])->name('summary');
-        Route::get('/print', [CustomerAccountController::class, 'print'])->name('print');
+        Route::get('/', [CustomerAccountController::class, 'show'])->name('show')->middleware('permission:customers.statement');
+        Route::post('/debit', [CustomerAccountController::class, 'addDebit'])->name('debit')->middleware('permission:customers.transactions');
+        Route::post('/credit', [CustomerAccountController::class, 'addCredit'])->name('credit')->middleware('permission:customers.transactions');
+        Route::post('/opening-balance', [CustomerAccountController::class, 'setOpeningBalance'])->name('opening-balance')->middleware('permission:customers.transactions');
+        Route::get('/ledger', [CustomerAccountController::class, 'getLedger'])->name('ledger')->middleware('permission:customers.statement');
+        Route::get('/summary', [CustomerAccountController::class, 'getAccountSummary'])->name('summary')->middleware('permission:customers.statement');
+        Route::get('/print', [CustomerAccountController::class, 'print'])->name('print')->middleware('permission:customers.statement');
     });
 });
 
@@ -192,16 +205,16 @@ Route::prefix('sales')->name('sales.')->group(function () {
     Route::get('/{sale}/print-thermal', [SalesController::class, 'printThermal'])->name('print-thermal');
 });
 
-// Sales Routes (Manager Only)
-Route::middleware('role:manager')->prefix('sales')->name('sales.')->group(function () {
+// Sales Routes
+Route::middleware('permission:sales')->prefix('sales')->name('sales.')->group(function () {
     Route::get('/', [SalesController::class, 'index'])->name('index');
     Route::get('/print-list', [SalesController::class, 'printList'])->name('print-list');
     Route::get('/{sale}', [SalesController::class, 'show'])->name('show');
     Route::get('/{sale}/print', [SalesController::class, 'print'])->name('print');
 });
 
-// Reports Routes (Manager Only)
-Route::middleware('role:manager')->prefix('reports')->name('reports.')->group(function () {
+// Reports Routes
+Route::middleware('permission:reports')->prefix('reports')->name('reports.')->group(function () {
     Route::get('/', [ReportsDashboardController::class, 'index'])->name('index');
 
     Route::get('/sales/generate', [SalesReportController::class, 'generate'])->name('sales.generate');
@@ -262,8 +275,8 @@ Route::prefix('shifts')->name('shifts.')->group(function () {
     Route::post('/{shift}/approve', [ShiftController::class, 'approve'])->name('approve')->middleware('role:manager');
 });
 
-// User Management Routes (Manager Only)
-Route::middleware('role:manager')->prefix('users')->name('users.')->group(function () {
+// User Management Routes
+Route::middleware('permission:users')->prefix('users')->name('users.')->group(function () {
     Route::get('/', [UserController::class, 'index'])->name('index');
     Route::post('/', [UserController::class, 'store'])->name('store');
     Route::get('/check-username', [UserController::class, 'checkUsername'])->name('check-username');
@@ -273,11 +286,12 @@ Route::middleware('role:manager')->prefix('users')->name('users.')->group(functi
     Route::patch('/{user}/status', [UserController::class, 'updateStatus'])->name('status');
     Route::post('/{user}/reset-password', [UserController::class, 'resetPassword'])->name('reset-password');
     Route::post('/{user}/cashboxes', [UserController::class, 'assignCashboxes'])->name('cashboxes');
+    Route::post('/{user}/permissions', [UserController::class, 'assignPermissions'])->name('permissions');
     Route::get('/{user}/activity', [UserController::class, 'getActivityLog'])->name('activity');
 });
 
-// Inventory Counts Routes (Manager Only)
-Route::middleware('role:manager')->prefix('inventory-counts')->name('inventory-counts.')->group(function () {
+// Inventory Counts Routes
+Route::middleware('permission:inventory_counts')->prefix('inventory-counts')->name('inventory-counts.')->group(function () {
     Route::get('/', [InventoryCountController::class, 'index'])->name('index');
     Route::get('/create', [InventoryCountController::class, 'create'])->name('create');
     Route::post('/', [InventoryCountController::class, 'store'])->name('store');
@@ -294,16 +308,16 @@ Route::middleware('role:manager')->prefix('inventory-counts')->name('inventory-c
     Route::get('/{inventoryCount}/export/{format?}', [InventoryCountController::class, 'export'])->name('export');
 });
 
-// Shift Reports Routes (Manager Only)
-Route::middleware('role:manager')->prefix('shift-reports')->name('shift-reports.')->group(function () {
+// Shift Reports Routes
+Route::middleware('permission:reports')->prefix('shift-reports')->name('shift-reports.')->group(function () {
     Route::get('/', [ShiftReportController::class, 'index'])->name('index');
     Route::get('/filter', [ShiftReportController::class, 'filter'])->name('filter');
     Route::get('/export', [ShiftReportController::class, 'export'])->name('export');
     Route::get('/{shift}', [ShiftReportController::class, 'show'])->name('show');
 });
 
-// Expenses Routes (Manager Only)
-Route::middleware('role:manager')->prefix('expenses')->name('expenses.')->group(function () {
+// Expenses Routes
+Route::middleware('permission:expenses')->prefix('expenses')->name('expenses.')->group(function () {
     Route::get('/', [ExpenseController::class, 'index'])->name('index');
     Route::get('/filter', [ExpenseController::class, 'filter'])->name('filter');
     Route::get('/create', [ExpenseController::class, 'create'])->name('create');
@@ -312,8 +326,8 @@ Route::middleware('role:manager')->prefix('expenses')->name('expenses.')->group(
     Route::get('/{expense}', [ExpenseController::class, 'show'])->name('show');
 });
 
-// Expense Categories Routes (Manager Only)
-Route::middleware('role:manager')->prefix('expense-categories')->name('expense-categories.')->group(function () {
+// Expense Categories Routes
+Route::middleware('permission:expenses')->prefix('expense-categories')->name('expense-categories.')->group(function () {
     Route::get('/', [ExpenseCategoryController::class, 'index'])->name('index');
     Route::post('/', [ExpenseCategoryController::class, 'store'])->name('store');
     Route::put('/{category}', [ExpenseCategoryController::class, 'update'])->name('update');

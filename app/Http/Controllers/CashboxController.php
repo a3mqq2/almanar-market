@@ -135,6 +135,10 @@ class CashboxController extends Controller
 
     public function show(Cashbox $cashbox)
     {
+        if (!Auth::user()->canAccessCashbox($cashbox->id)) {
+            abort(403, 'لا تملك صلاحية الوصول لهذه الخزينة');
+        }
+
         $cashbox->load(['transactions' => function ($query) {
             $query->latest('id')->take(10);
         }]);
@@ -149,10 +153,10 @@ class CashboxController extends Controller
             'transactions_count' => $cashbox->transactions()->count(),
         ];
 
-        $otherCashboxes = Cashbox::active()
+        $otherCashboxes = Auth::user()->getAccessibleCashboxes()
             ->where('id', '!=', $cashbox->id)
-            ->orderBy('name')
-            ->get();
+            ->sortBy('name')
+            ->values();
 
         return view('cashboxes.show', compact('cashbox', 'stats', 'otherCashboxes'));
     }
@@ -206,10 +210,14 @@ class CashboxController extends Controller
 
     public function deposit(Request $request, Cashbox $cashbox)
     {
+        if (!Auth::user()->canAccessCashbox($cashbox->id)) {
+            return response()->json(['success' => false, 'message' => 'لا تملك صلاحية الوصول لهذه الخزينة'], 403);
+        }
+
         $validated = $request->validate([
             'amount' => 'required|numeric|min:0.01',
             'description' => 'nullable|string|max:255',
-            'transaction_date' => 'nullable|date',
+            'transaction_date' => 'nullable|date|before_or_equal:today',
         ]);
 
         DB::beginTransaction();
@@ -250,10 +258,14 @@ class CashboxController extends Controller
 
     public function withdraw(Request $request, Cashbox $cashbox)
     {
+        if (!Auth::user()->canAccessCashbox($cashbox->id)) {
+            return response()->json(['success' => false, 'message' => 'لا تملك صلاحية الوصول لهذه الخزينة'], 403);
+        }
+
         $validated = $request->validate([
             'amount' => 'required|numeric|min:0.01',
             'description' => 'nullable|string|max:255',
-            'transaction_date' => 'nullable|date',
+            'transaction_date' => 'nullable|date|before_or_equal:today',
         ]);
 
         DB::beginTransaction();
@@ -307,7 +319,7 @@ class CashboxController extends Controller
             'to_cashbox_id' => 'required|exists:cashboxes,id',
             'amount' => 'required|numeric|min:0.01',
             'description' => 'nullable|string|max:255',
-            'transaction_date' => 'nullable|date',
+            'transaction_date' => 'nullable|date|before_or_equal:today',
         ]);
 
         if ($validated['to_cashbox_id'] == $cashbox->id) {
@@ -317,19 +329,44 @@ class CashboxController extends Controller
             ], 422);
         }
 
+        $user = Auth::user();
+
+        if (!$user->canAccessCashbox($cashbox->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'لا تملك صلاحية الوصول لهذه الخزينة',
+            ], 403);
+        }
+
+        if (!$user->canAccessCashbox((int) $validated['to_cashbox_id'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'لا تملك صلاحية الوصول للخزينة المستلمة',
+            ], 403);
+        }
+
         DB::beginTransaction();
 
         try {
             $ids = collect([$cashbox->id, $validated['to_cashbox_id']])->sort()->values();
             $locked = Cashbox::lockForUpdate()->whereIn('id', $ids)->orderBy('id')->get()->keyBy('id');
-            $cashbox = $locked[$cashbox->id];
-            $toCashbox = $locked[$validated['to_cashbox_id']];
 
-            if ($cashbox->current_balance < $validated['amount']) {
+            if (!$locked->has($cashbox->id) || !$locked->has($validated['to_cashbox_id'])) {
                 DB::rollBack();
                 return response()->json([
                     'success' => false,
-                    'message' => 'الرصيد غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2),
+                    'message' => 'الخزينة غير موجودة',
+                ], 404);
+            }
+
+            $cashbox = $locked[$cashbox->id];
+            $toCashbox = $locked[$validated['to_cashbox_id']];
+
+            if (!$cashbox->status) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الخزينة المرسلة غير نشطة',
                 ], 422);
             }
 
@@ -338,6 +375,14 @@ class CashboxController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'الخزينة المستلمة غير نشطة',
+                ], 422);
+            }
+
+            if ($cashbox->current_balance < $validated['amount']) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الرصيد غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2),
                 ], 422);
             }
 
@@ -354,7 +399,7 @@ class CashboxController extends Controller
                 'description' => $description,
                 'related_cashbox_id' => $toCashbox->id,
                 'transaction_date' => $transactionDate,
-                'created_by' => Auth::id(),
+                'created_by' => $user->id,
             ]);
 
             $toBalance = $toCashbox->current_balance + $validated['amount'];
@@ -367,7 +412,7 @@ class CashboxController extends Controller
                 'related_cashbox_id' => $cashbox->id,
                 'related_transaction_id' => $outTransaction->id,
                 'transaction_date' => $transactionDate,
-                'created_by' => Auth::id(),
+                'created_by' => $user->id,
             ]);
 
             DB::table('cashbox_transactions')

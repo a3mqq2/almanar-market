@@ -182,16 +182,20 @@
                     <i class="ti ti-info-circle me-1"></i>نظرة عامة
                 </button>
             </li>
+            @if(auth()->user()->hasPermission('suppliers.transactions'))
             <li class="nav-item">
                 <button class="nav-link" id="transaction-tab" data-bs-toggle="tab" data-bs-target="#transaction">
                     <i class="ti ti-plus me-1"></i>إضافة حركة
                 </button>
             </li>
+            @endif
+            @if(auth()->user()->hasPermission('suppliers.statement'))
             <li class="nav-item">
                 <button class="nav-link" id="ledger-tab" data-bs-toggle="tab" data-bs-target="#ledger">
                     <i class="ti ti-list me-1"></i>كشف الحساب
                 </button>
             </li>
+            @endif
         </ul>
     </div>
     <div class="card-body">
@@ -300,6 +304,7 @@
                 </div>
             </div>
 
+            @if(auth()->user()->hasPermission('suppliers.transactions'))
             <div class="tab-pane fade" id="transaction">
                 <div class="row g-4">
                     <div class="col-md-6">
@@ -335,7 +340,9 @@
                     </div>
                 </div>
             </div>
+            @endif
 
+            @if(auth()->user()->hasPermission('suppliers.statement'))
             <div class="tab-pane fade" id="ledger">
                 <div class="row mb-3 g-2 align-items-end">
                     <div class="col-6 col-md-auto">
@@ -398,6 +405,7 @@
                     </nav>
                 </div>
             </div>
+            @endif
         </div>
     </div>
 </div>
@@ -547,11 +555,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    document.getElementById('editSupplierBtn').addEventListener('click', function() {
+    document.getElementById('editSupplierBtn')?.addEventListener('click', function() {
         new bootstrap.Modal(document.getElementById('editSupplierModal')).show();
     });
 
-    document.getElementById('editSupplierPhone').addEventListener('input', function() {
+    document.getElementById('editSupplierPhone')?.addEventListener('input', function() {
         clearTimeout(phoneCheckTimeout);
         const phone = this.value.trim();
 
@@ -582,7 +590,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 300);
     });
 
-    document.getElementById('editSupplierForm').addEventListener('submit', async function(e) {
+    document.getElementById('editSupplierForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const name = document.getElementById('editSupplierName').value.trim();
@@ -636,7 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.innerHTML = '<i class="ti ti-check me-1"></i>حفظ التغييرات';
     });
 
-    document.getElementById('deleteSupplierBtn').addEventListener('click', function() {
+    document.getElementById('deleteSupplierBtn')?.addEventListener('click', function() {
         Swal.fire({
             title: 'تأكيد الحذف',
             html: `هل أنت متأكد من حذف المورد:<br><strong>{{ $supplier->name }}</strong>`,
@@ -736,7 +744,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    document.getElementById('debitForm').addEventListener('submit', async function(e) {
+    document.getElementById('debitForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
         const btn = document.getElementById('debitSubmitBtn');
         btn.disabled = true;
@@ -777,7 +785,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.innerHTML = '<i class="ti ti-plus me-1"></i>إضافة دين';
     });
 
-    document.getElementById('creditForm').addEventListener('submit', async function(e) {
+    document.getElementById('creditForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
         const btn = document.getElementById('creditSubmitBtn');
         const cashboxSelect = document.getElementById('creditCashbox');
@@ -974,13 +982,13 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('printStatementBtn').href = url;
     }
 
-    document.getElementById('filterLedgerBtn').addEventListener('click', () => {
+    document.getElementById('filterLedgerBtn')?.addEventListener('click', () => {
         loadLedger(1);
         updatePrintUrl();
     });
-    document.getElementById('refreshLedger').addEventListener('click', () => loadLedger(ledgerPage));
+    document.getElementById('refreshLedger')?.addEventListener('click', () => loadLedger(ledgerPage));
 
-    document.getElementById('clearLedgerFilters').addEventListener('click', function() {
+    document.getElementById('clearLedgerFilters')?.addEventListener('click', function() {
         document.getElementById('filterType').value = '';
         document.getElementById('filterDateFrom').value = '';
         document.getElementById('filterDateTo').value = '';
@@ -988,7 +996,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updatePrintUrl();
     });
 
-    document.getElementById('ledger-tab').addEventListener('shown.bs.tab', function() {
+    document.getElementById('ledger-tab')?.addEventListener('shown.bs.tab', function() {
         loadLedger(1);
         updatePrintUrl();
     });

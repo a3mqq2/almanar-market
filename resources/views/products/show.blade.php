@@ -126,12 +126,16 @@
                 <i class="ti ti-barcode me-1"></i>طباعة باركود
             </button>
             @endif
+            @if(auth()->user()->hasPermission('products.edit'))
             <button type="button" class="btn btn-outline-warning btn-sm" id="editProductBtn" title="تعديل">
                 <i class="ti ti-edit me-1"></i>تعديل
             </button>
+            @endif
+            @if(auth()->user()->hasPermission('products.delete'))
             <button type="button" class="btn btn-outline-danger btn-sm" id="deleteProductBtn" title="حذف">
                 <i class="ti ti-trash me-1"></i>حذف
             </button>
+            @endif
         </div>
     </div>
 </div>
@@ -145,11 +149,14 @@
                     <i class="ti ti-info-circle me-1"></i>المعلومات
                 </button>
             </li>
+            @if(auth()->user()->hasPermission('products.units_prices'))
             <li class="nav-item">
                 <button class="nav-link" id="units-tab" data-bs-toggle="tab" data-bs-target="#units">
                     <i class="ti ti-ruler me-1"></i>الوحدات والأسعار
                 </button>
             </li>
+            @endif
+            @if(auth()->user()->hasPermission('products.inventory'))
             <li class="nav-item">
                 <button class="nav-link" id="stock-tab" data-bs-toggle="tab" data-bs-target="#stock">
                     <i class="ti ti-packages me-1"></i>المخزون
@@ -160,6 +167,8 @@
                     <i class="ti ti-history me-1"></i>سجل الحركات
                 </button>
             </li>
+            @endif
+            @if(auth()->user()->hasPermission('products.barcodes'))
             <li class="nav-item">
                 <button class="nav-link" id="barcodes-tab" data-bs-toggle="tab" data-bs-target="#barcodes">
                     <i class="ti ti-barcode me-1"></i>الباركودات
@@ -168,6 +177,7 @@
                     @endif
                 </button>
             </li>
+            @endif
         </ul>
     </div>
     <div class="card-body">
@@ -226,6 +236,7 @@
                 </div>
             </div>
 
+            @if(auth()->user()->hasPermission('products.units_prices'))
             <!-- Units Tab -->
             <div class="tab-pane fade" id="units">
                 <form id="unitsForm">
@@ -302,14 +313,19 @@
                 </form>
             </div>
 
+            @endif
+
+            @if(auth()->user()->hasPermission('products.inventory'))
             <!-- Stock Tab (Merged) -->
             <div class="tab-pane fade" id="stock">
                 <!-- Action Buttons -->
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="d-flex gap-2">
+                        @if(auth()->user()->hasPermission('products.purchase'))
                         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#quickPurchaseModal">
                             <i class="ti ti-shopping-cart me-1"></i>شراء
                         </button>
+                        @endif
                         <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addStockModal">
                             <i class="ti ti-plus me-1"></i>إضافة مخزون
                         </button>
@@ -492,6 +508,9 @@
                 </div>
             </div>
 
+            @endif
+
+            @if(auth()->user()->hasPermission('products.barcodes'))
             <!-- Barcodes Tab -->
             <div class="tab-pane fade" id="barcodes">
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -558,10 +577,12 @@
                     </table>
                 </div>
             </div>
+            @endif
         </div>
     </div>
 </div>
 
+@if(auth()->user()->hasPermission('products.inventory'))
 <!-- Add Stock Modal -->
 <div class="modal fade" id="addStockModal" tabindex="-1">
     <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
@@ -702,7 +723,9 @@
         </div>
     </div>
 </div>
+@endif
 
+@if(auth()->user()->hasPermission('products.units_prices'))
 <!-- Create Unit Modal -->
 <div class="modal fade" id="createUnitModal" tabindex="-1">
     <div class="modal-dialog modal-sm modal-fullscreen-sm-down modal-dialog-scrollable">
@@ -732,7 +755,9 @@
         </div>
     </div>
 </div>
+@endif
 
+@if(auth()->user()->hasPermission('products.edit'))
 <div class="modal fade" id="editProductModal" tabindex="-1">
     <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
         <div class="modal-content">
@@ -774,6 +799,7 @@
         </div>
     </div>
 </div>
+@endif
 
 @if($product->barcode)
 <div class="modal fade" id="barcodeLabelModal" tabindex="-1">
@@ -823,6 +849,7 @@
 <div id="printArea" style="display: none;"></div>
 @endif
 
+@if(auth()->user()->hasPermission('products.barcodes'))
 <!-- Add Barcode Modal -->
 <div class="modal fade" id="addBarcodeModal" tabindex="-1">
     <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
@@ -904,6 +931,9 @@
         </div>
     </div>
 </div>
+@endif
+
+@if(auth()->user()->hasPermission('products.purchase'))
 <!-- Quick Purchase Modal -->
 <div class="modal fade" id="quickPurchaseModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-fullscreen-sm-down modal-dialog-scrollable">
@@ -1040,6 +1070,7 @@
         </div>
     </div>
 </div>
+@endif
 
 @endsection
 
@@ -1065,11 +1096,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    document.getElementById('editProductBtn').addEventListener('click', function() {
+    document.getElementById('editProductBtn')?.addEventListener('click', function() {
         new bootstrap.Modal(document.getElementById('editProductModal')).show();
     });
 
-    document.getElementById('editGenerateBarcodeBtn').addEventListener('click', async function() {
+    document.getElementById('editGenerateBarcodeBtn')?.addEventListener('click', async function() {
         try {
             const response = await fetch('{{ route("products.generate-barcode") }}');
             const result = await response.json();
@@ -1083,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    document.getElementById('editProductBarcode').addEventListener('input', function() {
+    document.getElementById('editProductBarcode')?.addEventListener('input', function() {
         clearTimeout(editBarcodeCheckTimeout);
         const barcode = this.value.trim();
 
@@ -1117,7 +1148,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 300);
     });
 
-    document.getElementById('editProductForm').addEventListener('submit', async function(e) {
+    document.getElementById('editProductForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const name = document.getElementById('editProductName').value.trim();
@@ -1165,13 +1196,13 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.innerHTML = '<i class="ti ti-check me-1"></i>حفظ التغييرات';
     });
 
-    document.getElementById('editProductName').addEventListener('input', function() {
+    document.getElementById('editProductName')?.addEventListener('input', function() {
         if (this.value.trim()) {
             this.classList.remove('is-invalid');
         }
     });
 
-    document.getElementById('deleteProductBtn').addEventListener('click', function() {
+    document.getElementById('deleteProductBtn')?.addEventListener('click', function() {
         Swal.fire({
             title: 'تأكيد الحذف',
             html: `هل أنت متأكد من حذف الصنف:<br><strong>{{ $product->name }}</strong>`,
@@ -1253,7 +1284,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('currentStockInput').value = formatted;
     }
 
-    document.getElementById('addStockForm').addEventListener('submit', async function(e) {
+    document.getElementById('addStockForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
         const formData = new FormData(this);
         const data = Object.fromEntries(formData);
@@ -1282,7 +1313,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    document.getElementById('removeStockForm').addEventListener('submit', async function(e) {
+    document.getElementById('removeStockForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
         const formData = new FormData(this);
         const data = Object.fromEntries(formData);
@@ -1311,7 +1342,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    document.getElementById('adjustStockForm').addEventListener('submit', async function(e) {
+    document.getElementById('adjustStockForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
         const formData = new FormData(this);
         const data = Object.fromEntries(formData);
@@ -1436,7 +1467,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    document.getElementById('filterHistoryBtn').addEventListener('click', loadHistory);
+    document.getElementById('filterHistoryBtn')?.addEventListener('click', loadHistory);
 
     async function loadHistory() {
         const type = document.getElementById('filterType').value;
@@ -1489,7 +1520,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return types[type] || type;
     }
 
-    document.getElementById('unitsForm').addEventListener('submit', async function(e) {
+    document.getElementById('unitsForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
         const formData = new FormData(this);
         const units = [];
@@ -1568,7 +1599,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    document.getElementById('unitsTableBody').addEventListener('input', function(e) {
+    document.getElementById('unitsTableBody')?.addEventListener('input', function(e) {
         if (e.target.classList.contains('base-cost')) {
             updateCalculatedCostsAndMargins();
         } else if (e.target.classList.contains('sell-price-input')) {
@@ -1578,7 +1609,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    document.getElementById('addUnitRowBtn').addEventListener('click', function() {
+    document.getElementById('addUnitRowBtn')?.addEventListener('click', function() {
         const tbody = document.getElementById('unitsTableBody');
         const unitOptions = Array.from(document.querySelectorAll('.unit-select')[0].options)
             .map(opt => `<option value="${opt.value}">${opt.text}</option>`)
@@ -1615,13 +1646,13 @@ document.addEventListener('DOMContentLoaded', function() {
         updateCalculatedCostsAndMargins();
     });
 
-    document.getElementById('unitsTableBody').addEventListener('click', function(e) {
+    document.getElementById('unitsTableBody')?.addEventListener('click', function(e) {
         if (e.target.closest('.remove-unit-row')) {
             e.target.closest('.unit-row').remove();
         }
     });
 
-    document.getElementById('createUnitForm').addEventListener('submit', async function(e) {
+    document.getElementById('createUnitForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
         const name = document.getElementById('newUnitName').value.trim();
         const symbol = document.getElementById('newUnitSymbol').value.trim();
@@ -1663,7 +1694,7 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.innerHTML = '<i class="ti ti-check me-1"></i>إضافة';
     });
 
-    document.getElementById('newUnitName').addEventListener('input', function() {
+    document.getElementById('newUnitName')?.addEventListener('input', function() {
         document.getElementById('newUnitSymbol').value = this.value;
     });
 
@@ -1699,15 +1730,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    document.getElementById('labelSize').addEventListener('change', updatePreview);
+    document.getElementById('labelSize')?.addEventListener('change', updatePreview);
 
-    document.getElementById('printBarcodeBtn').addEventListener('click', function() {
+    document.getElementById('printBarcodeBtn')?.addEventListener('click', function() {
         const modal = new bootstrap.Modal(document.getElementById('barcodeLabelModal'));
         modal.show();
         setTimeout(updatePreview, 100);
     });
 
-    document.getElementById('printLabelsBtn').addEventListener('click', function() {
+    document.getElementById('printLabelsBtn')?.addEventListener('click', function() {
         const quantity = parseInt(document.getElementById('labelQuantity').value) || 1;
         const size = document.getElementById('labelSize').value;
         const config = labelSizes[size];
@@ -1807,7 +1838,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let barcodeValid = true;
     let barcodeCheckTimeout = null;
 
-    document.getElementById('generateNewBarcodeBtn').addEventListener('click', async function() {
+    document.getElementById('generateNewBarcodeBtn')?.addEventListener('click', async function() {
         try {
             const response = await fetch('{{ route("products.generate-barcode") }}');
             const result = await response.json();
@@ -1821,7 +1852,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    document.getElementById('newBarcodeValue').addEventListener('input', function() {
+    document.getElementById('newBarcodeValue')?.addEventListener('input', function() {
         clearTimeout(barcodeCheckTimeout);
         const barcode = this.value.trim();
 
@@ -1855,7 +1886,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 300);
     });
 
-    document.getElementById('addBarcodeForm').addEventListener('submit', async function(e) {
+    document.getElementById('addBarcodeForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const barcode = document.getElementById('newBarcodeValue').value.trim();
@@ -1932,7 +1963,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.innerHTML = '<i class="ti ti-plus me-1"></i>إضافة';
     });
 
-    document.getElementById('barcodesTableBody').addEventListener('click', async function(e) {
+    document.getElementById('barcodesTableBody')?.addEventListener('click', async function(e) {
         const editBtn = e.target.closest('.edit-barcode-btn');
         const deleteBtn = e.target.closest('.delete-barcode-btn');
 
@@ -2020,7 +2051,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let editBarcodeCheckTimeoutNew = null;
     let originalEditBarcode = '';
 
-    document.getElementById('generateEditBarcodeBtn').addEventListener('click', async function() {
+    document.getElementById('generateEditBarcodeBtn')?.addEventListener('click', async function() {
         try {
             const response = await fetch('{{ route("products.generate-barcode") }}');
             const result = await response.json();
@@ -2034,7 +2065,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    document.getElementById('editBarcodeValue').addEventListener('input', function() {
+    document.getElementById('editBarcodeValue')?.addEventListener('input', function() {
         clearTimeout(editBarcodeCheckTimeoutNew);
         const barcode = this.value.trim();
 
@@ -2076,7 +2107,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 300);
     });
 
-    document.getElementById('editBarcodeForm').addEventListener('submit', async function(e) {
+    document.getElementById('editBarcodeForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const barcodeId = document.getElementById('editBarcodeId').value;
@@ -2221,16 +2252,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    document.getElementById('showAddSupplierBtn').addEventListener('click', function() {
+    document.getElementById('showAddSupplierBtn')?.addEventListener('click', function() {
         document.getElementById('addSupplierSection').classList.remove('d-none');
         document.getElementById('newSupplierName').focus();
     });
 
-    document.getElementById('hideAddSupplierBtn').addEventListener('click', function() {
+    document.getElementById('hideAddSupplierBtn')?.addEventListener('click', function() {
         document.getElementById('addSupplierSection').classList.add('d-none');
     });
 
-    document.getElementById('saveNewSupplierBtn').addEventListener('click', async function() {
+    document.getElementById('saveNewSupplierBtn')?.addEventListener('click', async function() {
         const name = document.getElementById('newSupplierName').value.trim();
         const phone = document.getElementById('newSupplierPhone').value.trim();
 
@@ -2282,7 +2313,7 @@ document.addEventListener('DOMContentLoaded', function() {
         this.innerHTML = '<i class="ti ti-check"></i>';
     });
 
-    document.getElementById('quickPurchaseForm').addEventListener('submit', async function(e) {
+    document.getElementById('quickPurchaseForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const supplierId = supplierSelect.value;
@@ -2359,7 +2390,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.innerHTML = '<i class="ti ti-check me-1"></i>تأكيد الشراء';
     });
 
-    document.getElementById('quickPurchaseModal').addEventListener('show.bs.modal', function() {
+    document.getElementById('quickPurchaseModal')?.addEventListener('show.bs.modal', function() {
         purchasePaymentType.dispatchEvent(new Event('change'));
         if (purchaseUnit.options.length > 0) {
             const opt = purchaseUnit.options[purchaseUnit.selectedIndex];

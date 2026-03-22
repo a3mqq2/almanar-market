@@ -13,6 +13,8 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable, Syncable;
 
+    protected ?array $permissionsCache = null;
+
     protected $fillable = [
         'name',
         'username',
@@ -52,6 +54,38 @@ class User extends Authenticatable
     public function activityLogs(): HasMany
     {
         return $this->hasMany(UserActivityLog::class);
+    }
+
+    public function permissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'user_permissions')->withTimestamps();
+    }
+
+    public function hasPermission(string $key): bool
+    {
+        if ($this->permissionsCache === null) {
+            $this->permissionsCache = $this->permissions()->pluck('key')->toArray();
+        }
+
+        return in_array($key, $this->permissionsCache);
+    }
+
+    public function hasAnyPermission(array $keys): bool
+    {
+        foreach ($keys as $key) {
+            if ($this->hasPermission($key)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function syncPermissions(array $permissionKeys): void
+    {
+        $permissionIds = Permission::whereIn('key', $permissionKeys)->pluck('id')->toArray();
+        $this->permissions()->sync($permissionIds);
+        $this->permissionsCache = null;
     }
 
     public function isManager(): bool

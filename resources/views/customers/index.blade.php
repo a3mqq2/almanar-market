@@ -121,9 +121,11 @@
             <button type="button" class="btn btn-outline-secondary btn-sm" id="refreshBtn">
                 <i class="ti ti-refresh"></i>
             </button>
+            @if(auth()->user()->hasPermission('customers.create'))
             <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#customerModal" onclick="openCreateModal()">
                 <i class="ti ti-plus me-1"></i>إضافة زبون
             </button>
+            @endif
         </div>
     </div>
     <div class="card-body">

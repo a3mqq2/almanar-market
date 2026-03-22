@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\CheckRole::class,
             'active' => \App\Http\Middleware\CheckUserActive::class,
             'verify.device.token' => \App\Http\Middleware\VerifyDeviceToken::class,
+            'permission' => \App\Http\Middleware\CheckPermission::class,
         ]);
 
         $middleware->web(append: [

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cashbox;
+use App\Models\Permission;
 use App\Models\User;
 use App\Models\UserActivityLog;
 use Illuminate\Http\Request;
@@ -26,13 +27,14 @@ class UserController extends Controller
         ];
 
         $cashboxes = Cashbox::active()->orderBy('name')->get();
+        $permissionsGrouped = Permission::grouped();
 
-        return view('users.index', compact('stats', 'cashboxes'));
+        return view('users.index', compact('stats', 'cashboxes', 'permissionsGrouped'));
     }
 
     protected function getUsersData(Request $request)
     {
-        $query = User::with('cashboxes:id,name');
+        $query = User::with(['cashboxes:id,name', 'permissions:id,key']);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -75,6 +77,7 @@ class UserController extends Controller
                 'status' => $user->status,
                 'status_arabic' => $user->status_arabic,
                 'cashboxes' => $user->cashboxes->map(fn($cb) => ['id' => $cb->id, 'name' => $cb->name]),
+                'permissions' => $user->permissions->pluck('key')->toArray(),
                 'last_login_at' => $user->last_login_at?->format('Y-m-d H:i'),
                 'created_at' => $user->created_at->format('Y-m-d'),
             ];
@@ -95,7 +98,7 @@ class UserController extends Controller
 
     public function show(User $user)
     {
-        $user->load('cashboxes');
+        $user->load(['cashboxes', 'permissions']);
 
         $recentActivity = UserActivityLog::forUser($user->id)
             ->latest('created_at')
@@ -109,8 +112,10 @@ class UserController extends Controller
         ];
 
         $allCashboxes = Cashbox::active()->orderBy('name')->get();
+        $permissionsGrouped = Permission::grouped();
+        $userPermissionKeys = $user->permissions->pluck('key')->toArray();
 
-        return view('users.show', compact('user', 'recentActivity', 'stats', 'allCashboxes'));
+        return view('users.show', compact('user', 'recentActivity', 'stats', 'allCashboxes', 'permissionsGrouped', 'userPermissionKeys'));
     }
 
     public function store(Request $request)
@@ -124,6 +129,8 @@ class UserController extends Controller
             'status' => 'boolean',
             'cashbox_ids' => 'nullable|array',
             'cashbox_ids.*' => 'exists:cashboxes,id',
+            'permission_keys' => 'nullable|array',
+            'permission_keys.*' => 'string',
         ]);
 
         try {
@@ -140,6 +147,10 @@ class UserController extends Controller
 
             if (!empty($validated['cashbox_ids'])) {
                 $user->cashboxes()->sync($validated['cashbox_ids']);
+            }
+
+            if ($user->isManager() && !empty($validated['permission_keys'])) {
+                $user->syncPermissions($validated['permission_keys']);
             }
 
             UserActivityLog::log('user_created', "تم إنشاء مستخدم: {$user->name}", auth()->id(), [
@@ -171,6 +182,8 @@ class UserController extends Controller
             'email' => 'nullable|email|max:255|unique:users,email,' . $user->id,
             'role' => 'required|in:manager,cashier,price_checker',
             'status' => 'boolean',
+            'permission_keys' => 'nullable|array',
+            'permission_keys.*' => 'string',
         ]);
 
         $oldRole = $user->role;
@@ -183,6 +196,14 @@ class UserController extends Controller
             'role' => $validated['role'],
             'status' => $validated['status'] ?? $user->status,
         ]);
+
+        if ($user->isManager() && $request->has('permission_keys')) {
+            $user->syncPermissions($validated['permission_keys'] ?? []);
+        }
+
+        if ($validated['role'] != 'manager') {
+            $user->permissions()->detach();
+        }
 
         if ($oldRole != $user->role) {
             UserActivityLog::log('role_changed', "تم تغيير صلاحية المستخدم {$user->name} من {$oldRole} إلى {$user->role}", auth()->id(), [
@@ -252,6 +273,37 @@ class UserController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تم تغيير كلمة المرور بنجاح',
+        ]);
+    }
+
+    public function assignPermissions(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'permission_keys' => 'nullable|array',
+            'permission_keys.*' => 'string',
+        ]);
+
+        if (!$user->isManager()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'الصلاحيات متاحة فقط لدور المدير',
+            ], 422);
+        }
+
+        $oldPermissions = $user->permissions->pluck('key')->toArray();
+        $newPermissions = $validated['permission_keys'] ?? [];
+
+        $user->syncPermissions($newPermissions);
+
+        UserActivityLog::log('permissions_changed', "تم تغيير صلاحيات المستخدم {$user->name}", auth()->id(), [
+            'target_user_id' => $user->id,
+            'old_permissions' => $oldPermissions,
+            'new_permissions' => $newPermissions,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تحديث الصلاحيات بنجاح',
         ]);
     }
 
