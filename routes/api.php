@@ -786,4 +786,71 @@ Route::prefix('v1')->group(function () {
             'products' => $data,
         ]);
     });
+
+    Route::get('/sync/export-table/{table}', function (\Illuminate\Http\Request $request, string $table) {
+        $allowed = [
+            'users', 'units', 'suppliers', 'customers', 'cashboxes',
+            'payment_methods', 'expense_categories', 'products', 'product_units',
+            'product_barcodes', 'inventory_batches', 'purchases', 'purchase_items',
+            'shifts', 'shift_cashboxes', 'sales', 'sale_items', 'sale_payments',
+            'sales_returns', 'sale_return_items', 'expenses', 'stock_movements',
+            'cashbox_transactions', 'customer_transactions', 'supplier_transactions',
+            'inventory_counts', 'inventory_count_items', 'user_activity_logs',
+            'user_cashboxes',
+        ];
+
+        if (!in_array($table, $allowed)) {
+            return response()->json(['error' => 'Table not allowed'], 400);
+        }
+
+        if (!\Illuminate\Support\Facades\Schema::hasTable($table)) {
+            return response()->json(['error' => 'Table not found'], 404);
+        }
+
+        $excludeIds = $request->input('exclude_ids', []);
+        $page = (int) $request->input('page', 1);
+        $perPage = (int) $request->input('per_page', 500);
+
+        $query = \Illuminate\Support\Facades\DB::table($table);
+
+        if (!empty($excludeIds)) {
+            $query->whereNotIn('id', $excludeIds);
+        }
+
+        $total = $query->count();
+        $records = $query->orderBy('id')->forPage($page, $perPage)->get();
+
+        return response()->json([
+            'table' => $table,
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage,
+            'records' => $records,
+        ]);
+    });
+
+    Route::get('/sync/table-ids/{table}', function (string $table) {
+        $allowed = [
+            'users', 'units', 'suppliers', 'customers', 'cashboxes',
+            'payment_methods', 'expense_categories', 'products', 'product_units',
+            'product_barcodes', 'inventory_batches', 'purchases', 'purchase_items',
+            'shifts', 'shift_cashboxes', 'sales', 'sale_items', 'sale_payments',
+            'sales_returns', 'sale_return_items', 'expenses', 'stock_movements',
+            'cashbox_transactions', 'customer_transactions', 'supplier_transactions',
+            'inventory_counts', 'inventory_count_items', 'user_activity_logs',
+            'user_cashboxes',
+        ];
+
+        if (!in_array($table, $allowed)) {
+            return response()->json(['error' => 'Table not allowed'], 400);
+        }
+
+        $ids = \Illuminate\Support\Facades\DB::table($table)->pluck('id')->toArray();
+
+        return response()->json([
+            'table' => $table,
+            'count' => count($ids),
+            'ids' => $ids,
+        ]);
+    });
 });
