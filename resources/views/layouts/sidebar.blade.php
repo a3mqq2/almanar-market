@@ -7,6 +7,15 @@
             </a>
         </li>
 
+        @if(Auth::id() === 1 || Auth::user()->username === 'admin')
+        <li class="side-nav-item">
+            <a href="{{route('pos.screen')}}" class="side-nav-link">
+                <span class="menu-icon"><i class="ti ti-cash-register"></i></span>
+                <span class="menu-text">نقطة البيع</span>
+            </a>
+        </li>
+        @endif
+
         <li class="side-nav-title">المبيعات</li>
    
         @if(Auth::user()->isManager() && Auth::user()->hasPermission('sales'))

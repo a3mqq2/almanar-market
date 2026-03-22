@@ -179,7 +179,7 @@ Route::middleware('permission:customers')->group(function () {
 });
 
 // POS Routes
-Route::prefix('pos')->name('pos.')->group(function () {
+Route::prefix('pos')->name('pos.')->middleware('auth')->group(function () {
     Route::get('/', [PosController::class, 'screen'])->name('screen');
     Route::get('/search-products', [PosController::class, 'searchProducts'])->name('search-products');
     Route::get('/product-barcode', [PosController::class, 'getProductByBarcode'])->name('product-barcode');
