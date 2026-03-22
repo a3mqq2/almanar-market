@@ -311,8 +311,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     `<span class="product-tag">${esc(i.product_name)} <small class="text-muted">(${num(i.quantity)} ${esc(i.unit_name || '')})</small></span>`
                 ).join('');
 
-                const qtyCell = items.length ? num(items[0].quantity) : '-';
-                const priceCell = items.length ? num(items[0].unit_price) : '-';
+                const qtyCell = items.length === 1
+                    ? num(items[0].quantity)
+                    : (items.length > 1 ? num(items.reduce((s, i) => s + parseFloat(i.quantity), 0)) : '-');
+                const priceCell = items.length === 1 ? num(items[0].unit_price) : '-';
 
                 const payBadge = p.payment_type === 'credit'
                     ? '<span class="badge bg-warning text-dark">آجل</span>'

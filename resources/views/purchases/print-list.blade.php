@@ -298,8 +298,8 @@
                 <td>{{ $p->purchase_date?->format('Y-m-d') }}</td>
                 <td class="text-right">{{ $p->items->first()?->product?->name ?? '-' }}</td>
                 <td>{{ $p->supplier?->name ?? '-' }}</td>
-                <td>{{ $p->items->first() ? number_format($p->items->first()->quantity, 2) : '-' }}</td>
-                <td>{{ $p->items->first() ? number_format($p->items->first()->unit_price, 2) : '-' }}</td>
+                <td>{{ $p->items->count() === 1 ? number_format($p->items->first()->quantity, 2) : ($p->items->count() > 1 ? number_format($p->items->sum('quantity'), 2) : '-') }}</td>
+                <td>{{ $p->items->count() === 1 ? number_format($p->items->first()->unit_price, 2) : '-' }}</td>
                 <td>{{ $p->payment_type === 'credit' ? 'آجل' : 'نقدي' }}</td>
                 <td class="fw-bold">{{ number_format($p->total, 2) }}</td>
                 <td>{{ number_format($p->paid_amount, 2) }}</td>
