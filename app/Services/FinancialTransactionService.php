@@ -42,9 +42,9 @@ class FinancialTransactionService
 
             $cashbox = Cashbox::findOrFail($cashboxId);
 
-            if ($cashbox->current_balance < $paidAmount) {
-                throw new \Exception('رصيد الخزينة غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2));
-            }
+            // if ($cashbox->current_balance < $paidAmount) {
+            //     throw new \Exception('رصيد الخزينة غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2));
+            // }
 
             $result['supplier_credit_transaction'] = $this->createSupplierCredit(
                 $supplier,
@@ -83,9 +83,9 @@ class FinancialTransactionService
     ): array {
         $cashbox = Cashbox::findOrFail($cashboxId);
 
-        if ($cashbox->current_balance < $amount) {
-            throw new \Exception('رصيد الخزينة غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2));
-        }
+        // if ($cashbox->current_balance < $amount) {
+        //     throw new \Exception('رصيد الخزينة غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2));
+        // }
 
         $date = $transactionDate ?? now();
         $desc = $description ?? 'سداد للمورد';
@@ -585,9 +585,9 @@ class FinancialTransactionService
                 if ($return->cashbox_id) {
                     $cashbox = Cashbox::find($return->cashbox_id);
                     if ($cashbox) {
-                        if ($cashbox->current_balance < $return->total_amount) {
-                            throw new \Exception('رصيد الخزينة غير كافٍ للاسترداد');
-                        }
+                        // if ($cashbox->current_balance < $return->total_amount) {
+                        //     throw new \Exception('رصيد الخزينة غير كافٍ للاسترداد');
+                        // }
 
                         $result['cashbox_transaction'] = $this->createCashboxOut(
                             $cashbox,

@@ -22,9 +22,9 @@ class ExpenseService
         return DB::transaction(function () use ($data) {
             $cashbox = Cashbox::findOrFail($data['cashbox_id']);
 
-            if ($cashbox->current_balance < $data['amount']) {
-                throw new \Exception('رصيد الخزينة غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2));
-            }
+            // if ($cashbox->current_balance < $data['amount']) {
+            //     throw new \Exception('رصيد الخزينة غير كافٍ. الرصيد الحالي: ' . number_format($cashbox->current_balance, 2));
+            // }
 
             $expense = Expense::create([
                 'reference_number' => Expense::generateReferenceNumber(),
