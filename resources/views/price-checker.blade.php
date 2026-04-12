@@ -222,7 +222,7 @@
 <body>
     <header class="header">
         <div style="display: flex; align-items: center; gap: 1rem;">
-            <img src="{{ asset('logo-dark.png') }}" alt="Logo" style="height: 40px;">
+            <img src="{{ asset('HULUL ERP.png') }}" alt="Logo" style="height: 40px;">
         </div>
         <div class="d-flex align-items-center gap-3">
             <span class="clock" id="clock"></span>

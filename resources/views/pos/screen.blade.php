@@ -327,11 +327,11 @@
             <div class="d-flex align-items-center gap-3">
                 @if($isManager)
                 <a href="{{ route('dashboard') }}" class="logo">
-                    <img src="{{ asset('logo-dark.png') }}" alt="logo">
+                    <img src="{{ asset('HULUL ERP.png') }}" alt="logo">
                 </a>
                 @else
                 <span class="logo">
-                    <img src="{{ asset('logo-dark.png') }}" alt="logo">
+                    <img src="{{ asset('HULUL ERP.png') }}" alt="logo">
                 </span>
                 @endif
                 <h5 class="mb-0 d-none d-md-block">نقطة البيع</h5>
@@ -1069,7 +1069,7 @@
                     updateTotalDifference();
                 }
             } catch (error) {
-                console.error('Load shift summary error:', error);
+                console.error('Load shift summary error:', error);  
                 document.getElementById('shiftSummaryContent').innerHTML = `
                     <div class="alert alert-danger">
                         <p class="mb-1">حدث خطأ في تحميل الملخص</p>

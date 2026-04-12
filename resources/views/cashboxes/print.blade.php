@@ -274,7 +274,7 @@
 
     <div class="page-header">
         <div class="store-info">
-            <img src="{{ asset('logo-dark.png') }}" alt="المنار ماركت" class="store-logo">
+            <img src="{{ asset('HULUL ERP.png') }}" alt="المنار ماركت" class="store-logo">
             <div class="store-name">{{ config('app.name', 'المنار ماركت') }}</div>
             <div class="store-details">للمواد الغذائية والخضروات والفواكه</div>
         </div>

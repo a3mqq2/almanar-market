@@ -174,7 +174,7 @@
     <button class="print-btn no-print" onclick="window.print()">طباعة</button>
 
     <div class="header">
-        <img src="{{ asset('logo-dark.png') }}" alt="المنار ماركت" class="logo">
+        <img src="{{ asset('HULUL ERP.png') }}" alt="المنار ماركت" class="logo">
         <p>البيضاء - ليبيا</p>
         <p>هاتف: 0916698784</p>
     </div>

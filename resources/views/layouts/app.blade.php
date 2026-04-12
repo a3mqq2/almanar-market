@@ -91,7 +91,7 @@
                             <!-- Logo light -->
                             <a href="{{asset('dashboard')}}" class="logo-light">
                                 <span class="logo-lg">
-                                    <img src="{{asset('logo-dark.png')}}" alt="logo" />
+                                    <img src="{{asset('HULUL ERP.png')}}" alt="logo" />
                                 </span>
                                 <span class="logo-sm">
                                     <img src="{{ asset('assets/images/logo-sm.png') }}" alt="small logo" />
@@ -101,7 +101,7 @@
                             <!-- Logo Dark -->
                             <a href="{{asset('dashboard')}}" class="logo-dark">
                                 <span class="logo-lg">
-                                    <img src="{{asset('logo-dark.png')}}" alt="dark logo" style="height: 100px !important;" />
+                                    <img src="{{asset('HULUL ERP.png')}}" alt="dark logo" style="height: 100px !important;" />
                                 </span>
                                 <span class="logo-sm">
                                     <img src="{{ asset('assets/images/logo-sm.png') }}" alt="small logo" />
@@ -231,9 +231,9 @@
                                     <i class="ti ti-chevron-down align-middle d-none d-lg-inline"></i>
                                 </a>
                                 <div class="dropdown-menu dropdown-menu-end">
-                                    <form method="POST" action="{{ route('logout') }}">
+                                    <form method="POST" action="{{ route('logout') }}" id="logoutForm">
                                         @csrf
-                                        <button type="submit" class="dropdown-item fw-semibold">
+                                        <button type="submit" class="dropdown-item fw-semibold" id="logoutBtn">
                                             <i class="ti ti-logout me-1 fs-lg align-middle"></i>
                                             <span class="align-middle">تسجيل الخروج</span>
                                         </button>
@@ -249,12 +249,12 @@
     <!-- Brand Logo -->
     <a href="{{asset('dashboard')}}" class="logo">
         <span class="logo logo-light">
-            <span class="logo-lg"><img src="{{asset('logo-dark.png')}}" style="height:50px!important;"  alt="logo" /></span>
+            <span class="logo-lg"><img src="{{asset('HULUL ERP.png')}}" style="height:50px!important;"  alt="logo" /></span>
             <span class="logo-sm"><img src="{{ asset('assets/images/logo-sm.png') }}" alt="small logo" /></span>
         </span>
 
         <span class="logo logo-dark">
-            <span class="logo-lg"><img src="{{asset('logo-dark.png')}}" alt="dark logo" style="height: 50px!important;"  /></span>
+            <span class="logo-lg"><img src="{{asset('HULUL ERP.png')}}" alt="dark logo" style="height: 50px!important;"  /></span>
             <span class="logo-sm"><img src="{{asset('assets/images/logo-sm.png')}}" alt="small logo" /></span>
         </span>
     </a>
@@ -924,6 +924,14 @@
         @stack('page-scripts')
 
         @stack('scripts')
+
+        <script>
+            document.getElementById('logoutForm').addEventListener('submit', function() {
+                var btn = document.getElementById('logoutBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span><span class="align-middle">جاري الخروج...</span>';
+            });
+        </script>
 
         @if(config('desktop.mode'))
         <script>

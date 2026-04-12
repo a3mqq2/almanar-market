@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="ar" dir="rtl">
     <head>
@@ -7,194 +6,342 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="csrf-token" content="{{ csrf_token() }}" />
 
-        <!-- App favicon -->
         <link rel="shortcut icon" href="{{ asset('assets/images/logo-sm.png') }}" />
 
-        <!-- IBM Plex Sans Arabic Font (Local) -->
-        <link href="{{ asset('assets/fonts/fonts.css') }}" rel="stylesheet" type="text/css" />
+        <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet" />
 
-        <!-- Theme Config Js -->
-        <script src="{{ asset('assets/js/config.js') }}"></script>
-
-        <!-- Vendor css -->
         <link href="{{ asset('assets/css/vendors.min.css') }}" rel="stylesheet" type="text/css" />
 
-        <!-- App css -->
-        <link href="{{ asset('assets/css/app.min.css') }}" rel="stylesheet" type="text/css" />
-
         <style>
+            :root {
+                --login-bg: #ffffff;
+                --login-text: #1a1a2e;
+                --login-text-secondary: #6b7280;
+                --login-input-bg: #f9fafb;
+                --login-input-border: #e5e7eb;
+                --login-input-focus-border: #4f46e5;
+                --login-btn-bg: #4f46e5;
+                --login-btn-hover: #4338ca;
+                --login-overlay: rgba(15, 15, 35, 0.55);
+            }
+
             * {
-                font-family: 'IBM Plex Sans Arabic', sans-serif !important;
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: 'Almarai', sans-serif !important;
             }
+
             html, body {
+                height: 100%;
                 direction: rtl;
                 text-align: right;
             }
-            input, textarea, select {
+
+            body {
+                display: flex;
+                background: var(--login-bg);
+            }
+
+            .login-wrapper {
+                display: flex;
+                width: 100%;
+                min-height: 100vh;
+            }
+
+            .login-image-side {
+                flex: 1;
+                position: relative;
+                background: url('{{ asset('assets/images/auth.jpg') }}') center/cover no-repeat;
+                display: flex;
+                align-items: flex-end;
+                justify-content: center;
+            }
+
+            .login-image-side::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: var(--login-overlay);
+            }
+
+            .image-content {
+                position: relative;
+                z-index: 1;
+                padding: 48px;
+                color: #fff;
+                text-align: center;
+            }
+
+            .image-content h2 {
+                font-size: 28px;
+                font-weight: 800;
+                margin-bottom: 8px;
+                letter-spacing: -0.3px;
+            }
+
+            .image-content p {
+                font-size: 15px;
+                font-weight: 300;
+                opacity: 0.85;
+            }
+
+            .login-form-side {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 40px;
+                background: var(--login-bg);
+            }
+
+            .login-form-container {
+                width: 100%;
+                max-width: 400px;
+            }
+
+            .login-logo {
+                margin-bottom: 40px;
+                text-align: center;
+            }
+
+            .login-logo img {
+                height: 64px;
+            }
+
+            .login-heading {
+                margin-bottom: 32px;
+            }
+
+            .login-heading h1 {
+                font-size: 24px;
+                font-weight: 800;
+                color: var(--login-text);
+                margin-bottom: 6px;
+            }
+
+            .login-heading p {
+                font-size: 14px;
+                color: var(--login-text-secondary);
+                font-weight: 400;
+            }
+
+            .form-group {
+                margin-bottom: 20px;
+            }
+
+            .form-group label {
+                display: block;
+                font-size: 13px;
+                font-weight: 700;
+                color: var(--login-text);
+                margin-bottom: 6px;
+            }
+
+            .form-group label .required {
+                color: #ef4444;
+                margin-right: 2px;
+            }
+
+            .input-wrapper {
+                position: relative;
+            }
+
+            .input-wrapper i {
+                position: absolute;
+                right: 14px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: var(--login-text-secondary);
+                font-size: 18px;
+                pointer-events: none;
+            }
+
+            .input-wrapper input {
+                width: 100%;
+                padding: 12px 44px 12px 14px;
+                border: 1.5px solid var(--login-input-border);
+                border-radius: 10px;
+                background: var(--login-input-bg);
+                font-size: 14px;
+                font-family: 'Almarai', sans-serif !important;
+                color: var(--login-text);
                 direction: rtl;
                 text-align: right;
+                transition: border-color 0.2s;
+                outline: none;
             }
-            input::placeholder {
+
+            .input-wrapper input::placeholder {
+                color: #9ca3af;
                 text-align: right;
             }
-            .form-control {
-                text-align: right;
+
+            .input-wrapper input:focus {
+                border-color: var(--login-input-focus-border);
+                background: #fff;
             }
-            .form-check {
-                padding-right: 1.5em;
-                padding-left: 0;
+
+            .input-wrapper input.is-invalid {
+                border-color: #ef4444;
             }
-            .form-check .form-check-input {
-                float: right;
-                margin-right: -1.5em;
-                margin-left: 0;
+
+            .invalid-feedback {
+                display: block;
+                font-size: 12px;
+                color: #ef4444;
+                margin-top: 4px;
             }
-            .app-search .app-search-icon {
-                left: auto;
-                right: 12px;
+
+            .remember-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 24px;
             }
-            .app-search input {
-                padding-right: 40px;
-                padding-left: 12px;
+
+            .remember-row input[type="checkbox"] {
+                width: 16px;
+                height: 16px;
+                accent-color: var(--login-btn-bg);
+                cursor: pointer;
+            }
+
+            .remember-row label {
+                font-size: 13px;
+                color: var(--login-text-secondary);
+                cursor: pointer;
+            }
+
+            .login-btn {
+                width: 100%;
+                padding: 13px;
+                border: none;
+                border-radius: 10px;
+                background: var(--login-btn-bg);
+                color: #fff;
+                font-size: 15px;
+                font-weight: 700;
+                font-family: 'Almarai', sans-serif !important;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+
+            .login-btn:hover {
+                background: var(--login-btn-hover);
+            }
+
+            .login-btn:disabled {
+                opacity: 0.7;
+                cursor: not-allowed;
+            }
+
+            .spinner-border {
+                display: inline-block;
+                width: 16px;
+                height: 16px;
+                border: 2px solid rgba(255,255,255,0.3);
+                border-radius: 50%;
+                border-top-color: #fff;
+                animation: spin 0.6s linear infinite;
+                vertical-align: middle;
+                margin-left: 6px;
+            }
+
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+
+            @media (max-width: 991px) {
+                .login-image-side {
+                    display: none;
+                }
+
+                .login-form-side {
+                    padding: 32px 24px;
+                }
             }
         </style>
     </head>
 
     <body>
-        <div class="position-absolute top-0 end-0" style="opacity: 0.12;">
-            <svg width="450" height="450" viewBox="0 0 450 450" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <pattern id="islamicArch1" x="0" y="0" width="150" height="150" patternUnits="userSpaceOnUse">
-                        <!-- Islamic 8-pointed star -->
-                        <polygon points="75,10 85,40 115,40 90,60 100,90 75,72 50,90 60,60 35,40 65,40" fill="none" stroke="#8B6914" stroke-width="1.5"/>
-                        <polygon points="75,10 85,40 115,40 90,60 100,90 75,72 50,90 60,60 35,40 65,40" fill="none" stroke="#8B6914" stroke-width="1.5" transform="rotate(22.5 75 50)"/>
-                        <!-- Dome arch -->
-                        <path d="M20,150 Q20,80 75,50 Q130,80 130,150" fill="none" stroke="#8B6914" stroke-width="2"/>
-                        <path d="M35,150 Q35,95 75,70 Q115,95 115,150" fill="none" stroke="#8B6914" stroke-width="1"/>
-                        <!-- Minaret elements -->
-                        <line x1="0" y1="75" x2="20" y2="75" stroke="#8B6914" stroke-width="1"/>
-                        <line x1="130" y1="75" x2="150" y2="75" stroke="#8B6914" stroke-width="1"/>
-                        <!-- Geometric borders -->
-                        <rect x="5" y="5" width="140" height="140" fill="none" stroke="#8B6914" stroke-width="0.5" rx="5"/>
-                        <!-- Inner decorative circles -->
-                        <circle cx="75" cy="115" r="15" fill="none" stroke="#8B6914" stroke-width="1"/>
-                        <circle cx="75" cy="115" r="8" fill="none" stroke="#8B6914" stroke-width="0.5"/>
-                    </pattern>
-                </defs>
-                <rect width="450" height="450" fill="url(#islamicArch1)"/>
-            </svg>
-        </div>
-        <div class="position-absolute bottom-0 start-0" style="opacity: 0.12; transform: rotate(180deg);">
-            <svg width="450" height="450" viewBox="0 0 450 450" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <pattern id="islamicArch2" x="0" y="0" width="150" height="150" patternUnits="userSpaceOnUse">
-                        <!-- Islamic 8-pointed star -->
-                        <polygon points="75,10 85,40 115,40 90,60 100,90 75,72 50,90 60,60 35,40 65,40" fill="none" stroke="#8B6914" stroke-width="1.5"/>
-                        <polygon points="75,10 85,40 115,40 90,60 100,90 75,72 50,90 60,60 35,40 65,40" fill="none" stroke="#8B6914" stroke-width="1.5" transform="rotate(22.5 75 50)"/>
-                        <!-- Dome arch -->
-                        <path d="M20,150 Q20,80 75,50 Q130,80 130,150" fill="none" stroke="#8B6914" stroke-width="2"/>
-                        <path d="M35,150 Q35,95 75,70 Q115,95 115,150" fill="none" stroke="#8B6914" stroke-width="1"/>
-                        <!-- Minaret elements -->
-                        <line x1="0" y1="75" x2="20" y2="75" stroke="#8B6914" stroke-width="1"/>
-                        <line x1="130" y1="75" x2="150" y2="75" stroke="#8B6914" stroke-width="1"/>
-                        <!-- Geometric borders -->
-                        <rect x="5" y="5" width="140" height="140" fill="none" stroke="#8B6914" stroke-width="0.5" rx="5"/>
-                        <!-- Inner decorative circles -->
-                        <circle cx="75" cy="115" r="15" fill="none" stroke="#8B6914" stroke-width="1"/>
-                        <circle cx="75" cy="115" r="8" fill="none" stroke="#8B6914" stroke-width="0.5"/>
-                    </pattern>
-                </defs>
-                <rect width="450" height="450" fill="url(#islamicArch2)"/>
-            </svg>
-        </div>
-        <div class="auth-box d-flex align-items-center">
-            <div class="container-xxl">
-                <div class="row align-items-center justify-content-center">
-                    <div class="col-xl-10">
-                        <div class="card">
-                            <div class="row justify-content-between g-0">
-                                <div class="col-lg-6">
-                                    <div class="card-body">
-                                        <div class="auth-brand text-center mb-4 position-relative">
-                                            <a href="{{ url('/') }}" class="logo-dark">
-                                                <img src="{{ asset('logo-dark.png') }}" style="height:76px!important;" alt="logo" />
-                                            </a>
-                                            <a href="{{ url('/') }}" class="logo-light">
-                                                <img src="{{ asset('logo-dark.png') }}" style="height: 70px!important;" alt="logo" />
-                                            </a>
-                                            <h4 class="fw-bold text-dark mt-3">مرحباً بك</h4>
-                                            <p class="text-muted">أدخل اسم المستخدم وكلمة المرور للدخول</p>
-                                        </div>
-
-                                        <form method="POST" action="{{ route('login.submit') }}">
-                                            @csrf
-                                            <div class="mb-3">
-                                                <label for="userLogin" class="form-label">
-                                                    اسم المستخدم أو البريد الإلكتروني
-                                                    <span class="text-danger">*</span>
-                                                </label>
-                                                <div class="app-search">
-                                                    <input type="text" class="form-control @error('login') is-invalid @enderror" id="userLogin" name="login" value="{{ old('login') }}" placeholder="username" required autofocus />
-                                                    <i class="ti ti-user app-search-icon text-muted"></i>
-                                                </div>
-                                                @error('login')
-                                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                                @enderror
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <label for="userPassword" class="form-label">
-                                                    كلمة المرور
-                                                    <span class="text-danger">*</span>
-                                                </label>
-                                                <div class="app-search">
-                                                    <input type="password" class="form-control @error('password') is-invalid @enderror" id="userPassword" name="password" placeholder="••••••••" required />
-                                                    <i class="ti ti-lock-password app-search-icon text-muted"></i>
-                                                </div>
-                                                @error('password')
-                                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                                @enderror
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <div class="form-check">
-                                                    <input class="form-check-input form-check-input-light fs-14" type="checkbox" id="rememberMe" name="remember" />
-                                                    <label class="form-check-label" for="rememberMe">تذكرني</label>
-                                                </div>
-                                            </div>
-
-                                            <div class="d-grid">
-                                                <button type="submit" class="btn btn-primary fw-semibold py-2" id="loginBtn">دخول</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-
-                                <div class="col-lg-6 d-none d-lg-block">
-                                    <div class="h-100 position-relative card-side-img rounded-end overflow-hidden" style="background-image: url({{ asset('assets/images/auth.jpg') }})">
-                                        <div class="p-4 card-img-overlay rounded-end auth-overlay d-flex align-items-end justify-content-center"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+        <div class="login-wrapper">
+            <div class="login-form-side">
+                <div class="login-form-container">
+                    <div class="login-logo">
+                        <a href="{{ url('/') }}">
+                            <img src="{{ asset('HULUL ERP.png') }}" alt="logo" />
+                        </a>
                     </div>
+
+                    <div class="login-heading">
+                        <h1>مرحباً بك</h1>
+                        <p>أدخل بيانات الدخول للمتابعة</p>
+                    </div>
+
+                    <form method="POST" action="{{ route('login.submit') }}">
+                        @csrf
+                        <div class="form-group">
+                            <label for="userLogin">
+                                اسم المستخدم
+                                <span class="required">*</span>
+                            </label>
+                            <div class="input-wrapper">
+                                <i class="ti ti-user"></i>
+                                <input type="text" class="@error('login') is-invalid @enderror" id="userLogin" name="login" value="{{ old('login') }}" placeholder="username" required autofocus />
+                            </div>
+                            @error('login')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="form-group">
+                            <label for="userPassword">
+                                كلمة المرور
+                                <span class="required">*</span>
+                            </label>
+                            <div class="input-wrapper">
+                                <i class="ti ti-lock"></i>
+                                <input type="password" class="@error('password') is-invalid @enderror" id="userPassword" name="password" placeholder="••••••••" required />
+                            </div>
+                            @error('password')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="remember-row">
+                            <input type="checkbox" id="rememberMe" name="remember" />
+                            <label for="rememberMe">تذكرني</label>
+                        </div>
+
+                        <button type="submit" class="login-btn" id="loginBtn">دخول</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="login-image-side">
+                <div class="image-content">
+                    <h2>نظام حلول لإدارة الأعمال</h2>
+                    <p>إدارة متكاملة للمبيعات والمخزون والحسابات</p>
                 </div>
             </div>
         </div>
 
-        <!-- Vendor js -->
         <script src="{{ asset('assets/js/vendors.min.js') }}"></script>
 
-        <!-- App js -->
-        <script src="{{ asset('assets/js/app.js') }}"></script>
-
         <script>
+            document.getElementById('userLogin').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('userPassword').focus();
+                }
+            });
+
             document.querySelector('form').addEventListener('submit', function() {
-                const btn = document.getElementById('loginBtn');
+                var btn = document.getElementById('loginBtn');
                 btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الدخول...';
+                btn.innerHTML = '<span class="spinner-border"></span>جاري الدخول...';
             });
         </script>
-
     </body>
 </html>
